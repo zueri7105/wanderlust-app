@@ -151,6 +151,10 @@ export default function App() {
       } catch {
         document.documentElement.classList.remove('dark');
       }
+      // Right-to-left layout for Arabic
+      const lang = localStorage.getItem('wanderlust_app_lang') || 'en';
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      document.documentElement.lang = lang;
     };
     const onSettingsChanged = () => {
       applyTheme();
@@ -267,12 +271,24 @@ export default function App() {
     );
   };
 
+  const handleDeleteItinerary = (id: string) => {
+    setItineraries((prev) => prev.filter((it) => it.id !== id));
+  };
+
   const handleAddSoloExpense = (expense: Omit<SoloPersonalExpense, 'id'>) => {
     const newExpense: SoloPersonalExpense = {
       ...expense,
       id: `solo_exp_${Date.now()}`
     };
     setSoloExpenses((prev) => [newExpense, ...prev]);
+  };
+
+  const handleDeleteSoloExpense = (id: string) => {
+    setSoloExpenses((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const handleDeleteSharedExpense = (id: string) => {
+    setSharedExpenses((prev) => prev.filter((e) => e.id !== id));
   };
 
   const handleAddSharedExpense = (expenseData: Omit<ExpenseItem, 'id' | 'settled'>) => {
@@ -502,6 +518,7 @@ export default function App() {
             currentUser={currentUser}
             onAddItinerary={handleAddItinerary}
             onUpdateItinerary={handleUpdateItinerary}
+            onDeleteItinerary={handleDeleteItinerary}
             onGoToCompanions={(dest) => {
               setSelectedDestination(dest);
               setActiveTab('matcher');
@@ -595,6 +612,7 @@ export default function App() {
             onLeaveActivity={handleLeaveActivity}
             onOpenActivityChat={(activityId) => setActiveChatActivityId(activityId)}
             onCreateNewActivity={handleCreateNewActivity}
+            onDeleteActivity={(id) => setActivities((prev) => prev.filter((a) => a.id !== id))}
           />
         )}
 
@@ -607,6 +625,8 @@ export default function App() {
             selectedDestination={selectedDestination}
             onAddSoloExpense={handleAddSoloExpense}
             onAddSharedExpense={handleAddSharedExpense}
+            onDeleteSoloExpense={handleDeleteSoloExpense}
+            onDeleteSharedExpense={handleDeleteSharedExpense}
             onToggleSharedSettled={handleToggleSharedSettled}
           />
         )}

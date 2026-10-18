@@ -3,7 +3,7 @@
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
-  language: 'en' | 'es' | 'zh' | 'ja' | 'fr' | 'de';
+  language: 'en' | 'es' | 'zh' | 'ja' | 'fr' | 'de' | 'ko' | 'pt' | 'ar' | 'ru';
   unitSystem: 'metric' | 'imperial';
   femaleSafetyPriority: boolean;
   anonymousMode: boolean;

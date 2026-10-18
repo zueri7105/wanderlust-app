@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getTranslation } from '../utils/i18n';
 import { haversineKm, formatDistance, estimateFlightTime } from '../utils/units';
 import { SoloTraveler, TravelMemory } from '../types/travel';
-import worldMapImg from '../assets/images/world_map_vibrant.jpg';
+import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   MapPin,
   Share2,
@@ -19,7 +21,12 @@ import {
   ImagePlus,
   ZoomIn,
   ZoomOut,
-  Maximize
+  Pencil,
+  Check,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  LocateFixed
 } from 'lucide-react';
 
 interface TravelMapMemoriesViewProps {
@@ -29,26 +36,32 @@ interface TravelMapMemoriesViewProps {
   onGoToItinerary: (destination: string) => void;
 }
 
-/**
- * Real latitude/longitude → percentage position on the world map artwork.
- * The base equirectangular projection (x = (lng+180)/3.6, y = (90-lat)/1.8) is
- * affine-calibrated to the artwork's framing, which carries slight ocean padding.
- */
-const project = (lat: number, lng: number) => {
-  const rawX = (lng + 180) / 3.6;
-  const rawY = (90 - lat) / 1.8;
-  return { x: 1.054 * rawX - 9, y: 0.98 * rawY + 12.4 };
-};
-
 const CITY_GEO: Record<string, { lat: number; lng: number }> = {
   kyoto: { lat: 35.0116, lng: 135.7681 },
   tokyo: { lat: 35.6762, lng: 139.6503 },
   dubrovnik: { lat: 42.6507, lng: 18.0944 },
   barcelona: { lat: 41.3874, lng: 2.1686 },
   oaxaca: { lat: 17.0732, lng: -96.7266 },
+  'amalfi coast': { lat: 40.6281, lng: 14.485 },
   amalfi: { lat: 40.6281, lng: 14.485 },
   melbourne: { lat: -37.8136, lng: 144.9631 },
-  reykjavik: { lat: 64.1466, lng: -21.9426 }
+  reykjavik: { lat: 64.1466, lng: -21.9426 },
+  marrakech: { lat: 31.6295, lng: -7.9811 },
+  bangkok: { lat: 13.7563, lng: 100.5018 },
+  'mexico city': { lat: 19.4326, lng: -99.1332 },
+  lisbon: { lat: 38.7223, lng: -9.1393 },
+  seoul: { lat: 37.5665, lng: 126.978 },
+  paris: { lat: 48.8566, lng: 2.3522 },
+  london: { lat: 51.5072, lng: -0.1276 },
+  'new york': { lat: 40.7128, lng: -74.006 },
+  bali: { lat: -8.3405, lng: 115.092 },
+  cairo: { lat: 30.0444, lng: 31.2357 },
+  cusco: { lat: -13.532, lng: -71.9675 },
+  sydney: { lat: -33.8688, lng: 151.2093 },
+  queenstown: { lat: -45.0312, lng: 168.6626 },
+  berlin: { lat: 52.52, lng: 13.405 },
+  madrid: { lat: 40.4168, lng: -3.7038 },
+  seville: { lat: 37.3891, lng: -5.9845 }
 };
 
 const geoFor = (city: string) => CITY_GEO[city.trim().toLowerCase()];
@@ -62,8 +75,6 @@ interface TravelerPin {
   destination: string;
   lat: number;
   lng: number;
-  x: number;
-  y: number;
   isMe: boolean;
   color: string;
 }
@@ -77,8 +88,7 @@ const mkPin = (
   color: string
 ): TravelerPin => {
   const g = CITY_GEO[cityKey];
-  const p = project(g.lat, g.lng);
-  return { id, name, destination: destinationLabel, lat: g.lat, lng: g.lng, x: p.x, y: p.y, isMe, color };
+  return { id, name, destination: destinationLabel, lat: g.lat, lng: g.lng, isMe, color };
 };
 
 const MAP_TRAVELER_PINS: TravelerPin[] = [
@@ -92,15 +102,34 @@ const MAP_TRAVELER_PINS: TravelerPin[] = [
   mkPin('user_alex', 'Alex', 'reykjavik', 'Reykjavik, Iceland', false, '#06b6d4')
 ];
 
+// Demo trail dots — shown for confirmed companions only (they chose to share)
+const COMPANION_TRAILS: Record<string, { lat: number; lng: number; label: string; status: 'Visited' | 'Dream Next' }[]> = {
+  user_kenji: [
+    { lat: 34.6937, lng: 135.5023, label: 'Osaka, Japan', status: 'Visited' },
+    { lat: -8.3405, lng: 115.092, label: 'Bali, Indonesia', status: 'Dream Next' }
+  ],
+  user_maya: [
+    { lat: 49.2827, lng: -123.1207, label: 'Vancouver, Canada', status: 'Visited' },
+    { lat: 20.6597, lng: -103.3496, label: 'Guadalajara, Mexico', status: 'Visited' }
+  ]
+};
+
 const U = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
 const DEFAULT_MEMORY_PHOTO = U('photo-1507525428034-b723cf961d3e');
+
+/** Old % coordinates on the artwork → approximate real lat/lng (inverse of the old projection). */
+const legacyPercentToLatLng = (x: number, y: number) => {
+  const rawX = (x + 9) / 1.054;
+  const rawY = (y - 12.4) / 0.98;
+  return { lat: 90 - rawY * 1.8, lng: rawX * 3.6 - 180 };
+};
 
 const INITIAL_MEMORIES: TravelMemory[] = [
   {
     id: 'mem_kyoto_1',
     destination: 'Kyoto',
     country: 'Japan',
-    coordinates: project(CITY_GEO.kyoto.lat, CITY_GEO.kyoto.lng),
+    coordinates: { x: 0, y: 0, lat: CITY_GEO.kyoto.lat, lng: CITY_GEO.kyoto.lng },
     date: 'Oct 2026',
     photos: [
       U('photo-1493976040374-85c8e12f0c0e'),
@@ -115,7 +144,7 @@ const INITIAL_MEMORIES: TravelMemory[] = [
     id: 'mem_dubrovnik_1',
     destination: 'Dubrovnik',
     country: 'Croatia',
-    coordinates: project(CITY_GEO.dubrovnik.lat, CITY_GEO.dubrovnik.lng),
+    coordinates: { x: 0, y: 0, lat: CITY_GEO.dubrovnik.lat, lng: CITY_GEO.dubrovnik.lng },
     date: 'Sep 2026',
     photos: [
       U('photo-1533105079780-92b9be482077'),
@@ -130,7 +159,7 @@ const INITIAL_MEMORIES: TravelMemory[] = [
     id: 'mem_oaxaca_1',
     destination: 'Oaxaca',
     country: 'Mexico',
-    coordinates: project(CITY_GEO.oaxaca.lat, CITY_GEO.oaxaca.lng),
+    coordinates: { x: 0, y: 0, lat: CITY_GEO.oaxaca.lat, lng: CITY_GEO.oaxaca.lng },
     date: 'Aug 2026',
     photos: [
       U('photo-1518638150340-f706e86654de'),
@@ -145,7 +174,7 @@ const INITIAL_MEMORIES: TravelMemory[] = [
     id: 'mem_amalfi_1',
     destination: 'Amalfi Coast',
     country: 'Italy',
-    coordinates: project(CITY_GEO.amalfi.lat, CITY_GEO.amalfi.lng),
+    coordinates: { x: 0, y: 0, lat: CITY_GEO.amalfi.lat, lng: CITY_GEO.amalfi.lng },
     date: 'Jul 2026',
     photos: [
       U('photo-1516483638261-f4dbaf036963'),
@@ -160,7 +189,7 @@ const INITIAL_MEMORIES: TravelMemory[] = [
     id: 'mem_barcelona_1',
     destination: 'Barcelona',
     country: 'Spain',
-    coordinates: project(CITY_GEO.barcelona.lat, CITY_GEO.barcelona.lng),
+    coordinates: { x: 0, y: 0, lat: CITY_GEO.barcelona.lat, lng: CITY_GEO.barcelona.lng },
     date: 'Planned May 2027',
     photos: [
       U('photo-1539037116277-4db20889f2d4'),
@@ -179,15 +208,64 @@ const STATUS_STYLES: Record<TravelMemory['status'], { dot: string; badge: string
   'Dream Next': { dot: '#f59e0b', badge: 'bg-amber-500 text-white' }
 };
 
-/** Migrate legacy single-photo memories (photoUrl) to the multi-photo shape. */
+type MapPrivacy = 'everyone' | 'companions' | 'current';
+
+/** Migrate legacy memories: single-photo shape → multi-photo, % coords → lat/lng. */
 const migrateMemories = (raw: unknown): TravelMemory[] => {
   if (!Array.isArray(raw)) return INITIAL_MEMORIES;
-  return raw.map((m: any) => ({
-    ...m,
-    photos: Array.isArray(m?.photos) && m.photos.length > 0
-      ? m.photos
-      : [m?.photoUrl || DEFAULT_MEMORY_PHOTO]
-  }));
+  return raw.map((m: any) => {
+    let coords = m?.coordinates || {};
+    if (typeof coords.lat !== 'number' || typeof coords.lng !== 'number') {
+      const known = geoFor(m?.destination || '');
+      if (known) coords = { x: 0, y: 0, ...known };
+      else if (typeof coords.x === 'number') coords = { ...coords, ...legacyPercentToLatLng(coords.x, coords.y) };
+      else coords = { x: 0, y: 0, lat: 20, lng: 0 };
+    }
+    return {
+      ...m,
+      coordinates: coords,
+      photos: Array.isArray(m?.photos) && m.photos.length > 0 ? m.photos : [m?.photoUrl || DEFAULT_MEMORY_PHOTO]
+    };
+  });
+};
+
+/** Round avatar pin rendered as a Leaflet divIcon — stays glued to its lat/lng at every zoom. */
+const avatarIcon = (url: string, color: string, isSelected: boolean, isMe: boolean) =>
+  L.divIcon({
+    className: 'wl-pin',
+    iconSize: [52, 52],
+    iconAnchor: [26, 26],
+    html: `<div style="
+      width:${isSelected ? 52 : 44}px;height:${isSelected ? 52 : 44}px;border-radius:9999px;
+      border:3px solid #fff;outline:3px solid ${color};overflow:hidden;background:#fff;
+      box-shadow:0 8px 20px -6px ${color}aa;transition:all .2s ease;position:relative;">
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover;" draggable="false"/>
+      ${isMe ? `<span style="position:absolute;inset:-6px;border-radius:9999px;border:2px solid ${color};opacity:.55;animation:wl-ping 1.6s cubic-bezier(0,0,.2,1) infinite;"></span>` : ''}
+    </div>`
+  });
+
+/** Smoothly flies the map when the selected pin changes. */
+const MapFlyer: React.FC<{ target: { lat: number; lng: number } | null }> = ({ target }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 4), { duration: 0.9 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.lat, target?.lng]);
+  return null;
+};
+
+/** Keeps map zoom state in React for the zoom pill. */
+const ZoomWatcher: React.FC<{ onZoom: (z: number) => void }> = ({ onZoom }) => {
+  const map = useMap();
+  useEffect(() => {
+    const cb = () => onZoom(map.getZoom());
+    map.on('zoomend', cb);
+    cb();
+    return () => {
+      map.off('zoomend', cb);
+    };
+  }, [map, onZoom]);
+  return null;
 };
 
 export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
@@ -211,87 +289,28 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [shareCopied, setShareCopied] = useState(false);
   const [isAddMemoryModalOpen, setIsAddMemoryModalOpen] = useState(false);
   const [photoIdx, setPhotoIdx] = useState<Record<string, number>>({});
+  const [mapZoom, setMapZoom] = useState(2.2);
 
-  // ── Map zoom & pan ──────────────────────────────────────────────
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const mapRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
-  const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
-  const dragMovedRef = useRef(false);
+  // Pin visibility options (the red/green/visited/dream layer toggles)
+  const [pinLayers, setPinLayers] = useState({ travelers: true, current: true, visited: true, dream: true });
 
-  const clampPan = (z: number, x: number, y: number) => {
-    const el = mapRef.current;
-    if (!el) return { x, y };
-    const maxX = (el.clientWidth * (z - 1)) / 2;
-    const maxY = (el.clientHeight * (z - 1)) / 2;
-    return { x: Math.min(maxX, Math.max(-maxX, x)), y: Math.min(maxY, Math.max(-maxY, y)) };
-  };
-
-  const applyZoom = (next: number) => {
-    const z = Math.min(4, Math.max(1, Math.round(next * 100) / 100));
-    setZoom(z);
-    setPan((p) => (z === 1 ? { x: 0, y: 0 } : clampPan(z, p.x, p.y)));
-  };
-
-  // Non-passive wheel zoom (React's onWheel can't preventDefault)
+  // Map privacy: what OTHER people can see of my dots
+  const [mapPrivacy, setMapPrivacy] = useState<MapPrivacy>(() => {
+    return (localStorage.getItem('wanderlust_map_privacy') as MapPrivacy) || 'companions';
+  });
   useEffect(() => {
-    const el = mapRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      applyZoom(zoomRef.current + (e.deltaY < 0 ? 0.4 : -0.4));
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    localStorage.setItem('wanderlust_map_privacy', mapPrivacy);
+  }, [mapPrivacy]);
 
-  const zoomRef = useRef(1);
-  zoomRef.current = zoom;
+  // Photo lightbox (tap photo → pop up, zoom in/out, click outside to close)
+  const [lightbox, setLightbox] = useState<{ photos: string[]; idx: number; title: string } | null>(null);
+  const [lbZoom, setLbZoom] = useState(1);
+  const [lbPan, setLbPan] = useState({ x: 0, y: 0 });
+  const lbDragRef = useRef<{ sx: number; sy: number; px: number; py: number; moved: boolean } | null>(null);
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    dragRef.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
-    dragMovedRef.current = false;
-    setIsDragging(true);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = dragRef.current;
-    if (!d) return;
-    const dx = e.clientX - d.startX;
-    const dy = e.clientY - d.startY;
-    if (Math.hypot(dx, dy) > 5) dragMovedRef.current = true;
-    setPan(clampPan(zoom, d.panX + dx, d.panY + dy));
-  };
-
-  const handlePointerEnd = () => {
-    dragRef.current = null;
-    pinchRef.current = null;
-    setIsDragging(false);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      pinchRef.current = { dist: Math.hypot(dx, dy), zoom };
-      dragRef.current = null;
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    const p = pinchRef.current;
-    if (e.touches.length === 2 && p) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.hypot(dx, dy);
-      if (p.dist > 0) applyZoom(p.zoom * (dist / p.dist));
-    }
-  };
-  // ────────────────────────────────────────────────────────────────
+  // Memory note inline editing
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editNoteText, setEditNoteText] = useState('');
 
   // New Memory Form State
   const [newCity, setNewCity] = useState('');
@@ -308,22 +327,36 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   };
 
   const handleShareLocation = () => {
-    const shareText = `📍 Elena's Live Travel Location: Kyoto, Japan · Safe & Active · Shared with confirmed companions via WanderLust`;
-    if (navigator.clipboard) {
+    const shareText = `📍 ${currentUser.name}'s Live Travel Location: ${MY_DESTINATION} · Safe & Active · Shared via WanderLust`;
+    if (navigator.share) {
+      navigator.share({ title: 'WanderLust Location', text: shareText }).catch(() => {});
+    } else if (navigator.clipboard) {
       navigator.clipboard.writeText(shareText);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
     }
-    setShareCopied(true);
-    setTimeout(() => setShareCopied(false), 2500);
+  };
+
+  const handleShareMemory = (mem: TravelMemory) => {
+    const text = `${mem.destination}, ${mem.country} (${mem.date}) — ${mem.memoryNote} · via WanderLust`;
+    const payload = { title: `${mem.destination} Memory`, text, url: mem.photos[0] };
+    if (navigator.share) {
+      navigator.share(payload).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(`${text} ${payload.url}`);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
+    }
   };
 
   const handleCreateMemory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCity || !newCountry) return;
 
-    const geo = geoFor(newCity);
+    const geo = geoFor(newCity) || geoFor(newCountry);
     const coords = geo
-      ? project(geo.lat, geo.lng)
-      : { x: Math.floor(Math.random() * 60) + 20, y: Math.floor(Math.random() * 40) + 25 };
+      ? { x: 0, y: 0, lat: geo.lat, lng: geo.lng }
+      : { x: 0, y: 0, lat: 10 + Math.random() * 40, lng: -20 + Math.random() * 80 };
 
     const photos = newPhotos.map((p) => p.trim()).filter(Boolean);
 
@@ -354,12 +387,51 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     saveMemories(memories.filter((m) => m.id !== id));
   };
 
+  const handleSaveNote = (id: string) => {
+    saveMemories(memories.map((m) => (m.id === id ? { ...m, memoryNote: editNoteText } : m)));
+    setEditingNoteId(null);
+  };
+
   const stepPhoto = (memId: string, total: number, dir: 1 | -1) => {
     setPhotoIdx((prev) => {
       const cur = prev[memId] || 0;
       return { ...prev, [memId]: (cur + dir + total) % total };
     });
   };
+
+  const openLightbox = (photos: string[], idx: number, title: string) => {
+    setLightbox({ photos, idx, title });
+    setLbZoom(1);
+    setLbPan({ x: 0, y: 0 });
+  };
+
+  const lbStep = (dir: 1 | -1) => {
+    setLightbox((lb) => (lb ? { ...lb, idx: (lb.idx + dir + lb.photos.length) % lb.photos.length } : lb));
+    setLbZoom(1);
+    setLbPan({ x: 0, y: 0 });
+  };
+
+  const lbApplyZoom = (next: number) => {
+    const z = Math.min(4, Math.max(1, next));
+    setLbZoom(z);
+    if (z === 1) setLbPan({ x: 0, y: 0 });
+  };
+
+  // Lightbox wheel zoom
+  const lbRef = useRef<HTMLDivElement>(null);
+  const lbZoomRef = useRef(1);
+  lbZoomRef.current = lbZoom;
+  useEffect(() => {
+    const el = lbRef.current;
+    if (!el || !lightbox) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      lbApplyZoom(lbZoomRef.current + (e.deltaY < 0 ? 0.25 : -0.25));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightbox]);
 
   const filteredMemories = memories.filter((m) => {
     if (activeFilter === 'all') return true;
@@ -374,40 +446,35 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const activePinTraveler = getTravelerById(selectedPinId);
   const activePinInfo = MAP_TRAVELER_PINS.find((p) => p.id === selectedPinId) || MAP_TRAVELER_PINS[0];
   const myPin = MAP_TRAVELER_PINS[0];
+  const isActiveConfirmed = !!activePinTraveler.isConfirmedBuddy && !activePinInfo.isMe;
 
   // Real great-circle distance between You and the selected traveler
   const distanceKm = !activePinInfo.isMe
     ? haversineKm(MY_GEO.lat, MY_GEO.lng, activePinInfo.lat, activePinInfo.lng)
     : null;
 
-  // Flight arc (SVG viewBox is 100x100 so coords == percentages)
-  const arcPath = (() => {
-    if (activePinInfo.isMe) return '';
-    const a = myPin;
-    const b = activePinInfo;
-    const mx = (a.x + b.x) / 2;
-    const cy = Math.max(2, Math.min(a.y, b.y) - 7 - Math.abs(a.x - b.x) / 22);
-    return `M ${a.x} ${a.y} Q ${mx} ${cy} ${b.x} ${b.y}`;
-  })();
+  // Which of MY memory dots render depends on the layer toggles
+  const visibleMemoryDots = memories.filter((m) => {
+    if (m.status === 'Visited') return pinLayers.visited;
+    if (m.status === 'Dream Next') return pinLayers.dream;
+    return pinLayers.current;
+  });
 
-  const arcMid = (() => {
-    if (activePinInfo.isMe) return null;
-    const a = myPin;
-    const b = activePinInfo;
-    const mx = (a.x + b.x) / 2;
-    const cy = Math.max(2, Math.min(a.y, b.y) - 7 - Math.abs(a.x - b.x) / 22);
-    // Quadratic bezier point at t=0.35 — biased toward "You" so the chip
-    // floats over open ocean instead of colliding with other pins
-    const t = 0.35;
-    const u = 1 - t;
-    return {
-      x: u * u * a.x + 2 * u * t * mx + t * t * b.x,
-      y: u * u * a.y + 2 * u * t * cy + t * t * b.y
-    };
-  })();
+  const pinIcons = useMemo(() => {
+    const map: Record<string, L.DivIcon> = {};
+    MAP_TRAVELER_PINS.forEach((pin) => {
+      const traveler = getTravelerById(pin.id);
+      map[pin.id] = avatarIcon(traveler.avatar, pin.color, pin.id === selectedPinId, pin.isMe);
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPinId, travelers, currentUser]);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Leaflet pin pulse keyframes */}
+      <style>{`@keyframes wl-ping{0%{transform:scale(1);opacity:.6}80%,100%{transform:scale(1.6);opacity:0}} .wl-pin{background:transparent;border:none;} .leaflet-container{font-family:inherit;}`}</style>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
@@ -446,8 +513,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
       {/* Map Card */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
-        {/* Map Top Bar */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-rose-50/70 via-orange-50/50 to-amber-50/70 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        {/* Map Top Bar: live counter + layer toggles */}
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-rose-50/70 via-orange-50/50 to-amber-50/70 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -458,231 +525,124 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             </span>
           </div>
 
-          {/* Legend */}
-          <div className="flex items-center gap-3 flex-wrap text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-rose-500" /> Travelers
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" /> Current
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-sky-600" /> Visited
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-500" /> Dream Next
-            </span>
+          {/* Layer toggles — tap to show/hide each dot type */}
+          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-semibold">
+            {([
+              ['travelers', 'bg-rose-500', 'Travelers'],
+              ['current', 'bg-emerald-500', 'Current'],
+              ['visited', 'bg-sky-600', 'Visited'],
+              ['dream', 'bg-amber-500', 'Dream Next']
+            ] as const).map(([key, dotClass, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setPinLayers((p) => ({ ...p, [key]: !p[key] }))}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all cursor-pointer ${
+                  pinLayers[key]
+                    ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-400 line-through'
+                }`}
+                title={`Show / hide ${label} pins`}
+              >
+                <span className={`w-2 h-2 rounded-full ${dotClass} ${pinLayers[key] ? '' : 'opacity-30'}`} />
+                {label}
+                {pinLayers[key] ? <Eye className="w-3 h-3 text-slate-400" /> : <EyeOff className="w-3 h-3 text-slate-400" />}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Interactive World Map Canvas (zoom, pan & pinch supported) */}
-        <div
-          ref={mapRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerEnd}
-          onPointerCancel={handlePointerEnd}
-          onPointerLeave={handlePointerEnd}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handlePointerEnd}
-          className={`relative w-full h-[26rem] sm:h-[30rem] overflow-hidden select-none bg-[#FDF3E3] ${
-            isDragging ? 'cursor-grabbing' : zoom > 1 ? 'cursor-grab' : 'cursor-default'
-          }`}
-          style={{ touchAction: 'none' }}
-        >
-          {/* Zoomable map layer (image + pins + routes all scale together) */}
-          <div
-            className="absolute inset-0 will-change-transform"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: 'center center',
-              transition: isDragging ? 'none' : 'transform 160ms ease-out'
-            }}
+        {/* Interactive real world map (OpenStreetMap/CARTO tiles — zoom & pan native) */}
+        <div className="relative w-full h-[26rem] sm:h-[30rem] z-0">
+          <MapContainer
+            center={[30, 15]}
+            zoom={2.2}
+            minZoom={2}
+            maxZoom={16}
+            worldCopyJump
+            zoomControl={false}
+            attributionControl={false}
+            className="w-full h-full"
+            style={{ background: '#dbeafe' }}
           >
-            <img
-              src={worldMapImg}
-              alt="Colorful world map"
-              draggable={false}
-              className="absolute inset-0 w-full h-full object-fill dark:brightness-90 dark:saturate-90 pointer-events-none"
+            <TileLayer
+              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              maxZoom={19}
             />
+            <ZoomWatcher onZoom={setMapZoom} />
+            <MapFlyer target={activePinInfo} />
 
-          {/* Memory journal dots */}
-          {memories.map((mem) => (
-            <div
-              key={`dot-${mem.id}`}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
-              style={{ left: `${mem.coordinates.x}%`, top: `${mem.coordinates.y}%` }}
-              title={`${mem.destination}, ${mem.country}`}
-            >
-              <span
-                className="block w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-md"
-                style={{
-                  backgroundColor: STATUS_STYLES[mem.status].dot,
-                  transform: `scale(${1 / zoom})`
-                }}
+            {/* Flight arc You → selected traveler */}
+            {!activePinInfo.isMe && (
+              <Polyline
+                positions={[
+                  [myPin.lat, myPin.lng],
+                  [activePinInfo.lat, activePinInfo.lng]
+                ]}
+                pathOptions={{ color: activePinInfo.color, weight: 2.5, dashArray: '6 8', opacity: 0.85 }}
               />
-            </div>
-          ))}
-
-          {/* Flight arc from You → selected traveler */}
-          {!activePinInfo.isMe && (
-            <svg
-              className="absolute inset-0 w-full h-full pointer-events-none z-10"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-            >
-              <defs>
-                <linearGradient id="routeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#f43f5e" />
-                  <stop offset="100%" stopColor={activePinInfo.color} />
-                </linearGradient>
-              </defs>
-              <path
-                d={arcPath}
-                fill="none"
-                stroke="url(#routeGrad)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeDasharray="5 4"
-                vectorEffect="non-scaling-stroke"
-                className="animate-pulse"
-              />
-            </svg>
-          )}
-
-          {/* Distance chip at arc midpoint */}
-          {!activePinInfo.isMe && arcMid && distanceKm !== null && (
-            <div
-              className="absolute z-20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ left: `${arcMid.x}%`, top: `${arcMid.y}%` }}
-            >
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/90 text-white text-[10px] font-bold shadow-xl border border-white/20 whitespace-nowrap"
-                style={{ transform: `scale(${1 / zoom})` }}
-              >
-                <Plane className="w-3 h-3 text-amber-300" />
-                <span>{formatDistance(distanceKm)} · {estimateFlightTime(distanceKm)}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Traveler pins — positioned in the zoomed layer, but counter-scaled
-              so avatars keep a crisp constant size and spread apart on zoom */}
-          <div
-            className="absolute inset-0"
-            style={{
-              transform: `scale(${1 / zoom})`,
-              transformOrigin: 'center center',
-              transition: isDragging ? 'none' : 'transform 160ms ease-out'
-            }}
-          >
-          {MAP_TRAVELER_PINS.map((pin) => {
-            const isSelected = selectedPinId === pin.id;
-            const traveler = getTravelerById(pin.id);
-
-            return (
-              <div
-                key={pin.id}
-                onClick={() => {
-                  if (dragMovedRef.current) return; // ignore click after a drag-pan
-                  setSelectedPinId(pin.id);
-                }}
-                style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-20"
-              >
-                {pin.isMe && (
-                  <span className="absolute -inset-2.5 rounded-full bg-rose-500/30 animate-ping pointer-events-none" />
-                )}
-
-                <div
-                  className={`relative flex items-center justify-center rounded-full transition-transform duration-300 ${
-                    isSelected ? 'scale-125' : 'hover:scale-115'
-                  }`}
-                  style={{
-                    boxShadow: isSelected
-                      ? `0 0 0 3px #fff, 0 0 0 6px ${pin.color}, 0 12px 24px -6px ${pin.color}66`
-                      : `0 0 0 2px #fff, 0 6px 14px -4px ${pin.color}55`
-                  }}
-                >
-                  <img
-                    src={traveler.avatar}
-                    alt={pin.name}
-                    draggable={false}
-                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover bg-white"
-                  />
-
-                  {pin.isMe ? (
-                    <span className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-md">
-                      <MapPin className="w-2.5 h-2.5" />
-                    </span>
-                  ) : (
-                    <span
-                      className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white rounded-full shadow-sm"
-                      style={{ backgroundColor: pin.color }}
-                    />
-                  )}
-                </div>
-
-                {/* Name Label */}
-                <div
-                  className={`absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-bold transition-all duration-200 pointer-events-none ${
-                    isSelected
-                      ? 'text-white shadow-lg opacity-100'
-                      : 'bg-white/95 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 opacity-0 group-hover:opacity-100 shadow-md'
-                  }`}
-                  style={isSelected ? { backgroundColor: pin.color } : undefined}
-                >
-                  {pin.name}
-                </div>
-              </div>
-            );
-          })}
-          </div>
-          {/* End of zoomable map layer */}
-          </div>
-
-          {/* Zoom controls (fixed, outside the zoom layer) */}
-          <div className="absolute top-3 right-3 z-40 flex flex-col gap-1.5">
-            <button
-              type="button"
-              aria-label="Zoom in"
-              disabled={zoom >= 4}
-              onClick={() => applyZoom(zoom + 0.5)}
-              className="w-9 h-9 rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 active:scale-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Zoom out"
-              disabled={zoom <= 1}
-              onClick={() => applyZoom(zoom - 0.5)}
-              className="w-9 h-9 rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 active:scale-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            {zoom > 1 && (
-              <button
-                type="button"
-                aria-label="Reset view"
-                onClick={() => applyZoom(1)}
-                className="w-9 h-9 rounded-xl bg-slate-900/85 dark:bg-slate-100/90 backdrop-blur border border-slate-700 shadow-lg flex items-center justify-center text-white dark:text-slate-900 hover:bg-slate-800 active:scale-95 transition cursor-pointer"
-              >
-                <Maximize className="w-4 h-4" />
-              </button>
             )}
-          </div>
+
+            {/* My memory journal dots */}
+            {visibleMemoryDots.map((mem) => (
+              <CircleMarker
+                key={`dot-${mem.id}`}
+                center={[mem.coordinates.lat!, mem.coordinates.lng!]}
+                radius={6}
+                pathOptions={{
+                  color: '#ffffff',
+                  weight: 2,
+                  fillColor: STATUS_STYLES[mem.status].dot,
+                  fillOpacity: 1
+                }}
+                eventHandlers={{ click: () => setActiveFilter(mem.status) }}
+              >
+              </CircleMarker>
+            ))}
+
+            {/* Confirmed companions' shared trail dots */}
+            {Object.entries(COMPANION_TRAILS).map(([tid, dots]) => {
+              const traveler = travelers.find((t) => t.id === tid);
+              if (!traveler?.isConfirmedBuddy) return null;
+              return dots.map((d, i) => (
+                <CircleMarker
+                  key={`trail-${tid}-${i}`}
+                  center={[d.lat, d.lng]}
+                  radius={5}
+                  pathOptions={{
+                    color: '#fff',
+                    weight: 1.5,
+                    fillColor: d.status === 'Visited' ? '#0ea5e9' : '#f59e0b',
+                    fillOpacity: 0.95
+                  }}
+                  eventHandlers={{ click: () => setSelectedPinId(tid) }}
+                />
+              ));
+            })}
+
+            {/* Traveler avatar pins */}
+            {pinLayers.travelers &&
+              MAP_TRAVELER_PINS.map((pin) => (
+                <Marker
+                  key={pin.id}
+                  position={[pin.lat, pin.lng]}
+                  icon={pinIcons[pin.id]}
+                  eventHandlers={{ click: () => setSelectedPinId(pin.id) }}
+                />
+              ))}
+          </MapContainer>
 
           {/* Zoom hint / level pill */}
-          <div className="absolute top-3 left-3 z-40 pointer-events-none">
+          <div className="absolute top-3 left-3 z-[500] pointer-events-none">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/70 text-white text-[10px] font-bold backdrop-blur shadow-md">
-              {zoom > 1 ? `${Math.round(zoom * 100)}%` : 'Scroll / pinch to zoom · drag to pan'}
+              <LocateFixed className="w-3 h-3 text-emerald-300" />
+              {mapZoom > 3 ? `Zoom ${mapZoom.toFixed(1)}×` : 'Scroll / pinch to zoom · drag to explore'}
             </span>
           </div>
 
           {/* Active Pin Overlay Card (stays fixed, not zoomed) */}
-          <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-white/60 dark:border-slate-700 rounded-2xl p-3.5 shadow-2xl z-30">
+          <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-white/60 dark:border-slate-700 rounded-2xl p-3.5 shadow-2xl z-[500]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <img
@@ -694,11 +654,22 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 truncate">
                     <span className="font-bold text-xs text-slate-900 dark:text-slate-50 truncate">
-                      {activePinInfo.isMe ? 'You (Elena)' : activePinTraveler.name}
+                      {activePinInfo.isMe ? `You (${currentUser.name.split(' ')[0]})` : activePinTraveler.name}
                     </span>
                     {activePinInfo.isMe && (
                       <span className="text-[9px] bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 px-1.5 py-0.5 rounded-full font-bold">
                         You are here
+                      </span>
+                    )}
+                    {!activePinInfo.isMe && (
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
+                          isActiveConfirmed
+                            ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                        }`}
+                      >
+                        {isActiveConfirmed ? 'Confirmed companion' : 'Current position only'}
                       </span>
                     )}
                   </div>
@@ -721,7 +692,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => onGoToItinerary('Kyoto, Japan')}
+                    onClick={() => onGoToItinerary(MY_DESTINATION)}
                     className="px-3 py-1.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-xs font-bold hover:bg-slate-700 transition-colors cursor-pointer"
                   >
                     My Itinerary
@@ -730,7 +701,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               </div>
             </div>
 
-            {/* Distance from you */}
+            {/* Distance from you + privacy note */}
             {!activePinInfo.isMe && distanceKm !== null && (
               <div className="mt-2.5 pt-2.5 border-t border-slate-200/70 dark:border-slate-700/70 flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 text-[10px] font-bold">
@@ -740,8 +711,42 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 text-[10px] font-bold">
                   {estimateFlightTime(distanceKm)}
                 </span>
+                {!isActiveConfirmed && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-semibold">
+                    <ShieldCheck className="w-3 h-3" />
+                    Visited & dream pins unlock after mutual confirmation
+                  </span>
+                )}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Map privacy selector — what others can see of MY pins */}
+        <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-slate-50/60 dark:bg-slate-900">
+          <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            Who can see my Visited & Dream pins:
+          </span>
+          <div className="flex items-center gap-1.5">
+            {([
+              ['everyone', 'Everyone'],
+              ['companions', 'Confirmed companions only'],
+              ['current', 'Current location only']
+            ] as const).map(([val, label]) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setMapPrivacy(val)}
+                className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
+                  mapPrivacy === val
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -789,14 +794,15 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group"
               >
                 <div>
-                  {/* Photo carousel */}
+                  {/* Photo carousel — tap to open lightbox */}
                   <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-orange-100 via-rose-100 to-amber-100 dark:from-slate-800 dark:to-slate-800">
                     <img
                       key={photos[idx]}
                       src={photos[idx]}
                       alt={mem.destination}
                       onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                      className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
+                      onClick={() => openLightbox(photos, idx, `${mem.destination}, ${mem.country}`)}
+                      className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500 cursor-zoom-in"
                     />
 
                     {/* Carousel arrows */}
@@ -863,9 +869,50 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
                   {/* Content */}
                   <div className="p-5 space-y-3">
-                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic">
-                      "{mem.memoryNote}"
-                    </p>
+                    {editingNoteId === mem.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          rows={3}
+                          value={editNoteText}
+                          onChange={(e) => setEditNoteText(e.target.value)}
+                          className="w-full px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 resize-y"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingNoteId(null)}
+                            className="px-2.5 py-1 text-[11px] text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-md cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveNote(mem.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-md cursor-pointer"
+                          >
+                            <Check className="w-3 h-3" />
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative group/note">
+                        <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic pr-6">
+                          "{mem.memoryNote}"
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingNoteId(mem.id);
+                            setEditNoteText(mem.memoryNote);
+                          }}
+                          className="absolute top-0 right-0 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 opacity-0 group-hover/note:opacity-100 transition-opacity cursor-pointer"
+                          title="Edit this memory note"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
 
                     {/* Companions Tagged */}
                     {mem.companionsTagged.length > 0 && (
@@ -897,20 +944,135 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     View Itinerary
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteMemory(mem.id)}
-                    className="text-slate-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
-                    title="Remove memory"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleShareMemory(mem)}
+                      className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
+                      title="Share this memory"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMemory(mem.id)}
+                      className="text-slate-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                      title="Remove memory"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* Photo Lightbox — tap photo to pop up, zoom in/out, click outside to close */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[1000] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          {/* Top bar */}
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10 pointer-events-none">
+            <span className="text-white/90 text-xs font-bold bg-black/40 px-3 py-1.5 rounded-full">
+              {lightbox.title} · {lightbox.idx + 1}/{lightbox.photos.length}
+            </span>
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <button
+                type="button"
+                aria-label="Zoom out"
+                onClick={(e) => { e.stopPropagation(); lbApplyZoom(lbZoom - 0.5); }}
+                className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-white/80 text-xs font-mono w-10 text-center">{Math.round(lbZoom * 100)}%</span>
+              <button
+                type="button"
+                aria-label="Zoom in"
+                onClick={(e) => { e.stopPropagation(); lbApplyZoom(lbZoom + 0.5); }}
+                className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={(e) => { e.stopPropagation(); setLightbox(null); }}
+                className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Prev / Next */}
+          {lightbox.photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="Previous"
+                onClick={(e) => { e.stopPropagation(); lbStep(-1); }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next"
+                onClick={(e) => { e.stopPropagation(); lbStep(1); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </>
+          )}
+
+          {/* Zoomable image */}
+          <div
+            ref={lbRef}
+            className="max-w-4xl max-h-[80vh] overflow-hidden rounded-2xl shadow-2xl"
+            style={{ cursor: lbZoom > 1 ? 'grab' : 'zoom-in', touchAction: 'none' }}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              lbDragRef.current = { sx: e.clientX, sy: e.clientY, px: lbPan.x, py: lbPan.y, moved: false };
+            }}
+            onPointerMove={(e) => {
+              const d = lbDragRef.current;
+              if (!d) return;
+              if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) > 4) d.moved = true;
+              if (lbZoom > 1) setLbPan({ x: d.px + e.clientX - d.sx, y: d.py + e.clientY - d.sy });
+            }}
+            onPointerUp={() => {
+              const d = lbDragRef.current;
+              lbDragRef.current = null;
+              if (d && !d.moved && lbZoom === 1) lbApplyZoom(2); // tap to zoom in
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              lbApplyZoom(lbZoom > 1 ? 1 : 2.5);
+            }}
+          >
+            <img
+              src={lightbox.photos[lightbox.idx]}
+              alt={lightbox.title}
+              draggable={false}
+              className="max-w-full max-h-[80vh] object-contain select-none"
+              style={{
+                transform: `translate(${lbPan.x}px, ${lbPan.y}px) scale(${lbZoom})`,
+                transition: lbDragRef.current ? 'none' : 'transform 150ms ease-out'
+              }}
+            />
+          </div>
+
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/60 text-[11px] pointer-events-none">
+            Scroll or double-tap to zoom · drag to pan · tap outside to close
+          </p>
+        </div>
+      )}
 
       {/* Record New Travel Memory Modal */}
       {isAddMemoryModalOpen && (
@@ -931,7 +1093,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             </p>
 
             <form onSubmit={handleCreateMemory} className="mt-4 space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     City / Destination
@@ -961,7 +1123,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Status
@@ -1004,10 +1166,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 />
               </div>
 
-              {/* Multi-photo inputs */}
+              {/* Multi-photo inputs (up to 9) */}
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Photos (add up to 6)
+                  Photos (add up to 9)
                 </label>
                 <div className="space-y-2">
                   {newPhotos.map((url, i) => (
@@ -1043,14 +1205,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     </div>
                   ))}
                 </div>
-                {newPhotos.length < 6 && (
+                {newPhotos.length < 9 && (
                   <button
                     type="button"
                     onClick={() => setNewPhotos((prev) => [...prev, ''])}
                     className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer"
                   >
                     <ImagePlus className="w-3.5 h-3.5" />
-                    Add another photo
+                    Add another photo ({newPhotos.length}/9)
                   </button>
                 )}
               </div>

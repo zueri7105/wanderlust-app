@@ -17,7 +17,8 @@ import {
   Check,
   Heading2,
   Pilcrow,
-  Trash2
+  Trash2,
+  EyeOff
 } from 'lucide-react';
 
 /** A story content block: paragraph or subheading. Subheadings persist as "## text". */
@@ -150,6 +151,30 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All Articles');
   const [likedArticles, setLikedArticles] = useState<Record<string, boolean>>({});
+  // Hidden story posts (this device) — user can hide anyone's story from their own feed
+  const [hiddenArticles, setHiddenArticles] = useState<string[]>(() => {
+    const saved = localStorage.getItem('wanderlust_hidden_articles');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleHideArticle = (id: string) => {
+    const updated = [...hiddenArticles, id];
+    setHiddenArticles(updated);
+    localStorage.setItem('wanderlust_hidden_articles', JSON.stringify(updated));
+    if (activeArticle?.id === id) setActiveArticle(null);
+  };
+
+  // Delete story post — only the author's own stories can be deleted
+  const handleDeleteArticle = (id: string) => {
+    const updated = articles.filter((a) => a.id !== id);
+    setArticles(updated);
+    localStorage.setItem('wanderlust_knowledge_articles', JSON.stringify(updated));
+    if (activeArticle?.id === id) setActiveArticle(null);
+  };
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
   const [activeArticle, setActiveArticle] = useState<KnowledgeArticle | null>(null);
 
@@ -222,8 +247,9 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
     ]);
   };
 
-  // Filter articles
+  // Filter articles (hidden posts are removed from the feed)
   const filteredArticles = articles.filter((art) => {
+    if (hiddenArticles.includes(art.id)) return false;
     if (selectedCategory !== 'All Articles' && art.category !== selectedCategory) {
       return false;
     }
@@ -400,6 +426,32 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                     >
                       {getTranslation('readArticle')}
                     </button>
+
+                    {/* Hide post (anyone can hide from their own feed) */}
+                    <button
+                      type="button"
+                      onClick={() => handleHideArticle(art.id)}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                      title="Hide this post"
+                    >
+                      <EyeOff className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Delete post (only your own stories) */}
+                    {art.isUserCustom && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Delete your story "${art.title}"? This cannot be undone.`)) {
+                            handleDeleteArticle(art.id);
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors cursor-pointer"
+                        title="Delete your post"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -222,7 +222,7 @@ export interface TravelMemory {
   id: string;
   destination: string;
   country: string;
-  coordinates: { x: number; y: number }; // Percentage on map canvas
+  coordinates: { x: number; y: number; lat?: number; lng?: number }; // x/y legacy % on artwork, lat/lng real geo
   date: string;
   photos: string[];
   memoryNote: string;

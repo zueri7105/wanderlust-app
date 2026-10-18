@@ -176,7 +176,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
             {getTranslation('profileTitle')}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage your personal travel identity, verified avatar, emergency contacts, and preferences.
+            {getTranslation('profileSub')}
           </p>
         </div>
 

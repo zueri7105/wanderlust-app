@@ -35,12 +35,14 @@ import { formatTemperature } from '../utils/units';
 import { lookupCountryGuide, visaAdviceFor, tippingAdviceFor } from '../utils/countryGuides';
 import { getFxRates, refreshFxRates, benchmarkString, type FxState } from '../utils/currency';
 import { getTranslation } from '../utils/i18n';
+import { WORLD_COUNTRIES } from './DestinationSelector';
 
 interface ItineraryViewProps {
   itineraries: TravelItinerary[];
   currentUser: SoloTraveler;
   onAddItinerary: (itinerary: TravelItinerary) => void;
   onUpdateItinerary?: (itinerary: TravelItinerary) => void;
+  onDeleteItinerary?: (id: string) => void;
   onGoToCompanions: (destination: string) => void;
   onGoToExploreTrips: (destination: string) => void;
   onGoToActivities: (destination: string) => void;
@@ -57,11 +59,14 @@ const COMMON_PURPOSES = [
   'Explore Local Markets Together'
 ];
 
+interface FormDayItem {
+  name: string; // activity heading box
+  detail: string; // fill-in detail box
+}
+
 interface FormDayDraft {
   title: string;
-  morning: string;
-  afternoon: string;
-  evening: string;
+  items: FormDayItem[];
   companionGoal: string;
 }
 
@@ -251,6 +256,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   currentUser,
   onAddItinerary,
   onUpdateItinerary,
+  onDeleteItinerary,
   onGoToCompanions,
   onGoToExploreTrips,
   onGoToActivities
@@ -398,8 +404,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     };
   }, []);
 
-  // Form state
-  const [formDest, setFormDest] = useState('Dubrovnik, Croatia');
+  // Form state — destination split into Country box + City box
+  const [formCountry, setFormCountry] = useState('Croatia');
+  const [formCity, setFormCity] = useState('Dubrovnik');
+  const formDest = formCity.trim() && formCountry.trim()
+    ? `${formCity.trim()}, ${formCountry.trim()}`
+    : (formCity.trim() || formCountry.trim());
   const [formStartDate, setFormStartDate] = useState('2026-11-01');
   const [formEndDate, setFormEndDate] = useState('2026-11-05');
   const [formNotes, setFormNotes] = useState('');
@@ -430,9 +440,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         for (let i = prev.length + 1; i <= targetDays; i++) {
           added.push({
             title: `Day ${i} Exploration`,
-            morning: 'Morning walk or local breakfast.',
-            afternoon: 'Afternoon excursion or landmark exploration.',
-            evening: 'Dinner with travel companions.',
+            items: [
+              { name: 'Morning walk or local breakfast', detail: '' },
+              { name: 'Afternoon excursion or landmark', detail: '' },
+              { name: 'Dinner with travel companions', detail: '' }
+            ],
             companionGoal: 'Companion for shared activities'
           });
         }
@@ -458,37 +470,47 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [formDays, setFormDays] = useState<FormDayDraft[]>([
     {
       title: 'Arrival & Old Town First Walk',
-      morning: 'Airport arrival, check into accommodations, settle in.',
-      afternoon: 'Explore the central historic square, local cafe stop.',
-      evening: 'Casual dinner at a neighborhood tavern / bistro bar.',
+      items: [
+        { name: 'Arrive & check in', detail: 'Airport arrival, transfer to accommodation, settle in.' },
+        { name: 'Historic square stroll', detail: 'Explore the central historic square, local cafe stop.' },
+        { name: 'Welcome dinner', detail: 'Casual dinner at a neighborhood tavern / bistro bar.' }
+      ],
       companionGoal: 'Open for dinner companion to celebrate first evening'
     },
     {
       title: 'Iconic Architecture & Viewpoints',
-      morning: 'Early morning walk past the main landmarks before heat and crowds.',
-      afternoon: 'Artisan market crawl and a scenic city viewpoint.',
-      evening: 'Sunset viewpoint walk and local dinner.',
+      items: [
+        { name: 'Landmark walk', detail: 'Early morning walk past the main landmarks before heat and crowds.' },
+        { name: 'Market & viewpoint', detail: 'Artisan market crawl and a scenic city viewpoint.' },
+        { name: 'Sunset dinner', detail: 'Sunset viewpoint walk and local dinner.' }
+      ],
       companionGoal: 'Companion for viewpoint photos and dinner'
     },
     {
       title: 'Day Excursion & Outdoor Adventure',
-      morning: 'Day trip to a nearby island, national park, or guided outdoor tour.',
-      afternoon: 'Explore scenic highlights and local nature spots.',
-      evening: 'Sunset drinks at a panoramic terrace.',
+      items: [
+        { name: 'Day trip out', detail: 'Nearby island, national park, or guided outdoor tour.' },
+        { name: 'Nature highlights', detail: 'Explore scenic highlights and local nature spots.' },
+        { name: 'Panoramic terrace', detail: 'Sunset drinks at a panoramic terrace.' }
+      ],
       companionGoal: 'Split tour or transport costs for the excursion'
     },
     {
       title: 'Cultural Heritage & Sunset Walk',
-      morning: 'Visit the main palace, museum, or heritage monument.',
-      afternoon: 'Artisan shopping and a relaxed coffee break on the main promenade.',
-      evening: 'Farewell celebratory dinner at a local terrace.',
+      items: [
+        { name: 'Palace / museum visit', detail: 'Visit the main palace, museum, or heritage monument.' },
+        { name: 'Promenade coffee', detail: 'Artisan shopping and a relaxed coffee break on the main promenade.' },
+        { name: 'Farewell dinner', detail: 'Farewell celebratory dinner at a local terrace.' }
+      ],
       companionGoal: 'Shared multi-course dinner and travel stories'
     },
     {
       title: 'Morning Views & Departure',
-      morning: 'Cable car or viewpoint for a panoramic farewell vista.',
-      afternoon: 'Pack and airport transfer.',
-      evening: 'Departure flight.',
+      items: [
+        { name: 'Farewell vista', detail: 'Cable car or viewpoint for a panoramic farewell vista.' },
+        { name: 'Pack & transfer', detail: 'Pack and airport transfer.' },
+        { name: 'Departure', detail: 'Departure flight.' }
+      ],
       companionGoal: 'Split airport taxi'
     }
   ]);
@@ -516,9 +538,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       ...formDays,
       {
         title: `Day ${nextNum} Exploration`,
-        morning: 'Morning walk and breakfast.',
-        afternoon: 'Afternoon excursion or museum visit.',
-        evening: 'Dinner with fellow travelers.',
+        items: [
+          { name: 'Morning walk and breakfast', detail: '' },
+          { name: 'Afternoon excursion or museum', detail: '' },
+          { name: 'Dinner with fellow travelers', detail: '' }
+        ],
         companionGoal: 'Companion for shared activities'
       }
     ]);
@@ -529,10 +553,36 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     setFormDays(formDays.filter((_, idx) => idx !== index));
   };
 
-  const handleUpdateDraftDay = (index: number, field: keyof FormDayDraft, val: string) => {
+  const handleUpdateDraftDay = (index: number, field: 'title' | 'companionGoal', val: string) => {
     const next = [...formDays];
     next[index] = { ...next[index], [field]: val };
     setFormDays(next);
+  };
+
+  const handleUpdateDayItem = (dayIdx: number, itemIdx: number, field: keyof FormDayItem, val: string) => {
+    setFormDays((prev) =>
+      prev.map((d, i) =>
+        i === dayIdx
+          ? { ...d, items: d.items.map((it, j) => (j === itemIdx ? { ...it, [field]: val } : it)) }
+          : d
+      )
+    );
+  };
+
+  const handleAddDayItem = (dayIdx: number) => {
+    setFormDays((prev) =>
+      prev.map((d, i) => (i === dayIdx ? { ...d, items: [...d.items, { name: '', detail: '' }] } : d))
+    );
+  };
+
+  const handleRemoveDayItem = (dayIdx: number, itemIdx: number) => {
+    setFormDays((prev) =>
+      prev.map((d, i) =>
+        i === dayIdx && d.items.length > 1
+          ? { ...d, items: d.items.filter((_, j) => j !== itemIdx) }
+          : d
+      )
+    );
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -545,9 +595,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     // entry rules, customs, phrases and currency with whatever destination is typed.
     const kb = lookupCountryGuide(formDest);
     const nat = currentUser.country || 'Germany';
-    const parsedCountry = formDest.includes(',') ? formDest.split(',')[1].trim() : '';
-    const country = parsedCountry || (kb.key !== 'generic' ? kb.name : formDest);
-    const city = formDest.includes(',') ? formDest.split(',')[0].trim() : formDest;
+    const country = formCountry.trim() || (kb.key !== 'generic' ? kb.name : formDest);
+    const city = formCity.trim() || formDest;
     const visaText = visaAdviceFor(nat, kb);
     const tippingText = tippingAdviceFor(nat, kb);
     const kbCurrency = {
@@ -659,14 +708,22 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       endDate: formEndDate,
       companionPurpose: selectedPurposes.length > 0 ? selectedPurposes : ['Solo Exploration'],
       notes: formNotes || `Solo trip to ${formDest}.`,
-      days: formDays.map((d, idx) => ({
-        dayNumber: idx + 1,
-        title: d.title,
-        morningActivity: d.morning,
-        afternoonActivity: d.afternoon,
-        eveningActivity: d.evening,
-        companionGoal: d.companionGoal
-      })),
+      days: formDays.map((d, idx) => {
+        // Map the user's free-form activity boxes onto the structured day slots:
+        // first 3 activities → morning / afternoon / evening, extras join the evening slot.
+        const fmt = (it?: FormDayItem) =>
+          it ? (it.detail.trim() ? `${it.name.trim() || 'Activity'} — ${it.detail.trim()}` : it.name.trim()) : '';
+        const [m, a, ...rest] = d.items;
+        const eveningParts = rest.map(fmt).filter(Boolean);
+        return {
+          dayNumber: idx + 1,
+          title: d.title,
+          morningActivity: fmt(m) || 'Free morning to explore at your own pace.',
+          afternoonActivity: fmt(a) || 'Free afternoon for spontaneous plans.',
+          eveningActivity: eveningParts.join(' · ') || 'Relaxed evening, dinner nearby.',
+          companionGoal: d.companionGoal
+        };
+      }),
       travelGuide: guide,
       tripScope: formTripScope,
       dateFlexibility: formDateFlexibility,
@@ -702,7 +759,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 transition-colors shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>Plan New Itinerary</span>
+          <span>{getTranslation('planNewItinerary')}</span>
         </button>
       </div>
 
@@ -793,6 +850,21 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+                    {onDeleteItinerary && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Delete the itinerary for ${itinerary.destination}? This cannot be undone.`)) {
+                            onDeleteItinerary(itinerary.id);
+                          }
+                        }}
+                        className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center justify-center text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors cursor-pointer"
+                        title="Delete this itinerary"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                     <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                       {isExpanded ? 'Hide Details' : 'Tap to View Detailed Solo Journey & Guide'}
                     </span>
@@ -1447,19 +1519,41 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             <form onSubmit={handleFormSubmit} className="mt-5 space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Destination City & Country
+                  Destination
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Dubrovnik, Croatia or Kyoto, Japan"
-                  value={formDest}
-                  onChange={(e) => setFormDest(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <input
+                      type="text"
+                      required
+                      list="wl-country-list"
+                      placeholder="Country (e.g. Croatia)"
+                      value={formCountry}
+                      onChange={(e) => setFormCountry(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                    <datalist id="wl-country-list">
+                      {WORLD_COUNTRIES.map((c) => (
+                        <option key={c.country} value={c.country} />
+                      ))}
+                    </datalist>
+                    <span className="block text-[10px] text-slate-400 mt-1">Country</span>
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="City (e.g. Dubrovnik)"
+                      value={formCity}
+                      onChange={(e) => setFormCity(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    />
+                    <span className="block text-[10px] text-slate-400 mt-1">City</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Start Date
@@ -1637,28 +1731,53 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold text-xs"
                       />
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <input
-                          type="text"
-                          placeholder="Morning activity..."
-                          value={d.morning}
-                          onChange={(e) => handleUpdateDraftDay(idx, 'morning', e.target.value)}
-                          className="w-full px-2 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px]"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Afternoon activity..."
-                          value={d.afternoon}
-                          onChange={(e) => handleUpdateDraftDay(idx, 'afternoon', e.target.value)}
-                          className="w-full px-2 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px]"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Evening activity..."
-                          value={d.evening}
-                          onChange={(e) => handleUpdateDraftDay(idx, 'evening', e.target.value)}
-                          className="w-full px-2 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px]"
-                        />
+                      {/* Activity boxes: name (heading) + detail (fill-in) + add-more */}
+                      <div className="space-y-2">
+                        {d.items.map((it, itemIdx) => (
+                          <div
+                            key={itemIdx}
+                            className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1.5"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-slate-400 shrink-0 w-4 text-center">
+                                {itemIdx + 1}
+                              </span>
+                              <input
+                                type="text"
+                                placeholder={`Name of activity (e.g. Fushimi Inari at sunrise)`}
+                                value={it.name}
+                                onChange={(e) => handleUpdateDayItem(idx, itemIdx, 'name', e.target.value)}
+                                className="flex-1 min-w-0 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold"
+                              />
+                              {d.items.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveDayItem(idx, itemIdx)}
+                                  className="p-1 text-slate-400 hover:text-red-600 shrink-0 cursor-pointer"
+                                  title="Remove activity"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Fill in details (time, place, bookings...)"
+                              value={it.detail}
+                              onChange={(e) => handleUpdateDayItem(idx, itemIdx, 'detail', e.target.value)}
+                              className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px]"
+                            />
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddDayItem(idx)}
+                          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-dashed border-rose-300 dark:border-rose-800 rounded-lg hover:bg-rose-100 transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Add another activity to Day {idx + 1}
+                        </button>
                       </div>
 
                       <input

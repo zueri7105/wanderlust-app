@@ -161,7 +161,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             {getTranslation('messagesTitle')}
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            Direct chatbox between solo travel companions. Keep records of your conversations and coordinate joint plans.
+            {getTranslation('messagesSub')}
           </p>
         </div>
 

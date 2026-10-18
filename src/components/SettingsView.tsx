@@ -25,7 +25,11 @@ const LANGUAGES = [
   { code: 'zh', name: 'Chinese', native: '中文 (简体)', flag: '🇨🇳' },
   { code: 'ja', name: 'Japanese', native: '日本語', flag: '🇯🇵' },
   { code: 'fr', name: 'French', native: 'Français', flag: '🇫🇷' },
-  { code: 'de', name: 'German', native: 'Deutsch', flag: '🇩🇪' }
+  { code: 'de', name: 'German', native: 'Deutsch', flag: '🇩🇪' },
+  { code: 'ko', name: 'Korean', native: '한국어', flag: '🇰🇷' },
+  { code: 'pt', name: 'Portuguese', native: 'Português', flag: '🇵🇹' },
+  { code: 'ar', name: 'Arabic', native: 'العربية', flag: '🇸🇦' },
+  { code: 'ru', name: 'Russian', native: 'Русский', flag: '🇷🇺' }
 ] as const;
 
 export const SettingsView: React.FC = () => {
@@ -78,7 +82,7 @@ export const SettingsView: React.FC = () => {
             <span>App Preferences & Customization</span>
           </div>
           <h2 className="font-display text-2xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
-            Settings
+            {getTranslation('settingsTitle')}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             {getTranslation('settingsSub')}
@@ -102,7 +106,7 @@ export const SettingsView: React.FC = () => {
             </div>
             <div>
               <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                Display Theme
+                {getTranslation('themeLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Switch between Bright and Dark appearance for daytime or low-light travel.
@@ -157,7 +161,7 @@ export const SettingsView: React.FC = () => {
             </div>
             <div>
               <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                App Language
+                {getTranslation('languageLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Choose the preferred language for navigation and guides.
@@ -198,7 +202,7 @@ export const SettingsView: React.FC = () => {
             </div>
             <div>
               <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                Measurement Units
+                {getTranslation('unitsLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Distances, hiking trail lengths, and weather temperatures.
@@ -240,7 +244,7 @@ export const SettingsView: React.FC = () => {
             </div>
             <div>
               <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                Safety & Companion Protections
+                {getTranslation('safetyLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Safeguards for female travelers and safe meetup protocols.

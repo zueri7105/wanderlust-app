@@ -373,7 +373,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
               {getTranslation('costsTitle')}
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Personal solo budget above and companion split cost ledger below, unified in one currency.
+              {getTranslation('costsSub')}
             </p>
           </div>
 
@@ -514,7 +514,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                         e.stopPropagation();
                         handleRemoveCustomCurrency(c.code);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-opacity cursor-pointer mr-1"
+                      className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors cursor-pointer mr-1"
                       title={`Remove ${c.code}`}
                     >
                       <X className="w-3 h-3" />

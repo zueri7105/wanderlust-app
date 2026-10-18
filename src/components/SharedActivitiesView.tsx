@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TravelActivity, SoloTraveler } from '../types/travel';
-import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign } from 'lucide-react';
+import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign, Trash2, EyeOff } from 'lucide-react';
 import { generateSafeMeetingGuide } from '../services/geminiService';
 import { getTranslation } from '../utils/i18n';
 
@@ -13,6 +13,7 @@ interface SharedActivitiesViewProps {
   onLeaveActivity: (activityId: string) => void;
   onOpenActivityChat: (activityId: string) => void;
   onCreateNewActivity: (newAct: Omit<TravelActivity, 'id' | 'participantIds' | 'status'>) => void;
+  onDeleteActivity?: (activityId: string) => void;
 }
 
 const CATEGORIES = ['All Categories', 'Adventure', 'Transport & Roadtrip', 'Culture & Sights', 'Food & Drink'];
@@ -25,10 +26,26 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
   onJoinActivity,
   onLeaveActivity,
   onOpenActivityChat,
-  onCreateNewActivity
+  onCreateNewActivity,
+  onDeleteActivity
 }) => {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [freeOnlyFilter, setFreeOnlyFilter] = useState(false);
+  // Hidden activity posts (this device)
+  const [hiddenActivities, setHiddenActivities] = useState<string[]>(() => {
+    const saved = localStorage.getItem('wanderlust_hidden_activities');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleHideActivity = (id: string) => {
+    const updated = [...hiddenActivities, id];
+    setHiddenActivities(updated);
+    localStorage.setItem('wanderlust_hidden_activities', JSON.stringify(updated));
+  };
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [safetyModalData, setSafetyModalData] = useState<{
     activity: TravelActivity;
@@ -55,6 +72,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
   const getTraveler = (id: string) => travelers.find((t) => t.id === id) || travelers[0];
 
   const filteredActivities = activities.filter((act) => {
+    if (hiddenActivities.includes(act.id)) return false;
     if (selectedDestination !== 'All Destinations' && act.destination !== selectedDestination) {
       return false;
     }
@@ -120,7 +138,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
             {getTranslation('activitiesTitle')}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Join other solo travelers for specific experiences—sunrise hikes, boat charters, road trips, and meals.
+            {getTranslation('activitiesSub')}
           </p>
         </div>
 
@@ -302,6 +320,32 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                         <CheckCircle className="w-3.5 h-3.5" /> You're Going
                       </span>
                     )}
+
+                    {/* Hide post (anyone) / Delete post (host only) */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleHideActivity(act.id)}
+                        className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                        title="Hide this post from your feed"
+                      >
+                        <EyeOff className="w-3.5 h-3.5" />
+                      </button>
+                      {act.hostId === currentUser.id && onDeleteActivity && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Delete your activity "${act.title}"? This cannot be undone.`)) {
+                              onDeleteActivity(act.id);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors cursor-pointer"
+                          title="Delete your activity post"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
