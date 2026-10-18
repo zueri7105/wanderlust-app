@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { getTranslation } from '../utils/i18n';
 import { haversineKm, formatDistance, estimateFlightTime } from '../utils/units';
 import { SoloTraveler, TravelMemory } from '../types/travel';
@@ -16,7 +16,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Plane,
-  ImagePlus
+  ImagePlus,
+  ZoomIn,
+  ZoomOut,
+  Maximize
 } from 'lucide-react';
 
 interface TravelMapMemoriesViewProps {
@@ -209,6 +212,87 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [isAddMemoryModalOpen, setIsAddMemoryModalOpen] = useState(false);
   const [photoIdx, setPhotoIdx] = useState<Record<string, number>>({});
 
+  // ── Map zoom & pan ──────────────────────────────────────────────
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
+  const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
+  const dragMovedRef = useRef(false);
+
+  const clampPan = (z: number, x: number, y: number) => {
+    const el = mapRef.current;
+    if (!el) return { x, y };
+    const maxX = (el.clientWidth * (z - 1)) / 2;
+    const maxY = (el.clientHeight * (z - 1)) / 2;
+    return { x: Math.min(maxX, Math.max(-maxX, x)), y: Math.min(maxY, Math.max(-maxY, y)) };
+  };
+
+  const applyZoom = (next: number) => {
+    const z = Math.min(4, Math.max(1, Math.round(next * 100) / 100));
+    setZoom(z);
+    setPan((p) => (z === 1 ? { x: 0, y: 0 } : clampPan(z, p.x, p.y)));
+  };
+
+  // Non-passive wheel zoom (React's onWheel can't preventDefault)
+  useEffect(() => {
+    const el = mapRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      applyZoom(zoomRef.current + (e.deltaY < 0 ? 0.4 : -0.4));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
+    dragMovedRef.current = false;
+    setIsDragging(true);
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    if (Math.hypot(dx, dy) > 5) dragMovedRef.current = true;
+    setPan(clampPan(zoom, d.panX + dx, d.panY + dy));
+  };
+
+  const handlePointerEnd = () => {
+    dragRef.current = null;
+    pinchRef.current = null;
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchRef.current = { dist: Math.hypot(dx, dy), zoom };
+      dragRef.current = null;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    const p = pinchRef.current;
+    if (e.touches.length === 2 && p) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      if (p.dist > 0) applyZoom(p.zoom * (dist / p.dist));
+    }
+  };
+  // ────────────────────────────────────────────────────────────────
+
   // New Memory Form State
   const [newCity, setNewCity] = useState('');
   const [newCountry, setNewCountry] = useState('');
@@ -391,14 +475,37 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           </div>
         </div>
 
-        {/* Interactive World Map Canvas (real artwork, geographic pin placement) */}
-        <div className="relative w-full h-[26rem] sm:h-[30rem] overflow-hidden select-none bg-[#FDF3E3]">
-          <img
-            src={worldMapImg}
-            alt="Colorful world map"
-            draggable={false}
-            className="absolute inset-0 w-full h-full object-fill dark:brightness-90 dark:saturate-90"
-          />
+        {/* Interactive World Map Canvas (zoom, pan & pinch supported) */}
+        <div
+          ref={mapRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+          onPointerLeave={handlePointerEnd}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handlePointerEnd}
+          className={`relative w-full h-[26rem] sm:h-[30rem] overflow-hidden select-none bg-[#FDF3E3] ${
+            isDragging ? 'cursor-grabbing' : zoom > 1 ? 'cursor-grab' : 'cursor-default'
+          }`}
+          style={{ touchAction: 'none' }}
+        >
+          {/* Zoomable map layer (image + pins + routes all scale together) */}
+          <div
+            className="absolute inset-0 will-change-transform"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: 'center center',
+              transition: isDragging ? 'none' : 'transform 160ms ease-out'
+            }}
+          >
+            <img
+              src={worldMapImg}
+              alt="Colorful world map"
+              draggable={false}
+              className="absolute inset-0 w-full h-full object-fill dark:brightness-90 dark:saturate-90 pointer-events-none"
+            />
 
           {/* Memory journal dots */}
           {memories.map((mem) => (
@@ -410,7 +517,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             >
               <span
                 className="block w-2.5 h-2.5 rounded-full ring-2 ring-white shadow-md"
-                style={{ backgroundColor: STATUS_STYLES[mem.status].dot }}
+                style={{
+                  backgroundColor: STATUS_STYLES[mem.status].dot,
+                  transform: `scale(${1 / zoom})`
+                }}
               />
             </div>
           ))}
@@ -447,14 +557,26 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               className="absolute z-20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
               style={{ left: `${arcMid.x}%`, top: `${arcMid.y}%` }}
             >
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/90 text-white text-[10px] font-bold shadow-xl border border-white/20 whitespace-nowrap">
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/90 text-white text-[10px] font-bold shadow-xl border border-white/20 whitespace-nowrap"
+                style={{ transform: `scale(${1 / zoom})` }}
+              >
                 <Plane className="w-3 h-3 text-amber-300" />
                 <span>{formatDistance(distanceKm)} · {estimateFlightTime(distanceKm)}</span>
               </div>
             </div>
           )}
 
-          {/* Traveler Interactive Avatar Pins (geographically placed) */}
+          {/* Traveler pins — positioned in the zoomed layer, but counter-scaled
+              so avatars keep a crisp constant size and spread apart on zoom */}
+          <div
+            className="absolute inset-0"
+            style={{
+              transform: `scale(${1 / zoom})`,
+              transformOrigin: 'center center',
+              transition: isDragging ? 'none' : 'transform 160ms ease-out'
+            }}
+          >
           {MAP_TRAVELER_PINS.map((pin) => {
             const isSelected = selectedPinId === pin.id;
             const traveler = getTravelerById(pin.id);
@@ -462,7 +584,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             return (
               <div
                 key={pin.id}
-                onClick={() => setSelectedPinId(pin.id)}
+                onClick={() => {
+                  if (dragMovedRef.current) return; // ignore click after a drag-pan
+                  setSelectedPinId(pin.id);
+                }}
                 style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
                 className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-20"
               >
@@ -483,7 +608,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   <img
                     src={traveler.avatar}
                     alt={pin.name}
-                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover bg-white"
+                    draggable={false}
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover bg-white"
                   />
 
                   {pin.isMe ? (
@@ -512,8 +638,50 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               </div>
             );
           })}
+          </div>
+          {/* End of zoomable map layer */}
+          </div>
 
-          {/* Active Pin Overlay Card */}
+          {/* Zoom controls (fixed, outside the zoom layer) */}
+          <div className="absolute top-3 right-3 z-40 flex flex-col gap-1.5">
+            <button
+              type="button"
+              aria-label="Zoom in"
+              disabled={zoom >= 4}
+              onClick={() => applyZoom(zoom + 0.5)}
+              className="w-9 h-9 rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 active:scale-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Zoom out"
+              disabled={zoom <= 1}
+              onClick={() => applyZoom(zoom - 0.5)}
+              className="w-9 h-9 rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 active:scale-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            {zoom > 1 && (
+              <button
+                type="button"
+                aria-label="Reset view"
+                onClick={() => applyZoom(1)}
+                className="w-9 h-9 rounded-xl bg-slate-900/85 dark:bg-slate-100/90 backdrop-blur border border-slate-700 shadow-lg flex items-center justify-center text-white dark:text-slate-900 hover:bg-slate-800 active:scale-95 transition cursor-pointer"
+              >
+                <Maximize className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Zoom hint / level pill */}
+          <div className="absolute top-3 left-3 z-40 pointer-events-none">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/70 text-white text-[10px] font-bold backdrop-blur shadow-md">
+              {zoom > 1 ? `${Math.round(zoom * 100)}%` : 'Scroll / pinch to zoom · drag to pan'}
+            </span>
+          </div>
+
+          {/* Active Pin Overlay Card (stays fixed, not zoomed) */}
           <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-white/60 dark:border-slate-700 rounded-2xl p-3.5 shadow-2xl z-30">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
