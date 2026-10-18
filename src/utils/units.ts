@@ -33,3 +33,35 @@ export function formatTemperature(
   // Strip any parenthetical Fahrenheit if present or keep clean °C
   return str.replace(/\s*\([^)]*°F[^)]*\)/g, '');
 }
+
+import { getAppSettings } from './settings';
+
+/** Format a distance given in kilometers according to the user's unit setting. */
+export function formatDistance(km: number, unitSystem?: 'metric' | 'imperial'): string {
+  const unit = unitSystem || getAppSettings().unitSystem;
+  if (unit === 'imperial') {
+    const miles = km * 0.621371;
+    return `${miles >= 100 ? Math.round(miles).toLocaleString() : miles.toFixed(1)} mi`;
+  }
+  return `${km >= 100 ? Math.round(km).toLocaleString() : km.toFixed(1)} km`;
+}
+
+/** Rough flight time estimate from great-circle km. */
+export function estimateFlightTime(km: number): string {
+  const hours = km / 820; // avg commercial cruising speed incl. overhead
+  if (hours < 1.2) return '< 1h flight';
+  if (hours < 10) return `~${hours.toFixed(1)}h flight`;
+  return `~${Math.round(hours)}h flight`;
+}
+
+/** Great-circle distance in km between two lat/lng points. */
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { getTranslation } from '../utils/i18n';
 import { SoloTraveler, SafeCheckinRecord, TravelPace, BudgetTier, EmergencyContact } from '../types/travel';
 import {
   User,
@@ -172,7 +173,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
           <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
-            My Solo Traveler Profile
+            {getTranslation('profileTitle')}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Manage your personal travel identity, verified avatar, emergency contacts, and preferences.
@@ -233,7 +234,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg text-xs font-semibold cursor-pointer hover:bg-slate-800 transition-colors shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer hover:brightness-105 transition-colors shadow-2xs"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>Upload Your Own Photo</span>
@@ -383,7 +384,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 rounded-md hover:bg-slate-800"
+                className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-md hover:brightness-105"
               >
                 Save Profile
               </button>
@@ -538,7 +539,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
               <button
                 type="button"
                 onClick={handleAddMoreEmergencyContact}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-lg hover:bg-slate-800 cursor-pointer shadow-xs"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add More Emergency Contact</span>
@@ -587,16 +588,15 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                       />
                     </div>
 
-                    {/* Relationship to the NOC */}
+                    {/* Relationship to the NOC (optional, free text) */}
                     <div className="sm:col-span-4">
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Relationship to the NOC / Traveler
+                        Relationship to the NOC / Traveler <span className="font-normal text-slate-400">(optional)</span>
                       </label>
                       <input
                         type="text"
                         list={`rel_list_${idx}`}
-                        required
-                        placeholder="e.g. Brother, Mother, Spouse"
+                        placeholder="e.g. Brother, Mother, Best Friend — or leave blank"
                         value={contact.relationship}
                         onChange={(e) => handleUpdateContactDraft(idx, 'relationship', e.target.value)}
                         className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
@@ -662,7 +662,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 rounded-md hover:bg-slate-800 flex items-center gap-1 shadow-xs"
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-md hover:brightness-105 flex items-center gap-1 shadow-xs"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>Save Emergency Contacts</span>
@@ -681,7 +681,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                   key={contact.id || idx}
                   className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs"
                 >
-                  <div className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 flex items-center justify-center shrink-0 shadow-2xs font-bold text-xs">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-r from-rose-500 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-2xs font-bold text-xs">
                     <Phone className="w-4 h-4" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -690,7 +690,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                         {contact.name || 'Emergency Contact'}
                       </span>
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-200/70 dark:bg-slate-700 px-1.5 py-0.2 rounded">
-                        {contact.relationship}
+                        {contact.relationship || 'Next of Kin'}
                       </span>
                     </div>
                     <div className="text-slate-600 dark:text-slate-300 font-mono font-medium text-xs mt-0.5">
@@ -733,7 +733,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
 
           <button
             onClick={handleSendPing}
-            className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer shrink-0 shadow-xs"
+            className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 hover:brightness-105 rounded-lg transition-colors cursor-pointer shrink-0 shadow-xs"
           >
             {justPinged ? 'Check-in Recorded ✓' : 'Send "I am Safe" Check-in'}
           </button>

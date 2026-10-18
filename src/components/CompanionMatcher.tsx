@@ -16,6 +16,8 @@ import {
   Send
 } from 'lucide-react';
 import { generateCompanionIcebreakers, generateJointTripPlan } from '../services/geminiService';
+import { getAppSettings } from '../utils/settings';
+import { getTranslation } from '../utils/i18n';
 import { DestinationSelector } from './DestinationSelector';
 
 interface CompanionMatcherProps {
@@ -219,6 +221,20 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
     (trip) => !userDestinations.some((d) => d.includes(trip.destination.toLowerCase().split(',')[0]))
   );
 
+  // Safety setting: when "Prioritize Female Solo Travelers" is enabled in
+  // Settings, verified female travelers are surfaced first in every list.
+  const femaleSafetyPriority = getAppSettings().femaleSafetyPriority;
+  const prioritizeFemale = (list: TravelTrip[]) =>
+    femaleSafetyPriority
+      ? [...list].sort((a, b) => {
+          const af = getTraveler(a.travelerId).gender === 'female' ? 0 : 1;
+          const bf = getTraveler(b.travelerId).gender === 'female' ? 0 : 1;
+          return af - bf;
+        })
+      : list;
+  const sortedItineraryMatches = prioritizeFemale(itineraryMatchedTrips);
+  const sortedOtherTrips = prioritizeFemale(otherPotentialTrips);
+
   // Count starred companions according to destination filter
   const starredCount = travelers.filter((t) => {
     if (!t.isStarred || t.id === currentUser.id) return false;
@@ -313,6 +329,12 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-700 bg-rose-50 border border-rose-200/80 px-1.5 py-0.2 rounded-md">
                       <ShieldCheck className="w-3 h-3 text-rose-600" />
                       <span>Female Solo</span>
+                    </span>
+                  )}
+                  {femaleSafetyPriority && traveler.gender === 'female' && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 px-1.5 py-0.2 rounded-md shadow-xs">
+                      <ShieldCheck className="w-3 h-3" />
+                      <span>Priority Match</span>
                     </span>
                   )}
                 </div>
@@ -433,10 +455,10 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             <span>Companion Search & Filter</span>
           </div>
           <h2 className="font-display text-2xl font-bold text-slate-950 tracking-tight">
-            Find Potential Travel Companions
+            {getTranslation('matcherTitle')}
           </h2>
           <p className="text-sm text-slate-500 mt-0.5 max-w-2xl">
-            Filter solo travelers by destination, travel scope, and interests. Press Search to view matching companions.
+            {getTranslation('matcherSub')}
           </p>
         </div>
 
@@ -638,12 +660,12 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                     </p>
                   </div>
                   <span className="text-xs font-mono tabular-nums text-slate-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md font-semibold">
-                    {itineraryMatchedTrips.length} Direct Matches
+                    {sortedItineraryMatches.length} Direct Matches
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {itineraryMatchedTrips.map(renderSuccinctTripCard)}
+                  {sortedItineraryMatches.map(renderSuccinctTripCard)}
                 </div>
               </section>
             )}
@@ -662,7 +684,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                   </p>
                 </div>
                 <span className="text-xs font-mono tabular-nums text-slate-600">
-                  {otherPotentialTrips.length} Available
+                  {sortedOtherTrips.length} Available
                 </span>
               </div>
 
@@ -674,7 +696,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {otherPotentialTrips.map(renderSuccinctTripCard)}
+                  {sortedOtherTrips.map(renderSuccinctTripCard)}
                 </div>
               )}
             </section>

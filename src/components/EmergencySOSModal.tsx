@@ -12,8 +12,10 @@ import {
   Send,
   AlertTriangle,
   X,
-  Users
+  Users,
+  RefreshCw
 } from 'lucide-react';
+import { getAppSettings, EMERGENCY_INTERVAL_MS } from '../utils/settings';
 
 interface EmergencySOSModalProps {
   isOpen: boolean;
@@ -60,6 +62,16 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
   const [locationName, setLocationName] = useState('');
   const [copiedCoords, setCopiedCoords] = useState(false);
   const [sosSentToContact, setSosSentToContact] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  // Emergency GPS auto-refresh interval from Settings (Manual / 15min / 30min / 1hour)
+  const emergencyInterval = getAppSettings().emergencyInterval;
+  const intervalMs = EMERGENCY_INTERVAL_MS[emergencyInterval];
+  const intervalLabel =
+    emergencyInterval === 'off'
+      ? 'Manual only'
+      : `Auto-refresh: every ${emergencyInterval.replace('min', ' min').replace('hour', ' hour')}`;
 
   // Extract country from activeDestination or user's destination
   const destStr = activeDestination !== 'All Destinations' ? activeDestination : currentUser.currentDestination || 'Kyoto, Japan';
@@ -211,7 +223,7 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
   const emergencyServices = getEmergencyServices(country);
   const embassyInfo = getEmbassyInfo(currentUser.country, country);
 
-  // Track GPS when modal opens
+  // Track GPS when modal opens (and re-run when the auto-refresh interval fires)
   useEffect(() => {
     if (!isOpen) {
       setSosSentToContact(false);
@@ -231,6 +243,7 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
           });
           setGpsStatus('locked');
           setLocationName(`${destStr} (Live Device GPS Lock)`);
+          setLastUpdated(new Date());
         },
         () => {
           // Fallback based on selected destination
@@ -243,6 +256,7 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
           });
           setGpsStatus('fallback');
           setLocationName(`${destStr} (Active Journey Geocode)`);
+          setLastUpdated(new Date());
         },
         { enableHighAccuracy: true, timeout: 6000 }
       );
@@ -250,8 +264,16 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
       setGpsStatus('fallback');
       setCoordinates({ lat: 35.0116, lng: 135.7681, accuracy: 25 });
       setLocationName(`${destStr} (Active Trip Geocode)`);
+      setLastUpdated(new Date());
     }
-  }, [isOpen, destStr]);
+  }, [isOpen, destStr, refreshTick]);
+
+  // Auto-refresh GPS broadcast at the interval chosen in Settings
+  useEffect(() => {
+    if (!isOpen || !intervalMs) return;
+    const timer = setInterval(() => setRefreshTick((t) => t + 1), intervalMs);
+    return () => clearInterval(timer);
+  }, [isOpen, intervalMs]);
 
   if (!isOpen) return null;
 
@@ -315,6 +337,24 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
             <span className="text-[11px] font-mono px-2 py-0.5 bg-slate-800 text-emerald-400 rounded border border-slate-700">
               {gpsStatus === 'locked' ? 'Satellite Lock Acquired' : gpsStatus === 'locating' ? 'Locating...' : 'Geocode Fallback'}
             </span>
+          </div>
+
+          {/* Auto-refresh status driven by Settings → Emergency GPS Refresh Interval */}
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+            <span className="inline-flex items-center gap-1">
+              <RefreshCw className={`w-3 h-3 ${intervalMs ? 'animate-spin' : ''}`} style={intervalMs ? { animationDuration: '4s' } : undefined} />
+              <span>{intervalLabel}</span>
+            </span>
+            <span className="font-mono">
+              {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Updating…'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setRefreshTick((t) => t + 1)}
+              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 font-semibold cursor-pointer transition-colors"
+            >
+              Refresh Now
+            </button>
           </div>
 
           <div className="space-y-1">

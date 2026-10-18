@@ -224,7 +224,7 @@ export interface TravelMemory {
   country: string;
   coordinates: { x: number; y: number }; // Percentage on map canvas
   date: string;
-  photoUrl: string;
+  photos: string[];
   memoryNote: string;
   companionsTagged: string[];
   status: 'Visited' | 'Current Location' | 'Dream Next';

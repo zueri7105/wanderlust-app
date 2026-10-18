@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getTranslation } from '../utils/i18n';
 import { KnowledgeArticle, SoloTraveler } from '../types/travel';
 import {
   BookOpen,
@@ -13,8 +14,17 @@ import {
   Sparkles,
   Shield,
   Heart,
-  Check
+  Check,
+  Heading2,
+  Pilcrow,
+  Trash2
 } from 'lucide-react';
+
+/** A story content block: paragraph or subheading. Subheadings persist as "## text". */
+interface StoryBlock {
+  type: 'p' | 'h2';
+  text: string;
+}
 
 export const INITIAL_ARTICLES: KnowledgeArticle[] = [
   {
@@ -148,9 +158,18 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
   const [newCategory, setNewCategory] = useState<KnowledgeArticle['category']>('Culture & Traditions');
   const [newDestination, setNewDestination] = useState('Japan');
   const [newSummary, setNewSummary] = useState('');
-  const [newParagraph1, setNewParagraph1] = useState('');
-  const [newParagraph2, setNewParagraph2] = useState('');
+  const [newBlocks, setNewBlocks] = useState<StoryBlock[]>([
+    { type: 'p', text: '' },
+    { type: 'p', text: '' }
+  ]);
   const [newTags, setNewTags] = useState('Culture, Solo Tips, Travel Advice');
+
+  const updateBlock = (idx: number, text: string) =>
+    setNewBlocks((prev) => prev.map((b, i) => (i === idx ? { ...b, text } : b)));
+  const addBlock = (type: StoryBlock['type']) =>
+    setNewBlocks((prev) => [...prev, { type, text: '' }]);
+  const removeBlock = (idx: number) =>
+    setNewBlocks((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
 
   const handleToggleLike = (articleId: string) => {
     setLikedArticles((prev) => {
@@ -168,6 +187,11 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
     e.preventDefault();
     if (!newTitle.trim() || !newSummary.trim()) return;
 
+    const content = newBlocks
+      .filter((b) => b.text.trim())
+      .map((b) => (b.type === 'h2' ? `## ${b.text.trim()}` : b.text.trim()));
+    if (content.length === 0) return;
+
     const created: KnowledgeArticle = {
       id: `art_${Date.now()}`,
       title: newTitle.trim(),
@@ -179,7 +203,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
       date: new Date().toISOString().split('T')[0],
       readTime: '3 min read',
       summary: newSummary.trim(),
-      content: [newParagraph1.trim(), newParagraph2.trim()].filter(Boolean),
+      content,
       tags: newTags.split(',').map((t) => t.trim()).filter(Boolean),
       likesCount: 1,
       isUserCustom: true
@@ -192,8 +216,10 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
     setIsWriteModalOpen(false);
     setNewTitle('');
     setNewSummary('');
-    setNewParagraph1('');
-    setNewParagraph2('');
+    setNewBlocks([
+      { type: 'p', text: '' },
+      { type: 'p', text: '' }
+    ]);
   };
 
   // Filter articles
@@ -222,20 +248,20 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
             <span>Community Knowledge & Travel Stories</span>
           </div>
           <h2 className="font-display text-2xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
-            Travel Stories, Traditions & Cultural Tips
+            {getTranslation('storiesTitle')}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 max-w-2xl">
-            Verified local customs, solo travel advice, digital payment hacks, and safety recommendations written by solo travelers.
+            {getTranslation('storiesSub')}
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setIsWriteModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 rounded-lg hover:bg-slate-800 transition-colors shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-500 rounded-lg hover:brightness-105 transition-colors shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>Write a Travel Story</span>
+          <span>{getTranslation('writeStory')}</span>
         </button>
       </div>
 
@@ -248,7 +274,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search articles by destination, culture, customs, safety tips, or keywords (e.g. China VPN, Kyoto manners, Dubrovnik)..."
+            placeholder={getTranslation('searchArticles')}
             className="w-full pl-9 pr-8 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900"
           />
           {searchQuery && (
@@ -270,7 +296,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer font-medium ${
                 selectedCategory === cat
-                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold shadow-xs'
+                  ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold shadow-xs'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
               }`}
             >
@@ -372,7 +398,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                       onClick={() => setActiveArticle(art)}
                       className="px-2.5 py-1 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-md cursor-pointer"
                     >
-                      Read
+                      {getTranslation('readArticle')}
                     </button>
                   </div>
                 </div>
@@ -438,9 +464,34 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 {activeArticle.summary}
               </p>
 
-              {activeArticle.content.map((para, idx) => (
-                <p key={idx}>{para}</p>
-              ))}
+              {activeArticle.content.map((para, idx) => {
+                // Explicit subheading block (written via the story editor)
+                if (para.startsWith('## ')) {
+                  return (
+                    <h3
+                      key={idx}
+                      className="font-display text-base font-bold text-slate-950 dark:text-slate-50 pt-3 flex items-center gap-2"
+                    >
+                      <span className="w-1 h-4 rounded-full bg-gradient-to-b from-rose-500 to-orange-500 shrink-0" />
+                      {para.slice(3)}
+                    </h3>
+                  );
+                }
+                // Auto-detect "Lead-in: rest of paragraph" style for existing stories
+                const lead = para.match(/^([^:]{3,60}):\s+([\s\S]+)$/);
+                if (lead && !lead[1].includes('.') && !lead[1].includes('!')) {
+                  return (
+                    <div key={idx}>
+                      <h3 className="font-display text-base font-bold text-slate-950 dark:text-slate-50 flex items-center gap-2 mb-1">
+                        <span className="w-1 h-4 rounded-full bg-gradient-to-b from-indigo-500 to-sky-500 shrink-0" />
+                        {lead[1]}
+                      </h3>
+                      <p>{lead[2]}</p>
+                    </div>
+                  );
+                }
+                return <p key={idx}>{para}</p>;
+              })}
             </div>
 
             {/* Tags */}
@@ -473,7 +524,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveArticle(null)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 rounded-lg hover:bg-slate-800 cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-500 rounded-lg hover:brightness-105 cursor-pointer"
               >
                 Close Article
               </button>
@@ -562,31 +613,85 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 />
               </div>
 
+              {/* Block editor: unlimited paragraphs & subheadings */}
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Detailed Practical Advice (Paragraph 1)
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Story Content — add as many paragraphs & subheadings as you like
                 </label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="Share the context, what happened, and step-by-step guidance..."
-                  value={newParagraph1}
-                  onChange={(e) => setNewParagraph1(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                />
-              </div>
+                <div className="space-y-2.5">
+                  {newBlocks.map((block, idx) => (
+                    <div
+                      key={idx}
+                      className={`rounded-xl border p-2.5 space-y-2 ${
+                        block.type === 'h2'
+                          ? 'border-orange-200 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-950/20'
+                          : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${
+                            block.type === 'h2'
+                              ? 'text-orange-600 dark:text-orange-400'
+                              : 'text-slate-500 dark:text-slate-400'
+                          }`}
+                        >
+                          {block.type === 'h2' ? (
+                            <Heading2 className="w-3.5 h-3.5" />
+                          ) : (
+                            <Pilcrow className="w-3.5 h-3.5" />
+                          )}
+                          {block.type === 'h2' ? 'Subheading' : `Paragraph ${newBlocks.slice(0, idx + 1).filter((b) => b.type === 'p').length}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeBlock(idx)}
+                          disabled={newBlocks.length === 1}
+                          className="p-1 text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          title="Remove block"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      {block.type === 'h2' ? (
+                        <input
+                          type="text"
+                          placeholder="Subheading, e.g. Where to Eat Like a Local"
+                          value={block.text}
+                          onChange={(e) => updateBlock(idx, e.target.value)}
+                          className="w-full px-3 py-2 border border-orange-200 dark:border-orange-900 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        />
+                      ) : (
+                        <textarea
+                          rows={3}
+                          placeholder="Share the context, what happened, and step-by-step guidance..."
+                          value={block.text}
+                          onChange={(e) => updateBlock(idx, e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900 resize-y"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Actionable Tips for Solo Travelers (Paragraph 2 - Optional)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Bonus tips, apps to download, or phrases to know..."
-                  value={newParagraph2}
-                  onChange={(e) => setNewParagraph2(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                />
+                <div className="flex items-center gap-2 mt-2.5">
+                  <button
+                    type="button"
+                    onClick={() => addBlock('p')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+                  >
+                    <Pilcrow className="w-3.5 h-3.5" />
+                    Add paragraph
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => addBlock('h2')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer"
+                  >
+                    <Heading2 className="w-3.5 h-3.5" />
+                    Add subheading
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -612,7 +717,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 rounded-lg hover:bg-slate-800 cursor-pointer shadow-xs"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-violet-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
                 >
                   Publish Article
                 </button>

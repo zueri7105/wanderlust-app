@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { DestinationSelector } from './DestinationSelector';
 import { getTranslation } from '../utils/i18n';
+import { getAppSettings } from '../utils/settings';
 
 import kyotoImg from '../assets/images/destination_kyoto_bamboo_1792119350483.jpg';
 import oaxacaImg from '../assets/images/destination_oaxaca_market_1792119352389.jpg';
@@ -369,20 +370,24 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
 
   return (
     <div className="space-y-12 pb-12">
-      {/* 1. Top Hero with Search & Filters */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 via-rose-600 to-indigo-700 dark:from-slate-900 dark:via-rose-950/60 dark:to-slate-900 border border-rose-400/30 dark:border-slate-800 text-white p-6 sm:p-10 shadow-lg">
+      {/* 1. Top Hero with Search & Filters — vibrant sunset gradient */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-500 via-orange-500 to-amber-400 dark:from-rose-950 dark:via-orange-950/80 dark:to-slate-900 border border-rose-300/40 dark:border-rose-900/40 text-white p-6 sm:p-10 shadow-xl shadow-rose-500/20">
+        {/* Decorative floating circles */}
+        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-amber-300/30 blur-2xl pointer-events-none" aria-hidden="true" />
+        <div className="absolute -bottom-20 right-24 w-56 h-56 rounded-full bg-fuchsia-400/20 blur-2xl pointer-events-none" aria-hidden="true" />
+        <div className="absolute top-10 right-40 w-24 h-24 rounded-full bg-white/10 blur-xl pointer-events-none" aria-hidden="true" />
         <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold text-rose-100">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Connect Safely · Travel Together · Split Real Costs</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold text-amber-50">
+            <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+            <span>{getTranslation('heroTagline')}</span>
           </div>
 
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
-            Solo Travel Doesn't Mean Traveling Alone.
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight drop-shadow-sm">
+            {getTranslation('heroTitle')}
           </h1>
 
-          <p className="text-sm sm:text-base text-rose-100/90 max-w-2xl leading-relaxed">
-            Find vetted travel companions for your full journey, share day trips, or split rental cars and private boat charters safely in public daylight spaces.
+          <p className="text-sm sm:text-base text-rose-50/95 max-w-2xl leading-relaxed">
+            {getTranslation('heroSubtitle')}
           </p>
 
           {/* Search Bar Input */}
@@ -391,18 +396,18 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Where are you traveling solo? (e.g. Kyoto, Oaxaca, Dubrovnik)"
+                placeholder={getTranslation('searchDestination')}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={handleKeyPress}
-                className="w-full pl-10 pr-4 py-3 bg-white text-slate-900 rounded-xl text-sm font-medium shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full pl-10 pr-4 py-3 bg-white text-slate-900 rounded-xl text-sm font-medium shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
             </div>
             <button
               onClick={() => handleExecuteSearch()}
-              className="px-6 py-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm rounded-xl transition-colors shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="px-6 py-3 bg-slate-950 hover:brightness-105 text-amber-300 font-bold text-sm rounded-xl transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
-              <span>Find Companions</span>
+              <span>{getTranslation('findCompanions')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -413,17 +418,17 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
               onClick={() => setFemaleOnlyFilter(!femaleOnlyFilter)}
               className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-semibold transition-colors cursor-pointer ${
                 femaleOnlyFilter
-                  ? 'bg-rose-900 text-white border border-rose-300'
+                  ? 'bg-rose-950 text-white border border-rose-300'
                   : 'bg-white/15 hover:bg-white/25 text-white'
               }`}
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-rose-200" />
-              <span>Female Travelers Only</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-rose-100" />
+              <span>{getTranslation('femaleTravelersOnly')}</span>
               {femaleOnlyFilter && <Check className="w-3 h-3 text-emerald-300" />}
             </button>
 
-            <span className="text-rose-200/60 hidden sm:inline">|</span>
-            <span className="text-rose-200 text-xs hidden sm:inline">Popular:</span>
+            <span className="text-rose-100/60 hidden sm:inline">|</span>
+            <span className="text-rose-50 text-xs hidden sm:inline">Popular:</span>
             {['Kyoto, Japan', 'Dubrovnik, Croatia', 'Amalfi Coast, Italy', 'Oaxaca, Mexico'].map((dest) => (
               <button
                 key={dest}
@@ -431,7 +436,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                   setSearchInput(dest);
                   handleExecuteSearch(dest);
                 }}
-                className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-md text-[11px] font-medium transition-colors cursor-pointer"
+                className="px-2.5 py-1 bg-white/15 hover:bg-white/25 rounded-md text-[11px] font-medium transition-colors cursor-pointer"
               >
                 {dest.split(',')[0]}
               </button>
@@ -446,24 +451,24 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-1">
               <Compass className="w-3.5 h-3.5" />
-              <span>Trending Destinations</span>
+              <span>{getTranslation('trendingDestinations')}</span>
             </div>
             <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-              Popular Solo Destinations
+              {getTranslation('popularSoloDestinations')}
             </h2>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => scrollDestinations('left')}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer shadow-xs"
+              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:brightness-105 text-slate-700 dark:text-slate-300 cursor-pointer shadow-xs"
               title="Scroll left"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => scrollDestinations('right')}
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer shadow-xs"
+              className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:brightness-105 text-slate-700 dark:text-slate-300 cursor-pointer shadow-xs"
               title="Scroll right"
             >
               <ChevronRight className="w-4 h-4" />
@@ -522,7 +527,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                   }}
                   className="font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
                 >
-                  <span>Find Companions</span>
+                  <span>{getTranslation('findCompanions')}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -623,7 +628,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                       <button
                         type="button"
                         onClick={() => onOpenChatWithTraveler(traveler, trip.destination)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-lg hover:bg-slate-800 cursor-pointer shadow-xs"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                         <span>Message</span>
@@ -649,19 +654,19 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
         </section>
       )}
 
-      {/* 4. Your Upcoming Trips (Synced with itinerary, organized per month, NO 'Post a Trip' button) */}
+      {/* 4. {getTranslation('upcomingTrips')} (Synced with itinerary, organized per month, NO 'Post a Trip' button) */}
       <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1">
               <Calendar className="w-3.5 h-3.5" />
-              <span>Synced With Your Itinerary</span>
+              <span>{getTranslation('syncedWithItinerary')}</span>
             </div>
             <h2 className="font-display text-2xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
-              Your Upcoming Trips
+              {getTranslation('upcomingTrips')}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Organized per month. Only confirmed dates and general destination are open to public by default.
+              {getTranslation('upcomingTripsSub')}
             </p>
           </div>
 
@@ -705,7 +710,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             </p>
             <button
               onClick={handleJumpToNearestTripMonth}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg text-xs font-bold hover:bg-slate-800 cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:brightness-105 cursor-pointer shadow-xs"
             >
               <span>Jump to {formatMonthTitle(availableMonths[0])}</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -723,7 +728,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
               return (
                 <div
                   key={trip.id}
-                  className="p-5 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  className="p-5 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/40 hover:bg-white dark:hover:brightness-105 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
                 >
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
@@ -736,14 +741,26 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold px-2 py-0.5 bg-slate-200/60 dark:bg-slate-700 rounded">
                         {trip.source === 'itinerary' ? 'From Itinerary' : 'Posted Trip'}
                       </span>
-                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">
-                        • {getTranslation('openToPublic')}
-                      </span>
+                      {getAppSettings().anonymousMode ? (
+                        <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-semibold">
+                          • Private Mode: dates hidden until mutual match
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">
+                          • {getTranslation('openToPublic')}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="font-mono tabular-nums font-semibold">{trip.startDate} to {trip.endDate}</span>
+                      {getAppSettings().anonymousMode ? (
+                        <span className="font-mono tabular-nums font-semibold italic text-slate-500">
+                          Exact dates hidden (Private Browsing on)
+                        </span>
+                      ) : (
+                        <span className="font-mono tabular-nums font-semibold">{trip.startDate} to {trip.endDate}</span>
+                      )}
                       <span className="text-slate-400">·</span>
                       <span className="italic truncate max-w-md">"{trip.notes}"</span>
                     </div>
@@ -755,9 +772,9 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                         onSelectDestination(trip.destination);
                         onGoToMatcher(trip.destination);
                       }}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-lg hover:bg-slate-800 cursor-pointer shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
                     >
-                      <span>View Matches</span>
+                      <span>{getTranslation('viewMatches')}</span>
                       <span className="px-1.5 py-0.2 text-[10px] bg-slate-700 dark:bg-slate-300 rounded font-mono">
                         {matchedCount}
                       </span>
@@ -766,9 +783,9 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
 
                     <button
                       onClick={() => onGoToItinerary(trip.destination)}
-                      className="px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+                      className="px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:brightness-105 rounded-lg cursor-pointer"
                     >
-                      View Itinerary
+                      {getTranslation('viewItinerary')}
                     </button>
                   </div>
                 </div>

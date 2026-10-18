@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getTranslation } from '../utils/i18n';
 import {
   Sun,
   Moon,
@@ -12,28 +13,11 @@ import {
   Volume2,
   HeartHandshake
 } from 'lucide-react';
+import { AppSettings, DEFAULT_APP_SETTINGS } from '../utils/settings';
 
-export interface AppSettings {
-  theme: 'light' | 'dark' | 'system';
-  language: 'en' | 'es' | 'zh' | 'ja' | 'fr' | 'de';
-  unitSystem: 'metric' | 'imperial';
-  femaleSafetyPriority: boolean;
-  anonymousMode: boolean;
-  chatSounds: boolean;
-  tripReminders: boolean;
-  emergencyInterval: 'off' | '15min' | '30min' | '1hour';
-}
+export type { AppSettings } from '../utils/settings';
 
-const DEFAULT_SETTINGS: AppSettings = {
-  theme: 'light',
-  language: 'en',
-  unitSystem: 'metric',
-  femaleSafetyPriority: false,
-  anonymousMode: false,
-  chatSounds: true,
-  tripReminders: true,
-  emergencyInterval: '30min'
-};
+const DEFAULT_SETTINGS = DEFAULT_APP_SETTINGS;
 
 const LANGUAGES = [
   { code: 'en', name: 'English', native: 'English', flag: '🇺🇸' },
@@ -97,7 +81,7 @@ export const SettingsView: React.FC = () => {
             Settings
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Personalize display theme, interface language, safety settings, and measurement units.
+            {getTranslation('settingsSub')}
           </p>
         </div>
 

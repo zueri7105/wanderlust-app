@@ -14,6 +14,8 @@ import {
   Check,
   HeartHandshake
 } from 'lucide-react';
+import { playAudioAlert, getTranslation } from '../utils/i18n';
+import { getAppSettings } from '../utils/settings';
 
 interface MessagesViewProps {
   chats: Record<string, ChatMessage[]>;
@@ -100,6 +102,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
         `That works for me! What time of day works best for you? Morning or afternoon?`
       ];
       const randomReply = replies[Math.floor(Math.random() * replies.length)];
+      if (getAppSettings().chatSounds) playAudioAlert();
       onSendMessage(selectedTraveler.id, randomReply);
     }, 1500);
   };
@@ -116,6 +119,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
     setTimeout(() => {
       setIsTyping(false);
       const acceptText = `🎉 Companion Buddy Confirmation Accepted! We are officially travel buddies for ${dest}. Our names are now synced for shared expenses and split costs!`;
+      if (getAppSettings().chatSounds) playAudioAlert();
       onSendMessage(selectedTraveler.id, acceptText);
       if (onConfirmBuddy) {
         onConfirmBuddy(selectedTraveler.id);
@@ -154,7 +158,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <h2 className="font-display text-2xl font-bold text-slate-900 tracking-tight">
-            Companion Messages
+            {getTranslation('messagesTitle')}
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">
             Direct chatbox between solo travel companions. Keep records of your conversations and coordinate joint plans.

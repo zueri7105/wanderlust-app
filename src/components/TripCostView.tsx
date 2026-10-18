@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getTranslation } from '../utils/i18n';
 import { ExpenseItem, SoloPersonalExpense, SoloTraveler, TravelItinerary, TravelTrip } from '../types/travel';
 import { WORLD_CURRENCIES } from '../data/currencies';
 import {
@@ -350,7 +351,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
-              Trip Cost & Financials
+              {getTranslation('costsTitle')}
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
               Personal solo budget above and companion split cost ledger below, unified in one currency.
@@ -379,7 +380,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
                 <Coins className="w-3.5 h-3.5" />
               </div>
               <div>
@@ -419,7 +420,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     }}
                     className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-between shadow-xs ${
                       isActive
-                        ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold ring-2 ring-slate-900/20'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold ring-2 ring-slate-900/20'
                         : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
                     }`}
                   >
@@ -455,7 +456,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     key={c.code}
                     className={`relative group rounded-lg transition-all flex items-center justify-between border ${
                       isActive
-                        ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold border-slate-900 dark:border-slate-100 shadow-xs'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold border-slate-900 dark:border-slate-100 shadow-xs'
                         : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
                     }`}
                   >
@@ -529,7 +530,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
           <button
             onClick={() => setIsAddSoloModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 rounded-lg hover:bg-slate-800 transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:brightness-105 transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Add Personal Expense</span>
@@ -661,7 +662,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     key={exp.id}
                     onTouchStart={(e) => handleTouchStart(e, exp.id)}
                     onTouchEnd={(e) => handleTouchEnd(e, exp.id)}
-                    className="relative overflow-hidden group bg-white dark:bg-slate-900 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors"
+                    className="relative overflow-hidden group bg-white dark:bg-slate-900 hover:bg-slate-50/70 dark:hover:brightness-105/50 transition-colors"
                   >
                     <div
                       className={`p-3.5 flex items-center justify-between text-xs gap-3 transition-transform ${
@@ -746,7 +747,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
           <button
             onClick={() => setIsAddSharedModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 rounded-lg hover:bg-slate-800 transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:brightness-105 transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Split New Expense</span>
@@ -836,7 +837,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     className={`relative overflow-hidden group transition-colors ${
                       exp.settled
                         ? 'bg-slate-50/80 dark:bg-slate-900/40 opacity-70'
-                        : 'bg-white dark:bg-slate-900 hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
+                        : 'bg-white dark:bg-slate-900 hover:bg-slate-50/60 dark:hover:brightness-105/40'
                     }`}
                   >
                     <div
@@ -1003,7 +1004,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                       className={`w-full p-2 rounded-lg text-left flex items-center justify-between text-xs transition-colors ${
                         alreadyIn
                           ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800'
-                          : 'hover:bg-white dark:hover:bg-slate-800 bg-white/70 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer'
+                          : 'hover:bg-white dark:hover:brightness-105 bg-white/70 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer'
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate pr-2">
@@ -1077,7 +1078,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                   setCustomCodeInput('');
                   setCustomSymbolInput('');
                 }}
-                className="w-full py-2 bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 cursor-pointer"
+                className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:brightness-105 cursor-pointer"
               >
                 Add Custom Currency to Row 2
               </button>
@@ -1212,7 +1213,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 rounded-lg hover:bg-slate-800 cursor-pointer shadow-xs"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
                 >
                   Save Personal Expense
                 </button>
@@ -1334,7 +1335,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-950 rounded-lg hover:bg-slate-800 cursor-pointer shadow-xs"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
                 >
                   Record Shared Expense
                 </button>

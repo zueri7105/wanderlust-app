@@ -223,7 +223,7 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
                   onClick={() => setSelectedContinent(cont)}
                   className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors cursor-pointer font-medium ${
                     selectedContinent === cont
-                      ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold'
+                      ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white font-semibold'
                       : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                   }`}
                 >
@@ -243,7 +243,7 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
                   isAllDestinations
                     ? 'bg-slate-100 dark:bg-slate-800 font-bold text-slate-950 dark:text-slate-50'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:brightness-105/60'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -275,8 +275,8 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
                           onClick={() => handleSelect(item.country)}
                           className={`flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-colors cursor-pointer text-left ${
                             isSelected
-                              ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold'
-                              : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                              ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white font-bold'
+                              : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:brightness-105'
                           }`}
                         >
                           <span className="truncate">{item.country}</span>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TravelActivity, SoloTraveler } from '../types/travel';
 import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign } from 'lucide-react';
 import { generateSafeMeetingGuide } from '../services/geminiService';
+import { getTranslation } from '../utils/i18n';
 
 interface SharedActivitiesViewProps {
   activities: TravelActivity[];
@@ -116,7 +117,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
           <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
-            Shared Activities & Excursions
+            {getTranslation('activitiesTitle')}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Join other solo travelers for specific experiences—sunrise hikes, boat charters, road trips, and meals.
@@ -125,7 +126,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
 
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer shrink-0 self-start sm:self-auto shadow-xs"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-500 rounded-lg hover:brightness-105 transition-colors cursor-pointer shrink-0 self-start sm:self-auto shadow-xs"
         >
           <Plus className="w-4 h-4" />
           <span>Propose Activity</span>
@@ -141,7 +142,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
                 selectedCategory === cat
-                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold shadow-xs'
+                  ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white font-semibold shadow-xs'
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
@@ -190,7 +191,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
             )}
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-lg hover:bg-slate-800 cursor-pointer"
+              className="inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-500 rounded-lg hover:brightness-105 cursor-pointer"
             >
               Propose First Activity
             </button>
@@ -329,7 +330,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                         className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
                           isFull
                             ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                            : 'bg-slate-900 text-white hover:bg-slate-800'
+                            : 'bg-slate-900 text-white hover:brightness-105'
                         }`}
                       >
                         {isFull ? 'Activity Full' : 'Join Activity'}
@@ -390,7 +391,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
             <div className="mt-5 pt-3 border-t border-slate-200 flex justify-end">
               <button
                 onClick={() => setSafetyModalData(null)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-md hover:bg-slate-800 cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-md hover:brightness-105 cursor-pointer"
               >
                 Understood
               </button>
@@ -592,7 +593,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-md hover:bg-slate-800 cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-md hover:brightness-105 cursor-pointer"
                 >
                   Publish Activity
                 </button>

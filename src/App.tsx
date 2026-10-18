@@ -35,6 +35,9 @@ import { EmergencySOSModal } from './components/EmergencySOSModal';
 import { SettingsView } from './components/SettingsView';
 import { TravelMapMemoriesView } from './components/TravelMapMemoriesView';
 import { TravelStoriesHubView } from './components/TravelStoriesHubView';
+import { playAudioAlert } from './utils/i18n';
+import { getAppSettings } from './utils/settings';
+import { BellRing, X } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('explore');
@@ -161,6 +164,35 @@ export default function App() {
       media.removeEventListener('change', applyTheme);
       window.removeEventListener('wanderlust-settings-changed', onSettingsChanged);
     };
+  }, []);
+
+  // Morning itinerary reminder toast — honours Settings → "Morning daily
+  // itinerary schedule notifications". Shows once per day, auto-dismisses.
+  const [reminderToast, setReminderToast] = useState<string | null>(null);
+  useEffect(() => {
+    const settings = getAppSettings();
+    if (!settings.tripReminders) return;
+    const todayKey = new Date().toISOString().split('T')[0];
+    if (localStorage.getItem('wanderlust_last_reminder') === todayKey) return;
+    const upcoming = itineraries[0];
+    const firstDayPlan = upcoming?.days?.[0];
+    const todayPlan = firstDayPlan
+      ? `${firstDayPlan.title} — ${firstDayPlan.morningActivity}`
+      : upcoming?.notes;
+    const text = upcoming
+      ? `Good morning, ${CURRENT_USER.name.split(' ')[0]}! Today on your ${upcoming.destination} plan: ${todayPlan}`
+      : `Good morning, ${CURRENT_USER.name.split(' ')[0]}! Ready to plan today's adventure?`;
+    const showTimer = setTimeout(() => {
+      setReminderToast(text);
+      localStorage.setItem('wanderlust_last_reminder', todayKey);
+      if (getAppSettings().chatSounds) playAudioAlert();
+    }, 2500);
+    const hideTimer = setTimeout(() => setReminderToast(null), 12500);
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Star / Favorite Companion Handler
@@ -348,6 +380,7 @@ export default function App() {
       setTimeout(() => {
         const host = travelers.find((t) => t.id === activity.hostId);
         if (host) {
+          if (getAppSettings().chatSounds) playAudioAlert();
           const replyMsg: ChatMessage = {
             id: `msg_reply_${Date.now()}`,
             threadId,
@@ -417,7 +450,7 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#090D16] flex flex-col text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen bg-[#FBF6EE] dark:bg-[#090D16] flex flex-col text-slate-900 dark:text-slate-100 transition-colors">
       {/* Navigation */}
       <Navigation
         activeTab={activeTab}
@@ -619,6 +652,26 @@ export default function App() {
         activeDestination={selectedDestination}
         emergencyContacts={safetyRecord.emergencyContacts || []}
       />
+
+      {/* Morning Itinerary Reminder Toast (Settings → trip reminders) */}
+      {reminderToast && (
+        <div className="fixed bottom-5 right-4 sm:right-5 z-50 max-w-sm bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 shadow-xl rounded-2xl p-4 flex items-start gap-3 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shrink-0 shadow-md">
+            <BellRing className="w-4.5 h-4.5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-bold text-slate-900 dark:text-slate-100">Daily Itinerary Reminder</div>
+            <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">{reminderToast}</p>
+          </div>
+          <button
+            onClick={() => setReminderToast(null)}
+            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 cursor-pointer"
+            aria-label="Dismiss reminder"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Clean Modern Footer */}
       <footer className="mt-auto border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-8 transition-colors">
