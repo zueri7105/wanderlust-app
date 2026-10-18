@@ -1,0 +1,645 @@
+import React, { useState, useEffect } from 'react';
+import {
+  SoloTraveler,
+  TravelTrip,
+  TravelActivity,
+  ExpenseItem,
+  SoloPersonalExpense,
+  TravelItinerary,
+  ChatMessage,
+  SafeCheckinRecord,
+  CompanionReview
+} from './types/travel';
+import {
+  CURRENT_USER,
+  INITIAL_TRAVELERS,
+  INITIAL_TRIPS,
+  INITIAL_ACTIVITIES,
+  INITIAL_EXPENSES,
+  INITIAL_SOLO_EXPENSES,
+  INITIAL_ITINERARIES,
+  INITIAL_CHATS,
+  INITIAL_SAFETY_CHECKIN
+} from './data/mockData';
+import { Navigation, NavTab } from './components/Navigation';
+import { ExploreTripsView } from './components/ExploreTripsView';
+import { ItineraryView } from './components/ItineraryView';
+import { CompanionMatcher } from './components/CompanionMatcher';
+import { MessagesView } from './components/MessagesView';
+import { SharedActivitiesView } from './components/SharedActivitiesView';
+import { TripCostView } from './components/TripCostView';
+import { MyProfileView } from './components/MyProfileView';
+import { TripChatModal } from './components/TripChatModal';
+import { CreateTripModal } from './components/CreateTripModal';
+import { EmergencySOSModal } from './components/EmergencySOSModal';
+import { SettingsView } from './components/SettingsView';
+import { TravelMapMemoriesView } from './components/TravelMapMemoriesView';
+import { TravelStoriesHubView } from './components/TravelStoriesHubView';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<NavTab>('explore');
+  const [selectedDestination, setSelectedDestination] = useState<string>('All Destinations');
+  const [selectedInterest, setSelectedInterest] = useState<string>('All Interests');
+  const [selectedScope, setSelectedScope] = useState<string>('All Trips');
+  const [isSOSModalOpen, setIsSOSModalOpen] = useState(false);
+
+  // Persistence in localStorage
+  const [currentUser, setCurrentUser] = useState<SoloTraveler>(() => {
+    const saved = localStorage.getItem('roamtogether_current_user');
+    return saved ? JSON.parse(saved) : CURRENT_USER;
+  });
+
+  const [travelers, setTravelers] = useState<SoloTraveler[]>(() => {
+    const saved = localStorage.getItem('roamtogether_travelers');
+    return saved ? JSON.parse(saved) : INITIAL_TRAVELERS;
+  });
+
+  const [trips, setTrips] = useState<TravelTrip[]>(() => {
+    const saved = localStorage.getItem('roamtogether_trips');
+    return saved ? JSON.parse(saved) : INITIAL_TRIPS;
+  });
+
+  const [itineraries, setItineraries] = useState<TravelItinerary[]>(() => {
+    const saved = localStorage.getItem('roamtogether_itineraries');
+    return saved ? JSON.parse(saved) : INITIAL_ITINERARIES;
+  });
+
+  const [activities, setActivities] = useState<TravelActivity[]>(() => {
+    const saved = localStorage.getItem('roamtogether_activities');
+    return saved ? JSON.parse(saved) : INITIAL_ACTIVITIES;
+  });
+
+  const [soloExpenses, setSoloExpenses] = useState<SoloPersonalExpense[]>(() => {
+    const saved = localStorage.getItem('roamtogether_solo_expenses');
+    return saved ? JSON.parse(saved) : INITIAL_SOLO_EXPENSES;
+  });
+
+  const [sharedExpenses, setSharedExpenses] = useState<ExpenseItem[]>(() => {
+    const saved = localStorage.getItem('roamtogether_shared_expenses');
+    return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+  });
+
+  const [chats, setChats] = useState<Record<string, ChatMessage[]>>(() => {
+    const saved = localStorage.getItem('roamtogether_chats');
+    return saved ? JSON.parse(saved) : INITIAL_CHATS;
+  });
+
+  const [safetyRecord, setSafetyRecord] = useState<SafeCheckinRecord>(() => {
+    const saved = localStorage.getItem('roamtogether_safety');
+    return saved ? JSON.parse(saved) : INITIAL_SAFETY_CHECKIN;
+  });
+
+  // Active Companion Chat Thread
+  const [activeCompanionChatId, setActiveCompanionChatId] = useState<string | null>('user_kenji');
+
+  // Modals
+  const [isCreateTripOpen, setIsCreateTripOpen] = useState(false);
+  const [activeChatActivityId, setActiveChatActivityId] = useState<string | null>(null);
+
+  // Sync to local storage
+  useEffect(() => {
+    localStorage.setItem('roamtogether_current_user', JSON.stringify(currentUser));
+  }, [currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem('roamtogether_travelers', JSON.stringify(travelers));
+  }, [travelers]);
+
+  useEffect(() => {
+    localStorage.setItem('roamtogether_trips', JSON.stringify(trips));
+  }, [trips]);
+
+  useEffect(() => {
+    localStorage.setItem('roamtogether_itineraries', JSON.stringify(itineraries));
+  }, [itineraries]);
+
+  useEffect(() => {
+    localStorage.setItem('roamtogether_activities', JSON.stringify(activities));
+  }, [activities]);
+
+  useEffect(() => {
+    localStorage.setItem('roamtogether_solo_expenses', JSON.stringify(soloExpenses));
+  }, [soloExpenses]);
+
+  useEffect(() => {
+    localStorage.setItem('roamtogether_shared_expenses', JSON.stringify(sharedExpenses));
+  }, [sharedExpenses]);
+
+  useEffect(() => {
+    localStorage.setItem('roamtogether_chats', JSON.stringify(chats));
+  }, [chats]);
+
+  useEffect(() => {
+    localStorage.setItem('roamtogether_safety', JSON.stringify(safetyRecord));
+  }, [safetyRecord]);
+
+  // Apply saved display theme (light / dark / system) on startup and whenever
+  // Settings broadcasts a change; also force a re-render so interface language
+  // switches propagate to Navigation and other translated labels.
+  const [, forceRender] = useState(0);
+  useEffect(() => {
+    const applyTheme = () => {
+      try {
+        const saved = localStorage.getItem('wanderlust_app_settings');
+        const theme = saved ? JSON.parse(saved).theme : 'light';
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+        document.documentElement.classList.toggle('dark', isDark);
+      } catch {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    const onSettingsChanged = () => {
+      applyTheme();
+      forceRender((n) => n + 1);
+    };
+    applyTheme();
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    media.addEventListener('change', applyTheme);
+    window.addEventListener('wanderlust-settings-changed', onSettingsChanged);
+    return () => {
+      media.removeEventListener('change', applyTheme);
+      window.removeEventListener('wanderlust-settings-changed', onSettingsChanged);
+    };
+  }, []);
+
+  // Star / Favorite Companion Handler
+  const handleToggleStarTraveler = (travelerId: string) => {
+    setTravelers((prev) =>
+      prev.map((t) => (t.id === travelerId ? { ...t, isStarred: !t.isStarred } : t))
+    );
+  };
+
+  // Persist a 5-star companion review onto the traveler's profile
+  const handleAddCompanionReview = (travelerId: string, review: CompanionReview) => {
+    setTravelers((prev) =>
+      prev.map((t) => {
+        if (t.id !== travelerId) return t;
+        const updatedReviews = [review, ...(t.reviews || [])];
+        const newAvgRating = Number(
+          (updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length).toFixed(2)
+        );
+        return {
+          ...t,
+          reviews: updatedReviews,
+          safetyRating: newAvgRating,
+          vouchedByCount: (t.vouchedByCount || 0) + 1
+        };
+      })
+    );
+  };
+
+  // Direct Companion Messaging Handler
+  const handleOpenDirectChatWithTraveler = (traveler: SoloTraveler, destination?: string) => {
+    setActiveCompanionChatId(traveler.id);
+    if (!chats[traveler.id] || chats[traveler.id].length === 0) {
+      const destText = destination || traveler.currentDestination || 'the trip';
+      setChats((prev) => ({
+        ...prev,
+        [traveler.id]: [
+          {
+            id: `msg_init_${Date.now()}`,
+            threadId: traveler.id,
+            senderId: traveler.id,
+            text: `Hey ${currentUser.name.split(' ')[0]}! Great connecting with you for ${destText.split(',')[0]}. Let's coordinate our schedule and activities!`,
+            timestamp: 'Just now'
+          }
+        ]
+      }));
+    }
+    setActiveTab('messages');
+  };
+
+  const handleSendDirectMessage = (threadId: string, text: string) => {
+    const newMsg: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      threadId,
+      senderId: currentUser.id,
+      text,
+      timestamp: 'Just now'
+    };
+
+    setChats((prev) => ({
+      ...prev,
+      [threadId]: [...(prev[threadId] || []), newMsg]
+    }));
+  };
+
+  const handleAddItinerary = (itinerary: TravelItinerary) => {
+    setItineraries((prev) => [itinerary, ...prev]);
+  };
+
+  const handleUpdateItinerary = (updatedItin: TravelItinerary) => {
+    setItineraries((prev) =>
+      prev.map((it) => (it.id === updatedItin.id ? updatedItin : it))
+    );
+  };
+
+  const handleAddSoloExpense = (expense: Omit<SoloPersonalExpense, 'id'>) => {
+    const newExpense: SoloPersonalExpense = {
+      ...expense,
+      id: `solo_exp_${Date.now()}`
+    };
+    setSoloExpenses((prev) => [newExpense, ...prev]);
+  };
+
+  const handleAddSharedExpense = (expenseData: Omit<ExpenseItem, 'id' | 'settled'>) => {
+    const newExpense: ExpenseItem = {
+      ...expenseData,
+      id: `exp_${Date.now()}`,
+      settled: false
+    };
+    setSharedExpenses((prev) => [newExpense, ...prev]);
+  };
+
+  const handleToggleSharedSettled = (id: string) => {
+    setSharedExpenses((prev) =>
+      prev.map((exp) => (exp.id === id ? { ...exp, settled: !exp.settled } : exp))
+    );
+  };
+
+  const handleJoinActivity = (activityId: string) => {
+    setActivities((prev) =>
+      prev.map((act) => {
+        if (act.id === activityId && !act.participantIds.includes(currentUser.id)) {
+          return {
+            ...act,
+            participantIds: [...act.participantIds, currentUser.id]
+          };
+        }
+        return act;
+      })
+    );
+
+    const newMsg: ChatMessage = {
+      id: `sys_${Date.now()}`,
+      threadId: activityId,
+      senderId: currentUser.id,
+      text: `${currentUser.name} joined this activity!`,
+      timestamp: 'Just now',
+      isSystem: true
+    };
+    setChats((prev) => ({
+      ...prev,
+      [activityId]: [...(prev[activityId] || []), newMsg]
+    }));
+  };
+
+  const handleLeaveActivity = (activityId: string) => {
+    setActivities((prev) =>
+      prev.map((act) => {
+        if (act.id === activityId) {
+          return {
+            ...act,
+            participantIds: act.participantIds.filter((id) => id !== currentUser.id)
+          };
+        }
+        return act;
+      })
+    );
+  };
+
+  const handleCreateNewActivity = (
+    newActData: Omit<TravelActivity, 'id' | 'participantIds' | 'status'>
+  ) => {
+    const id = `act_${Date.now()}`;
+    const newAct: TravelActivity = {
+      ...newActData,
+      id,
+      participantIds: [currentUser.id],
+      status: 'open'
+    };
+
+    setActivities((prev) => [newAct, ...prev]);
+
+    setChats((prev) => ({
+      ...prev,
+      [id]: [
+        {
+          id: `msg_${Date.now()}`,
+          threadId: id,
+          senderId: currentUser.id,
+          text: `Welcome! I posted this activity for ${newAct.title}. Looking forward to coordinating meetup time and exploring together!`,
+          timestamp: 'Just now'
+        }
+      ]
+    }));
+
+    setActiveTab('activities');
+    setActiveChatActivityId(id);
+  };
+
+  const handleSendActivityMessage = (threadId: string, text: string) => {
+    const newMsg: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      threadId,
+      senderId: currentUser.id,
+      text,
+      timestamp: 'Just now'
+    };
+
+    setChats((prev) => ({
+      ...prev,
+      [threadId]: [...(prev[threadId] || []), newMsg]
+    }));
+
+    const activity = activities.find((a) => a.id === threadId);
+    if (activity && activity.hostId !== currentUser.id) {
+      setTimeout(() => {
+        const host = travelers.find((t) => t.id === activity.hostId);
+        if (host) {
+          const replyMsg: ChatMessage = {
+            id: `msg_reply_${Date.now()}`,
+            threadId,
+            senderId: host.id,
+            text: `Thanks for reaching out ${currentUser.name.split(' ')[0]}! Looking forward to traveling together. See you at ${activity.meetPointPublic}.`,
+            timestamp: 'Just now'
+          };
+          setChats((prev) => ({
+            ...prev,
+            [threadId]: [...(prev[threadId] || []), replyMsg]
+          }));
+        }
+      }, 1400);
+    }
+  };
+
+  const handleSaveNewTrip = (tripData: Omit<TravelTrip, 'id' | 'travelerId'>) => {
+    const newTrip: TravelTrip = {
+      ...tripData,
+      id: `trip_${Date.now()}`,
+      travelerId: currentUser.id
+    };
+    setTrips((prev) => [newTrip, ...prev]);
+    setSelectedDestination(newTrip.destination);
+    setActiveTab('itinerary');
+  };
+
+  const handleUpdateProfile = (updated: Partial<SoloTraveler>) => {
+    setCurrentUser((prev) => ({ ...prev, ...updated }));
+  };
+
+  const handleUpdateSafetyRecord = (partial: Partial<SafeCheckinRecord>) => {
+    setSafetyRecord((prev) => ({ ...prev, ...partial }));
+  };
+
+  const activeChatActivity = activities.find((a) => a.id === activeChatActivityId);
+  const myTrips = trips.filter((t) => t.travelerId === currentUser.id);
+
+  // Helper to check if destination matches current filter
+  const isMatchingDestination = (dest: string | undefined, filter: string) => {
+    if (!filter || filter === 'All Destinations') return true;
+    if (!dest) return false;
+    const prefix = filter.toLowerCase().split(',')[0].trim();
+    return dest.toLowerCase().includes(prefix);
+  };
+
+  // Open activities matching selected destination
+  const filteredOpenActivities = activities.filter(
+    (a) => a.status === 'open' && isMatchingDestination(a.destination, selectedDestination)
+  );
+
+  // Starred companions matching selected destination
+  const filteredStarredCompanions = travelers.filter((t) => {
+    if (!t.isStarred || t.id === currentUser.id) return false;
+    if (selectedDestination === 'All Destinations') return true;
+    const hasMatchingTrip = trips.some(
+      (tr) => tr.travelerId === t.id && isMatchingDestination(tr.destination, selectedDestination)
+    );
+    return hasMatchingTrip || isMatchingDestination(t.currentDestination, selectedDestination);
+  });
+
+  const openActivitiesCount = filteredOpenActivities.length;
+  const starredCompanionsCount = filteredStarredCompanions.length;
+
+  const directConversationsCount = Object.keys(chats).filter((k) =>
+    travelers.some((t) => t.id === k && t.id !== currentUser.id)
+  ).length;
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-[#090D16] flex flex-col text-slate-900 dark:text-slate-100 transition-colors">
+      {/* Navigation */}
+      <Navigation
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        onOpenCreateTrip={() => setIsCreateTripOpen(true)}
+        onOpenSOS={() => setIsSOSModalOpen(true)}
+        openActivitiesCount={openActivitiesCount}
+        starredCompanionsCount={starredCompanionsCount}
+        totalConversationsCount={directConversationsCount}
+        selectedDestination={selectedDestination}
+        onClearDestination={() => setSelectedDestination('All Destinations')}
+      />
+
+      {/* Main Content Viewport */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'explore' && (
+          <ExploreTripsView
+            myTrips={myTrips}
+            allTrips={trips}
+            travelers={travelers}
+            currentUser={currentUser}
+            selectedDestination={selectedDestination}
+            onSelectDestination={setSelectedDestination}
+            selectedScope={selectedScope}
+            onSelectScope={setSelectedScope}
+            selectedInterest={selectedInterest}
+            onSelectInterest={setSelectedInterest}
+            onGoToMatcher={(dest) => {
+              if (dest) setSelectedDestination(dest);
+              setActiveTab('matcher');
+            }}
+            onGoToActivities={(dest) => {
+              if (dest) setSelectedDestination(dest);
+              setActiveTab('activities');
+            }}
+            onGoToItinerary={(dest) => {
+              setSelectedDestination(dest);
+              setActiveTab('itinerary');
+            }}
+            onOpenCreateTrip={() => setIsCreateTripOpen(true)}
+            onToggleStarTraveler={handleToggleStarTraveler}
+            onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
+          />
+        )}
+
+        {activeTab === 'itinerary' && (
+          <ItineraryView
+            itineraries={itineraries}
+            currentUser={currentUser}
+            onAddItinerary={handleAddItinerary}
+            onUpdateItinerary={handleUpdateItinerary}
+            onGoToCompanions={(dest) => {
+              setSelectedDestination(dest);
+              setActiveTab('matcher');
+            }}
+            onGoToExploreTrips={(dest) => {
+              setSelectedDestination(dest);
+              setActiveTab('explore');
+            }}
+            onGoToActivities={(dest) => {
+              setSelectedDestination(dest);
+              setActiveTab('activities');
+            }}
+            onOpenChatWithCompanion={(travelerId) => {
+              setActiveCompanionChatId(travelerId);
+              setActiveTab('messages');
+            }}
+          />
+        )}
+
+        {activeTab === 'matcher' && (
+          <CompanionMatcher
+            trips={trips}
+            itineraries={itineraries}
+            travelers={travelers}
+            currentUser={currentUser}
+            selectedDestination={selectedDestination}
+            onSelectDestination={setSelectedDestination}
+            selectedInterest={selectedInterest}
+            onSelectInterest={setSelectedInterest}
+            selectedScope={selectedScope}
+            onSelectScope={setSelectedScope}
+            onToggleStarTraveler={handleToggleStarTraveler}
+            onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
+            onViewActivitiesForDestination={(dest) => {
+              setSelectedDestination(dest);
+              setActiveTab('activities');
+            }}
+            onAddReview={handleAddCompanionReview}
+          />
+        )}
+
+        {/* Travel Map & Memories (Nomad Radar) */}
+        {activeTab === 'map' && (
+          <TravelMapMemoriesView
+            currentUser={currentUser}
+            travelers={travelers}
+            onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
+            onGoToItinerary={(dest) => {
+              setSelectedDestination(dest);
+              setActiveTab('itinerary');
+            }}
+          />
+        )}
+
+        {/* Travel Stories & Community Knowledge Hub */}
+        {activeTab === 'stories' && (
+          <TravelStoriesHubView
+            currentUser={currentUser}
+            onGoToDestination={(dest) => {
+              setSelectedDestination(dest);
+              setActiveTab('explore');
+            }}
+          />
+        )}
+
+        {/* Dedicated Chatbox Between Companions and Activities */}
+        {activeTab === 'messages' && (
+          <MessagesView
+            chats={chats}
+            travelers={travelers}
+            currentUser={currentUser}
+            trips={trips}
+            activeTravelerId={activeCompanionChatId}
+            onSelectTraveler={setActiveCompanionChatId}
+            onSendMessage={handleSendDirectMessage}
+            onToggleStarTraveler={handleToggleStarTraveler}
+            onGoToItinerary={(dest) => {
+              setSelectedDestination(dest);
+              setActiveTab('itinerary');
+            }}
+          />
+        )}
+
+        {activeTab === 'activities' && (
+          <SharedActivitiesView
+            activities={activities}
+            travelers={travelers}
+            currentUser={currentUser}
+            selectedDestination={selectedDestination}
+            onJoinActivity={handleJoinActivity}
+            onLeaveActivity={handleLeaveActivity}
+            onOpenActivityChat={(activityId) => setActiveChatActivityId(activityId)}
+            onCreateNewActivity={handleCreateNewActivity}
+          />
+        )}
+
+        {activeTab === 'costs' && (
+          <TripCostView
+            soloExpenses={soloExpenses}
+            sharedExpenses={sharedExpenses}
+            travelers={travelers}
+            currentUser={currentUser}
+            selectedDestination={selectedDestination}
+            onAddSoloExpense={handleAddSoloExpense}
+            onAddSharedExpense={handleAddSharedExpense}
+            onToggleSharedSettled={handleToggleSharedSettled}
+          />
+        )}
+
+        {activeTab === 'profile' && (
+          <MyProfileView
+            currentUser={currentUser}
+            safetyRecord={safetyRecord}
+            onUpdateProfile={handleUpdateProfile}
+            onUpdateSafetyRecord={handleUpdateSafetyRecord}
+          />
+        )}
+
+        {/* Settings Tab for Design Customization (Light/Dark mode, Language, etc.) */}
+        {activeTab === 'settings' && <SettingsView />}
+      </main>
+
+      {/* Active Trip Activity Chat Modal (For Activity Pods) */}
+      {activeChatActivity && (
+        <TripChatModal
+          activity={activeChatActivity}
+          travelers={travelers}
+          currentUser={currentUser}
+          messages={chats[activeChatActivity.id] || []}
+          onSendMessage={handleSendActivityMessage}
+          onClose={() => setActiveChatActivityId(null)}
+        />
+      )}
+
+      {/* Post Trip Modal */}
+      <CreateTripModal
+        currentUser={currentUser}
+        isOpen={isCreateTripOpen}
+        onClose={() => setIsCreateTripOpen(false)}
+        onSaveTrip={handleSaveNewTrip}
+      />
+
+      {/* Emergency SOS Help Modal */}
+      <EmergencySOSModal
+        isOpen={isSOSModalOpen}
+        onClose={() => setIsSOSModalOpen(false)}
+        currentUser={currentUser}
+        activeDestination={selectedDestination}
+        emergencyContacts={safetyRecord.emergencyContacts || []}
+      />
+
+      {/* Clean Modern Footer */}
+      <footer className="mt-auto border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-8 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-800 dark:text-slate-200">WanderLust</span>
+            <span aria-hidden="true">·</span>
+            <span>Connecting solo travelers for full trips or shared adventures safely</span>
+          </div>
+
+          <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400 flex-wrap">
+            <span>Solo Itinerary Planning</span>
+            <span aria-hidden="true">·</span>
+            <span>Companion Direct Chat</span>
+            <span aria-hidden="true">·</span>
+            <span>Currency Basket & Split Ledger</span>
+            <span aria-hidden="true">·</span>
+            <span>Public Daylight Meetups</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
