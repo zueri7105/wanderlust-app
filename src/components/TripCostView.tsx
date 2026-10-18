@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getTranslation } from '../utils/i18n';
 import { ExpenseItem, SoloPersonalExpense, SoloTraveler, TravelItinerary, TravelTrip } from '../types/travel';
 import { WORLD_CURRENCIES } from '../data/currencies';
+import { getFxRates, refreshFxRates, rateFor, type FxState } from '../utils/currency';
 import {
   Calculator,
   Plus,
@@ -100,6 +101,21 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
     localStorage.setItem('wanderlust_cost_currency', activeCurrency);
   }, [activeCurrency]);
 
+  // Live FX rates — refreshed from the API on mount, cached 6h, offline fallback estimates
+  const [fx, setFx] = useState<FxState>(() => getFxRates());
+  useEffect(() => {
+    let alive = true;
+    refreshFxRates().then((s) => {
+      if (alive) setFx(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const fmtRate = (n: number): string =>
+    n >= 100 ? Math.round(n).toLocaleString() : n >= 10 ? n.toFixed(1) : n.toFixed(2);
+
   const [isAddCurrencyModalOpen, setIsAddCurrencyModalOpen] = useState(false);
   const [customCodeInput, setCustomCodeInput] = useState('');
   const [customNameInput, setCustomNameInput] = useState('');
@@ -112,8 +128,11 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
     allKnownCurrencies.find((c) => c.code === activeCurrency) || TOP_5_CURRENCIES[0];
 
   const getCurrencyRate = (code: string): number => {
-    const found = allKnownCurrencies.find((c) => c.code.toUpperCase() === code.toUpperCase());
-    return found ? found.rate : 1.0;
+    const upper = (code || 'USD').toUpperCase();
+    // Live/cached market rates take priority over any stored static rate
+    if (fx.rates[upper]) return fx.rates[upper];
+    const found = allKnownCurrencies.find((c) => c.code.toUpperCase() === upper);
+    return found ? found.rate : rateFor(upper, fx);
   };
 
   const convertCurrency = (amount: number, from: string, to: string): number => {
@@ -396,8 +415,25 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
               </div>
             </div>
 
-            <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-              1 USD ≈ €0.92 ≈ ¥7.15 (CNY) ≈ ¥152 (JPY) ≈ £0.79
+            <div className="flex flex-col items-start sm:items-end gap-1 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+              <span
+                className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                  fx.isLive
+                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300'
+                    : 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    fx.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
+                  }`}
+                />
+                {fx.isLive ? 'Live exchange rates' : 'Estimated rates (offline)'}
+              </span>
+              <span>
+                1 USD ≈ €{fmtRate(rateFor('EUR', fx))} ≈ ¥{fmtRate(rateFor('CNY', fx))} (CNY) ≈ ¥
+                {fmtRate(rateFor('JPY', fx))} (JPY) ≈ £{fmtRate(rateFor('GBP', fx))}
+              </span>
             </div>
           </div>
 

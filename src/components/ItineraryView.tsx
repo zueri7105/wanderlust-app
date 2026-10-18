@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TravelItinerary, SoloTraveler, ItineraryDay, TravelGuideInfo, TripScope } from '../types/travel';
 import {
   Calendar,
@@ -27,10 +27,13 @@ import {
   Languages,
   Smartphone,
   AlertTriangle,
-  Globe
+  Globe,
+  Stamp
 } from 'lucide-react';
 import { generateDestinationTravelGuide } from '../services/geminiService';
 import { formatTemperature } from '../utils/units';
+import { lookupCountryGuide, visaAdviceFor, tippingAdviceFor } from '../utils/countryGuides';
+import { getFxRates, refreshFxRates, benchmarkString, type FxState } from '../utils/currency';
 import { getTranslation } from '../utils/i18n';
 
 interface ItineraryViewProps {
@@ -383,6 +386,18 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isGeneratingGuide, setIsGeneratingGuide] = useState(false);
 
+  // Live FX rates — refreshed from the API on mount, cached 6h, offline fallback estimates
+  const [fx, setFx] = useState<FxState>(() => getFxRates());
+  useEffect(() => {
+    let alive = true;
+    refreshFxRates().then((s) => {
+      if (alive) setFx(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Form state
   const [formDest, setFormDest] = useState('Dubrovnik, Croatia');
   const [formStartDate, setFormStartDate] = useState('2026-11-01');
@@ -439,39 +454,39 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     syncDraftDaysCount(dur.days);
   };
 
-  // Dynamic multi-day draft list
+  // Dynamic multi-day draft list (destination-neutral templates, fully editable)
   const [formDays, setFormDays] = useState<FormDayDraft[]>([
     {
-      title: 'Arrival & Old Town Ramparts',
+      title: 'Arrival & Old Town First Walk',
       morning: 'Airport arrival, check into accommodations, settle in.',
-      afternoon: 'Explore central historic square, local cafe stop.',
-      evening: 'Casual dinner at neighborhood tavern / bistro bar.',
+      afternoon: 'Explore the central historic square, local cafe stop.',
+      evening: 'Casual dinner at a neighborhood tavern / bistro bar.',
       companionGoal: 'Open for dinner companion to celebrate first evening'
     },
     {
       title: 'Iconic Architecture & Viewpoints',
-      morning: 'Early morning walk along city fortress walls before heat and crowds.',
-      afternoon: 'Artisan market crawl and coastal swimming spot.',
-      evening: 'Sunset viewpoint walk and seafood dinner.',
+      morning: 'Early morning walk past the main landmarks before heat and crowds.',
+      afternoon: 'Artisan market crawl and a scenic city viewpoint.',
+      evening: 'Sunset viewpoint walk and local dinner.',
       companionGoal: 'Companion for viewpoint photos and dinner'
     },
     {
-      title: 'Island Day Excursion & Sea Kayak',
-      morning: 'Morning boat to Lokrum island or coastal kayak tour.',
-      afternoon: 'Swim in pine-fringed coves and visit botanical gardens.',
-      evening: 'Sunset drinks overlooking the Adriatic Sea.',
-      companionGoal: 'Split tandem sea kayak or island water taxi'
+      title: 'Day Excursion & Outdoor Adventure',
+      morning: 'Day trip to a nearby island, national park, or guided outdoor tour.',
+      afternoon: 'Explore scenic highlights and local nature spots.',
+      evening: 'Sunset drinks at a panoramic terrace.',
+      companionGoal: 'Split tour or transport costs for the excursion'
     },
     {
       title: 'Cultural Heritage & Sunset Walk',
-      morning: 'Visit Rector\'s Palace and Franciscan Monastery museum.',
-      afternoon: 'Artisan shopping and relaxed coffee break on Stradun.',
-      evening: 'Farewell celebratory dinner at seaside terrace.',
+      morning: 'Visit the main palace, museum, or heritage monument.',
+      afternoon: 'Artisan shopping and a relaxed coffee break on the main promenade.',
+      evening: 'Farewell celebratory dinner at a local terrace.',
       companionGoal: 'Shared multi-course dinner and travel stories'
     },
     {
       title: 'Morning Views & Departure',
-      morning: 'Cable car up Mount Srđ for panoramic dawn vista.',
+      morning: 'Cable car or viewpoint for a panoramic farewell vista.',
       afternoon: 'Pack and airport transfer.',
       evening: 'Departure flight.',
       companionGoal: 'Split airport taxi'
@@ -526,28 +541,35 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
     setIsGeneratingGuide(true);
 
-    const country = formDest.includes(',') ? formDest.split(',')[1].trim() : formDest;
+    // Country knowledge base: resolves bare cities ("Bangkok" → Thailand) and aligns
+    // entry rules, customs, phrases and currency with whatever destination is typed.
+    const kb = lookupCountryGuide(formDest);
+    const nat = currentUser.country || 'Germany';
+    const parsedCountry = formDest.includes(',') ? formDest.split(',')[1].trim() : '';
+    const country = parsedCountry || (kb.key !== 'generic' ? kb.name : formDest);
     const city = formDest.includes(',') ? formDest.split(',')[0].trim() : formDest;
+    const visaText = visaAdviceFor(nat, kb);
+    const tippingText = tippingAdviceFor(nat, kb);
+    const kbCurrency = {
+      code: kb.currencyCode,
+      name: kb.currencyName,
+      symbol: kb.currencySymbol,
+      rateBenchmark: '',
+      cardAcceptance: 'Cards are widely accepted in cities; carry some cash for markets, taxis, and small towns.',
+      tippingRules: tippingText
+    };
 
     let guide: TravelGuideInfo;
     try {
-      const generated = await generateDestinationTravelGuide(
-        formDest,
-        currentUser.country || 'Germany',
-        formNotes
-      );
+      const generated = await generateDestinationTravelGuide(formDest, nat, formNotes);
       guide = {
-        travelerNationality: currentUser.country || 'Germany',
+        travelerNationality: nat,
         destinationCity: city,
         destinationCountry: country,
-        visaRequirements: generated.visaRequirements || 'Standard tourist visa or visa-free entry applies.',
-        specificCurrency: generated.specificCurrency || {
-          code: 'EUR',
-          name: 'Euro',
-          symbol: '€',
-          rateBenchmark: '1 EUR ≈ 1.09 USD',
-          cardAcceptance: 'Contactless cards and mobile pay accepted at most venues.',
-          tippingRules: 'Service included; rounding up is appreciated.'
+        visaRequirements: visaText,
+        specificCurrency: {
+          ...kbCurrency,
+          cardAcceptance: generated.specificCurrency?.cardAcceptance || kbCurrency.cardAcceptance
         },
         weatherOutlook: generated.weatherOutlook || {
           cityName: `${city} Local Climate`,
@@ -563,19 +585,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         recommendedToBring: generated.recommendedToBring?.length
           ? generated.recommendedToBring
           : ['Walking shoes', 'Plug adapter', 'Light jacket'],
-        arrivalRulesAndApps: generated.arrivalRulesAndApps || {
-          connectivityAdvice: 'Purchase an international eSIM or check roaming coverage before departure.',
-          recommendedApps: [
-            { name: 'Google Maps / Citymapper', purpose: 'Offline city navigation' },
-            { name: 'Local Transit App', purpose: 'Bus and train timetable information' }
-          ],
-          entryRegulations: ['Passport must be valid for stay.']
+        arrivalRulesAndApps: {
+          connectivityAdvice:
+            generated.arrivalRulesAndApps?.connectivityAdvice ||
+            'Purchase an international eSIM or check roaming coverage before departure.',
+          recommendedApps: generated.arrivalRulesAndApps?.recommendedApps?.length
+            ? generated.arrivalRulesAndApps.recommendedApps
+            : [
+                { name: 'Google Maps / Citymapper', purpose: 'Offline city navigation' },
+                { name: 'Local Transit App', purpose: 'Bus and train timetable information' }
+              ],
+          entryRegulations: kb.entryRules
         },
-        culturalNorms: generated.culturalNorms || ['Greet shopkeepers upon entering.'],
-        basicGreetings: generated.basicGreetings || [
-          { phrase: 'Hello / Good day', translation: 'Standard greeting', phonetic: 'Heh-loh' },
-          { phrase: 'Thank you', translation: 'Appreciation', phonetic: 'Thank-yoo' }
-        ],
+        culturalNorms: kb.customs,
+        basicGreetings: kb.phrases,
         culturalShocks: generated.culturalShocks || [
           {
             title: 'Dining Schedules & Local Pace',
@@ -583,24 +606,17 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             tip: 'Check opening hours for afternoon closures.'
           }
         ],
-        soloSafetyAdvisories: generated.soloSafetyAdvisories || [
-          'Meet potential travel companions in public plazas.'
-        ]
+        soloSafetyAdvisories: generated.soloSafetyAdvisories?.length
+          ? generated.soloSafetyAdvisories
+          : ['Meet potential travel companions in public plazas.']
       };
     } catch {
       guide = {
-        travelerNationality: currentUser.country || 'Germany',
+        travelerNationality: nat,
         destinationCity: city,
         destinationCountry: country,
-        visaRequirements: `Passport valid for duration of stay required. Check official consulate portal for ${country}.`,
-        specificCurrency: {
-          code: 'EUR',
-          name: 'Euro',
-          symbol: '€',
-          rateBenchmark: '1 EUR ≈ 1.09 USD',
-          cardAcceptance: 'Universal card acceptance.',
-          tippingRules: 'Tipping not strictly mandatory.'
-        },
+        visaRequirements: visaText,
+        specificCurrency: kbCurrency,
         weatherOutlook: {
           cityName: `${city} City Outlook`,
           seasonPeriod: `${formStartDate} to ${formEndDate}`,
@@ -621,11 +637,13 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         arrivalRulesAndApps: {
           connectivityAdvice: 'Download offline maps before leaving airport.',
           recommendedApps: [{ name: 'Google Maps', purpose: 'Navigation' }],
-          entryRegulations: ['Check customs allowances for local entry.']
+          entryRegulations: kb.entryRules
         },
-        culturalNorms: ['Respect quiet hours in residential quarters.'],
-        basicGreetings: [{ phrase: 'Hello', translation: 'Greeting', phonetic: 'Heh-loh' }],
-        culturalShocks: [{ title: 'Local Etiquette', description: 'Be respectful of local traditions.', tip: 'Observe locals.' }],
+        culturalNorms: kb.customs,
+        basicGreetings: kb.phrases,
+        culturalShocks: [
+          { title: 'Local Etiquette', description: 'Be respectful of local traditions.', tip: 'Observe locals.' }
+        ],
         soloSafetyAdvisories: ['Save local emergency services: 112.']
       };
     } finally {
@@ -708,6 +726,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         <div className="space-y-6">
           {sortedItineraries.map((itinerary) => {
             const isExpanded = !!expandedIds[itinerary.id];
+            // Country knowledge overlay — keeps rules, customs, phrases & currency aligned
+            // with the destination even for itineraries saved before the knowledge base existed.
+            const guideKb = lookupCountryGuide(`${itinerary.destination} ${itinerary.country || ''}`);
+            const guideNat = itinerary.travelGuide?.travelerNationality || currentUser.country || 'Germany';
 
             return (
               <div
@@ -1168,7 +1190,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
                         {/* Specific Currency Section (Refined: Corresponds specifically to country) */}
                         {(() => {
-                          const curr = resolveDestinationCurrency(itinerary);
+                          const base = resolveDestinationCurrency(itinerary);
+                          const curr =
+                            guideKb.key !== 'generic'
+                              ? {
+                                  ...base,
+                                  code: guideKb.currencyCode,
+                                  name: `${guideKb.currencyName} (${guideKb.currencySymbol} / ${guideKb.currencyCode})`,
+                                  symbol: guideKb.currencySymbol
+                                }
+                              : base;
                           return (
                             <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 text-xs">
                               <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-700">
@@ -1183,9 +1214,25 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                                  <span className="text-[11px] text-slate-500 block">Benchmark Rate:</span>
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="text-[11px] text-slate-500 block">Exchange Rate:</span>
+                                    <span
+                                      className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                        fx.isLive
+                                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                          : 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300'
+                                      }`}
+                                    >
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full ${
+                                          fx.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
+                                        }`}
+                                      />
+                                      {fx.isLive ? 'Live' : 'Estimated'}
+                                    </span>
+                                  </div>
                                   <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs mt-0.5 block">
-                                    {curr.rateBenchmark}
+                                    {benchmarkString(curr.code, curr.symbol, fx)}
                                   </span>
                                 </div>
                                 <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 sm:col-span-2">
@@ -1198,7 +1245,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
                               <div className="text-[11px] text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 p-2.5 rounded-lg">
                                 <strong className="text-slate-900 dark:text-slate-100">Tipping Rules:</strong>{' '}
-                                {curr.tippingRules}
+                                {tippingAdviceFor(guideNat, guideKb)}
                               </div>
                             </div>
                           );
@@ -1251,13 +1298,58 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               Entry Customs & Regulations:
                             </div>
                             <ul className="space-y-1 text-slate-700 dark:text-slate-300">
-                              {itinerary.travelGuide.arrivalRulesAndApps?.entryRegulations?.map((reg, idx) => (
+                              {(guideKb.key !== 'generic'
+                                ? guideKb.entryRules
+                                : itinerary.travelGuide.arrivalRulesAndApps?.entryRegulations || []
+                              ).map((reg, idx) => (
                                 <li key={idx} className="flex items-start gap-1.5">
                                   <span className="text-slate-400 font-bold">•</span>
                                   <span>{reg}</span>
                                 </li>
                               ))}
                             </ul>
+                          </div>
+                        </div>
+
+                        {/* Visa & Entry — tailored to the traveler's nationality */}
+                        <div className="p-4 sm:p-5 bg-gradient-to-r from-violet-50 to-fuchsia-50 dark:from-violet-950/30 dark:to-fuchsia-950/20 border border-violet-200 dark:border-violet-800 rounded-xl">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shrink-0 shadow-md shadow-violet-500/30">
+                              <Stamp className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                                Visa & Entry Requirements
+                              </div>
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400 mt-0.5 mb-1.5">
+                                {guideKb.name} · For a {guideNat} Passport
+                              </div>
+                              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                                {visaAdviceFor(guideNat, guideKb)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Local Customs & Cultural Etiquette */}
+                        <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-xs">
+                          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm pb-2 border-b border-slate-200 dark:border-slate-700 mb-2.5">
+                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                            <span>Local Customs & Cultural Etiquette</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {(guideKb.key !== 'generic'
+                              ? guideKb.customs
+                              : itinerary.travelGuide.culturalNorms || []
+                            ).map((norm, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-start gap-2 bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                              >
+                                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                <span>{norm}</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
 
@@ -1270,7 +1362,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               <span>Basic Greetings in Local Language</span>
                             </div>
                             <div className="space-y-2 pt-1">
-                              {itinerary.travelGuide.basicGreetings?.map((g, idx) => (
+                              {(guideKb.key !== 'generic'
+                                ? guideKb.phrases
+                                : itinerary.travelGuide.basicGreetings || []
+                              ).map((g, idx) => (
                                 <div key={idx} className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
                                   <div className="font-bold text-slate-900 dark:text-slate-100 text-xs">
                                     {g.phrase}
