@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TravelActivity, SoloTraveler } from '../types/travel';
-import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign, Trash2, EyeOff, CalendarDays, ArrowRight } from 'lucide-react';
+import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign, Trash2, EyeOff, Eye, CalendarDays, ArrowRight } from 'lucide-react';
 import { generateSafeMeetingGuide } from '../services/geminiService';
 import { getTranslation } from '../utils/i18n';
 import { WORLD_CURRENCIES } from '../data/currencies';
@@ -66,6 +66,13 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
     setHiddenActivities(updated);
     localStorage.setItem('wanderlust_hidden_activities', JSON.stringify(updated));
   };
+
+  // Unhide — restore a previously hidden activity to the feed
+  const handleUnhideActivity = (id: string) => {
+    const updated = hiddenActivities.filter((a) => a !== id);
+    setHiddenActivities(updated);
+    localStorage.setItem('wanderlust_hidden_activities', JSON.stringify(updated));
+  };
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [safetyModalData, setSafetyModalData] = useState<{
     activity: TravelActivity;
@@ -100,6 +107,8 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
   const getTraveler = (id: string) => travelers.find((t) => t.id === id) || travelers[0];
 
   const filteredActivities = activities.filter((act) => {
+    // Hidden posts live under the dedicated "Hidden" category tab
+    if (selectedCategory === 'Hidden') return hiddenActivities.includes(act.id);
     if (hiddenActivities.includes(act.id)) return false;
     if (selectedDestination !== 'All Destinations') {
       const sel = selectedDestination.toLowerCase().split(',')[0].trim();
@@ -210,6 +219,21 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
               {cat}
             </button>
           ))}
+          {/* Hidden tab — restore activities you hid from your feed */}
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('Hidden')}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+              selectedCategory === 'Hidden'
+                ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white font-semibold shadow-xs'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+            title="Activities you hid from your feed"
+          >
+            <EyeOff className="w-3 h-3" />
+            <span>Hidden</span>
+            <span className="font-mono text-[10px] opacity-80">({hiddenActivities.length})</span>
+          </button>
         </div>
 
         {/* Free Activities Filter Toggle as requested */}
@@ -394,16 +418,28 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                       </span>
                     )}
 
-                    {/* Hide post (anyone) / Delete post (host only) */}
+                    {/* Hide / Unhide post (anyone) / Delete post (host only) */}
                     <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleHideActivity(act.id)}
-                        className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
-                        title="Hide this post from your feed"
-                      >
-                        <EyeOff className="w-3.5 h-3.5" />
-                      </button>
+                      {selectedCategory === 'Hidden' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleUnhideActivity(act.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 rounded-md transition-colors cursor-pointer"
+                          title="Restore this activity to your feed"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Unhide</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleHideActivity(act.id)}
+                          className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                          title="Hide this post (find it again under the Hidden tab)"
+                        >
+                          <EyeOff className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       {act.hostId === currentUser.id && onDeleteActivity && (
                         <button
                           type="button"

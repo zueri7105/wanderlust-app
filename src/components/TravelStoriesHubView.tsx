@@ -18,7 +18,8 @@ import {
   Heading2,
   Pilcrow,
   Trash2,
-  EyeOff
+  EyeOff,
+  Eye
 } from 'lucide-react';
 
 /** A story content block: paragraph or subheading. Subheadings persist as "## text". */
@@ -179,6 +180,13 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
     if (activeArticle?.id === id) setActiveArticle(null);
   };
 
+  // Unhide — restore a previously hidden story to the feed
+  const handleUnhideArticle = (id: string) => {
+    const updated = hiddenArticles.filter((a) => a !== id);
+    setHiddenArticles(updated);
+    localStorage.setItem('wanderlust_hidden_articles', JSON.stringify(updated));
+  };
+
   // Delete story post — only the author's own stories can be deleted
   const handleDeleteArticle = (id: string) => {
     const updated = articles.filter((a) => a.id !== id);
@@ -259,8 +267,9 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
     ]);
   };
 
-  // Filter articles (hidden posts are removed from the feed)
+  // Filter articles (hidden posts are removed from the feed unless viewing the Hidden tab)
   const filteredArticles = articles.filter((art) => {
+    if (selectedCategory === 'Hidden Posts') return hiddenArticles.includes(art.id);
     if (hiddenArticles.includes(art.id)) return false;
     if (selectedCategory !== 'All Articles' && art.category !== selectedCategory) {
       return false;
@@ -341,6 +350,21 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
               {cat}
             </button>
           ))}
+          {/* Hidden Posts tab — restore stories you hid from your feed */}
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('Hidden Posts')}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer font-medium inline-flex items-center gap-1.5 ${
+              selectedCategory === 'Hidden Posts'
+                ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white font-semibold shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200'
+            }`}
+            title="Posts you hid from your feed"
+          >
+            <EyeOff className="w-3 h-3" />
+            <span>Hidden</span>
+            <span className="font-mono text-[10px] opacity-80">({hiddenArticles.length})</span>
+          </button>
         </div>
       </div>
 
@@ -439,15 +463,27 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                       {getTranslation('readArticle')}
                     </button>
 
-                    {/* Hide post (anyone can hide from their own feed) */}
-                    <button
-                      type="button"
-                      onClick={() => handleHideArticle(art.id)}
-                      className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
-                      title="Hide this post"
-                    >
-                      <EyeOff className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Hide / Unhide post (anyone can manage their own feed) */}
+                    {selectedCategory === 'Hidden Posts' ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUnhideArticle(art.id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 rounded-md transition-colors cursor-pointer"
+                        title="Restore this post to your feed"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Unhide</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleHideArticle(art.id)}
+                        className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                        title="Hide this post (find it again under the Hidden tab)"
+                      >
+                        <EyeOff className="w-3.5 h-3.5" />
+                      </button>
+                    )}
 
                     {/* Delete post (only your own stories) */}
                     {art.isUserCustom && (

@@ -27,7 +27,9 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  LocateFixed
+  LocateFixed,
+  Info,
+  Minus
 } from 'lucide-react';
 
 interface TravelMapMemoriesViewProps {
@@ -351,6 +353,24 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [newTaggedCompanion, setNewTaggedCompanion] = useState('');
   const [newStatus, setNewStatus] = useState<'Visited' | 'Current Location' | 'Dream Next'>('Visited');
   const [selectedItineraryId, setSelectedItineraryId] = useState('');
+  // When set, the modal edits this existing memory instead of creating a new one
+  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
+  // Map legend collapsed/expanded
+  const [legendCollapsed, setLegendCollapsed] = useState(false);
+
+  /** Open the memory modal pre-filled with an existing memory (edit the whole post). */
+  const handleEditMemory = (mem: TravelMemory) => {
+    setEditingMemoryId(mem.id);
+    setNewCity(mem.destination);
+    setNewCountry(mem.country);
+    setNewStatus(mem.status);
+    setNewDate(mem.date);
+    setNewNote(mem.memoryNote);
+    setNewTaggedCompanion(mem.companionsTagged.join(', '));
+    setNewPhotos(mem.photos.length > 0 ? [...mem.photos] : [DEFAULT_MEMORY_PHOTO]);
+    setSelectedItineraryId('');
+    setIsAddMemoryModalOpen(true);
+  };
 
   /** Auto-fill the memory from one of my itineraries (journal passage generated from the days). */
   const generateFromItinerary = (itineraryId: string) => {
@@ -439,23 +459,46 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
       : { x: 0, y: 0, lat: 10 + Math.random() * 40, lng: -20 + Math.random() * 80 };
 
     const photos = newPhotos.map((p) => p.trim()).filter(Boolean);
+    const companions = newTaggedCompanion
+      ? newTaggedCompanion.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
 
-    const newMem: TravelMemory = {
-      id: `mem_${Date.now()}`,
-      destination: newCity,
-      country: newCountry,
-      coordinates: coords,
-      date: newDate,
-      photos: photos.length > 0 ? photos : [DEFAULT_MEMORY_PHOTO],
-      memoryNote: newNote || `Wonderful moments captured traveling solo in ${newCity}, ${newCountry}!`,
-      companionsTagged: newTaggedCompanion
-        ? newTaggedCompanion.split(',').map((s) => s.trim()).filter(Boolean)
-        : [],
-      status: newStatus
-    };
+    if (editingMemoryId) {
+      // Save edits to the existing memory post (companions, photos, note, status...)
+      saveMemories(
+        memories.map((m) =>
+          m.id === editingMemoryId
+            ? {
+                ...m,
+                destination: newCity,
+                country: newCountry,
+                coordinates: m.coordinates.lat ? m.coordinates : coords,
+                date: newDate,
+                photos: photos.length > 0 ? photos : [DEFAULT_MEMORY_PHOTO],
+                memoryNote: newNote || m.memoryNote,
+                companionsTagged: companions,
+                status: newStatus
+              }
+            : m
+        )
+      );
+    } else {
+      const newMem: TravelMemory = {
+        id: `mem_${Date.now()}`,
+        destination: newCity,
+        country: newCountry,
+        coordinates: coords,
+        date: newDate,
+        photos: photos.length > 0 ? photos : [DEFAULT_MEMORY_PHOTO],
+        memoryNote: newNote || `Wonderful moments captured traveling solo in ${newCity}, ${newCountry}!`,
+        companionsTagged: companions,
+        status: newStatus
+      };
+      saveMemories([newMem, ...memories]);
+    }
 
-    saveMemories([newMem, ...memories]);
     setIsAddMemoryModalOpen(false);
+    setEditingMemoryId(null);
     setNewCity('');
     setNewCountry('');
     setNewNote('');
@@ -639,7 +682,16 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
           <button
             type="button"
-            onClick={() => setIsAddMemoryModalOpen(true)}
+            onClick={() => {
+              setEditingMemoryId(null);
+              setNewCity('');
+              setNewCountry('');
+              setNewNote('');
+              setNewTaggedCompanion('');
+              setNewPhotos([DEFAULT_MEMORY_PHOTO]);
+              setSelectedItineraryId('');
+              setIsAddMemoryModalOpen(true);
+            }}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 rounded-xl hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-lg shadow-orange-500/25"
           >
             <Plus className="w-4 h-4" />
@@ -815,10 +867,30 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             </span>
           </div>
 
-          {/* Map legend — country fills vs city dots */}
-          <div className="absolute top-3 right-3 z-[500] pointer-events-none hidden sm:block">
-            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-lg space-y-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Map legend</div>
+          {/* Map legend — country fills vs city dots (collapsible) */}
+          <div className="absolute top-3 right-3 z-[500] hidden sm:block">
+            {legendCollapsed ? (
+              <button
+                type="button"
+                onClick={() => setLegendCollapsed(false)}
+                className="w-8 h-8 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer transition-colors"
+                title="Show map legend"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+            ) : (
+              <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-lg space-y-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300 pointer-events-auto">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Map legend</div>
+                  <button
+                    type="button"
+                    onClick={() => setLegendCollapsed(true)}
+                    className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer -mr-0.5 p-0.5"
+                    title="Minimise legend"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#10b981', opacity: 0.4, border: '1px solid #10b981' }} />
                 Current country
@@ -841,7 +913,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
                 Traveler pins
               </div>
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Active Pin Overlay Card (stays fixed, not zoomed) */}
@@ -1158,6 +1231,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
+                      onClick={() => handleEditMemory(mem)}
+                      className="text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 p-1 transition-colors cursor-pointer"
+                      title="Edit this memory (photos, companions, note...)"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleShareMemory(mem)}
                       className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
                       title="Share this memory"
@@ -1290,22 +1371,27 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
             <button
-              onClick={() => setIsAddMemoryModalOpen(false)}
+              onClick={() => {
+                setIsAddMemoryModalOpen(false);
+                setEditingMemoryId(null);
+              }}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
-              Record a Travel Memory
+              {editingMemoryId ? 'Edit Travel Memory' : 'Record a Travel Memory'}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Add a place you have gone to, your companion buddies, photos, and personal memory notes.
+              {editingMemoryId
+                ? 'Update the destination, photos, companions you traveled with, and your journal passage.'
+                : 'Add a place you have gone to, your companion buddies, photos, and personal memory notes.'}
             </p>
 
             <form onSubmit={handleCreateMemory} className="mt-4 space-y-3.5 text-xs">
               {/* Generate journal from one of my itineraries */}
-              {itineraries.length > 0 && (
+              {itineraries.length > 0 && !editingMemoryId && (
                 <div className="p-3 rounded-xl bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-950/30 dark:to-orange-950/30 border border-rose-200/70 dark:border-rose-900/50">
                   <label className="block font-semibold text-rose-800 dark:text-rose-300 mb-1.5">
                     Generate from my itinerary (optional)
@@ -1500,7 +1586,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   type="submit"
                   className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 transition-all shadow-md shadow-orange-500/25"
                 >
-                  Save Travel Memory
+                  {editingMemoryId ? 'Save Changes' : 'Save Travel Memory'}
                 </button>
               </div>
             </form>

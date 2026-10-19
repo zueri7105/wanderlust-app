@@ -39,8 +39,10 @@ import {
 import { generateDestinationTravelGuide } from '../services/geminiService';
 import { formatTemperature } from '../utils/units';
 import { lookupCountryGuide, visaAdviceFor, tippingAdviceFor } from '../utils/countryGuides';
-import { cardAcceptanceForCountry, tippingForCountry } from '../utils/countryInfo';
-import { getFxRates, refreshFxRates, benchmarkString, type FxState } from '../utils/currency';
+import { cardAcceptanceForCountry, tippingForCountry, countryInfoFor, visaVerdictFor } from '../utils/countryInfo';
+import { travelAppsFor } from '../data/travelApps';
+import { emergencyNumbersFor } from '../data/emergencyNumbers';
+import { getFxRates, refreshFxRates, benchmarkString, rateFor, type FxState } from '../utils/currency';
 import { getTranslation } from '../utils/i18n';
 import { WORLD_COUNTRIES } from './DestinationSelector';
 
@@ -865,6 +867,17 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       tippingRules: tippingText
     };
 
+    // Country-specific emergency numbers (police / ambulance) for the safety panel
+    const emergency = emergencyNumbersFor(`${formDest} ${country}`);
+    const emergencyAdvisory =
+      `Emergency numbers in ${emergency.country}: ` +
+      (emergency.numbers.general ? `General ${emergency.numbers.general} · ` : '') +
+      `Police ${emergency.numbers.police} · Ambulance ${emergency.numbers.ambulance}` +
+      (emergency.numbers.fire ? ` · Fire ${emergency.numbers.fire}` : '') +
+      '. Save them offline before you arrive.';
+    // Concrete, locally-used travel apps for this destination
+    const localApps = travelAppsFor(`${formDest} ${country}`);
+
     let guide: TravelGuideInfo;
     try {
       const generated = await generateDestinationTravelGuide(formDest, nat, formNotes);
@@ -897,10 +910,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             'Purchase an international eSIM or check roaming coverage before departure.',
           recommendedApps: generated.arrivalRulesAndApps?.recommendedApps?.length
             ? generated.arrivalRulesAndApps.recommendedApps
-            : [
-                { name: 'Google Maps / Citymapper', purpose: 'Offline city navigation' },
-                { name: 'Local Transit App', purpose: 'Bus and train timetable information' }
-              ],
+            : localApps,
           entryRegulations: kb.entryRules
         },
         culturalNorms: kb.customs,
@@ -912,9 +922,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             tip: 'Check opening hours for afternoon closures.'
           }
         ],
-        soloSafetyAdvisories: generated.soloSafetyAdvisories?.length
-          ? generated.soloSafetyAdvisories
-          : ['Meet potential travel companions in public plazas.']
+        soloSafetyAdvisories: [
+          emergencyAdvisory,
+          ...(generated.soloSafetyAdvisories?.length
+            ? generated.soloSafetyAdvisories
+            : ['Meet potential travel companions in public plazas.'])
+        ]
       };
     } catch {
       guide = {
@@ -942,7 +955,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         ],
         arrivalRulesAndApps: {
           connectivityAdvice: 'Download offline maps before leaving airport.',
-          recommendedApps: [{ name: 'Google Maps', purpose: 'Navigation' }],
+          recommendedApps: localApps,
           entryRegulations: kb.entryRules
         },
         culturalNorms: kb.customs,
@@ -950,7 +963,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         culturalShocks: [
           { title: 'Local Etiquette', description: 'Be respectful of local traditions.', tip: 'Observe locals.' }
         ],
-        soloSafetyAdvisories: ['Save local emergency services: 112.']
+        soloSafetyAdvisories: [emergencyAdvisory, 'Meet potential travel companions in busy public places and share your live location with someone you trust.']
       };
     } finally {
       setIsGeneratingGuide(false);
@@ -1045,6 +1058,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             // with the destination even for itineraries saved before the knowledge base existed.
             const guideKb = lookupCountryGuide(`${itinerary.destination} ${itinerary.country || ''}`);
             const guideNat = itinerary.travelGuide?.travelerNationality || currentUser.country || 'Germany';
+            // Concrete apps locals actually use + emergency numbers for this destination
+            const guideApps = travelAppsFor(`${itinerary.destination} ${itinerary.country || ''}`);
+            const guideEmergency = emergencyNumbersFor(
+              `${itinerary.country || ''} ${itinerary.destination}`
+            );
+            // Traveler nationality's home currency (for the dual exchange-rate display)
+            const natCurrency = countryInfoFor(guideNat)?.currency || { code: 'EUR', symbol: '€', name: 'Euro' };
+            const visaVerdict = visaVerdictFor(guideNat, `${itinerary.country || ''} ${itinerary.destination}`);
 
             return (
               <div
@@ -1499,7 +1520,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                                   <div className="flex items-center justify-between gap-1">
-                                    <span className="text-[11px] text-slate-500 block">Exchange Rate:</span>
+                                    <span className="text-[11px] text-slate-500 block">Exchange Rates:</span>
                                     <span
                                       className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                                         fx.isLive
@@ -1515,9 +1536,34 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                       {fx.isLive ? 'Live' : 'Estimated'}
                                     </span>
                                   </div>
-                                  <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs mt-0.5 block">
-                                    {benchmarkString(curr.code, curr.symbol, fx)}
-                                  </span>
+                                  {/* Two neat conversions: USD → destination currency, and the
+                                      traveler's home currency → destination currency */}
+                                  {(() => {
+                                    const tgt = curr.code;
+                                    const fmtRateN = (n: number) =>
+                                      n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                                      : n >= 10 ? n.toFixed(1)
+                                      : n.toFixed(2);
+                                    const usdLine = tgt === 'USD'
+                                      ? '1 USD = $1.00 USD (base)'
+                                      : `1 USD ≈ ${curr.symbol}${fmtRateN(rateFor(tgt, fx))} ${tgt}`;
+                                    const natCode = natCurrency.code;
+                                    const natLine = natCode === tgt
+                                      ? `Your home currency is already ${tgt} — no conversion needed`
+                                      : `1 ${natCode} ≈ ${curr.symbol}${fmtRateN(rateFor(tgt, fx) / rateFor(natCode, fx))} ${tgt}`;
+                                    return (
+                                      <div className="mt-1 space-y-1">
+                                        <div className="flex items-center justify-between gap-2 font-mono text-xs">
+                                          <span className="text-slate-500 dark:text-slate-400 font-sans text-[10px] font-semibold uppercase tracking-wide">USD → {tgt}</span>
+                                          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">{usdLine}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-2 font-mono text-xs">
+                                          <span className="text-slate-500 dark:text-slate-400 font-sans text-[10px] font-semibold uppercase tracking-wide">{natCode} ({guideNat}) → {tgt}</span>
+                                          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">{natLine}</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                                 <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 sm:col-span-2">
                                   <span className="text-[11px] text-slate-500 block">Card & Cash Acceptance:</span>
@@ -1559,22 +1605,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             </div>
                           )}
 
-                          {/* Recommended Apps */}
-                          {itinerary.travelGuide.arrivalRulesAndApps?.recommendedApps?.length > 0 && (
-                            <div>
-                              <div className="font-semibold text-slate-900 dark:text-slate-100 text-xs mb-2">
-                                Essential Verified Travel Apps:
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                {itinerary.travelGuide.arrivalRulesAndApps.recommendedApps.map((app, idx) => (
-                                  <div key={idx} className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                                    <div className="font-bold text-slate-900 dark:text-slate-100">{app.name}</div>
-                                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{app.purpose}</div>
-                                  </div>
-                                ))}
-                              </div>
+                          {/* Recommended Apps — concrete apps locals actually use */}
+                          <div>
+                            <div className="font-semibold text-slate-900 dark:text-slate-100 text-xs mb-2">
+                              Essential Travel Apps for {guideKb.key !== 'generic' ? guideKb.name : itinerary.country || itinerary.destination}:
                             </div>
-                          )}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              {guideApps.map((app, idx) => (
+                                <div key={idx} className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                                  <div className="font-bold text-slate-900 dark:text-slate-100">{app.name}</div>
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{app.purpose}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
 
                           {/* Entry regulations */}
                           <div>
@@ -1608,6 +1652,19 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               <div className="text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400 mt-0.5 mb-1.5">
                                 {guideKb.name} · For a {guideNat} Passport
                               </div>
+                              {/* Clear verdict: visa-free / e-visa / embassy visa for the traveler's nationality */}
+                              <div
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold mb-2 border ${
+                                  visaVerdict.tone === 'free'
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                    : visaVerdict.tone === 'online'
+                                    ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                                }`}
+                              >
+                                {visaVerdict.tone === 'free' ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                                <span>{visaVerdict.verdict}</span>
+                              </div>
                               <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                                 {visaAdviceFor(guideNat, guideKb)}
                               </p>
@@ -1622,18 +1679,33 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             <span>Local Customs & Cultural Etiquette</span>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {(guideKb.key !== 'generic'
-                              ? guideKb.customs
-                              : itinerary.travelGuide.culturalNorms || []
-                            ).map((norm, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-start gap-2 bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
-                              >
-                                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                                <span>{norm}</span>
-                              </div>
-                            ))}
+                            {(() => {
+                              const base = guideKb.key !== 'generic'
+                                ? guideKb.customs
+                                : itinerary.travelGuide.culturalNorms || [];
+                              // Always present exactly six etiquette cards per destination
+                              const FILLER = [
+                                'Learn the local hand gestures and table manners before you go — what is friendly at home can be rude abroad.',
+                                'Haggling rules vary widely: bargain only where it is expected (markets), never in fixed-price shops.',
+                                'Keep your voice down in public transport and sacred spaces — loudness is the top tourist giveaway.',
+                                'Carry small change for tips, toilets and street vendors — cards are not universal outside cities.'
+                              ];
+                              const norms = [...base];
+                              let i = 0;
+                              while (norms.length < 6 && i < FILLER.length) {
+                if (!norms.some((n) => n === FILLER[i])) norms.push(FILLER[i]);
+                                i++;
+                              }
+                              return norms.slice(0, 6).map((norm, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-start gap-2 bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                                >
+                                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                  <span>{norm}</span>
+                                </div>
+                              ));
+                            })()}
                           </div>
                         </div>
 
@@ -1692,6 +1764,31 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">
                             Solo Safety Advisories & Recommended Public Meeting Points:
                           </div>
+
+                          {/* Emergency & police numbers for the destination country */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {guideEmergency.numbers.general && (
+                              <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg p-2.5 text-center">
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Emergency ({guideEmergency.country})</div>
+                                <div className="font-mono font-extrabold text-rose-700 dark:text-rose-300 text-sm tabular-nums">{guideEmergency.numbers.general}</div>
+                              </div>
+                            )}
+                            <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg p-2.5 text-center">
+                              <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Police</div>
+                              <div className="font-mono font-extrabold text-rose-700 dark:text-rose-300 text-sm tabular-nums">{guideEmergency.numbers.police}</div>
+                            </div>
+                            <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg p-2.5 text-center">
+                              <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Ambulance</div>
+                              <div className="font-mono font-extrabold text-rose-700 dark:text-rose-300 text-sm tabular-nums">{guideEmergency.numbers.ambulance}</div>
+                            </div>
+                            {guideEmergency.numbers.fire && (
+                              <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg p-2.5 text-center">
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Fire</div>
+                                <div className="font-mono font-extrabold text-rose-700 dark:text-rose-300 text-sm tabular-nums">{guideEmergency.numbers.fire}</div>
+                              </div>
+                            )}
+                          </div>
+
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
                             {itinerary.travelGuide.soloSafetyAdvisories?.map((adv, idx) => (
                               <div key={idx} className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">

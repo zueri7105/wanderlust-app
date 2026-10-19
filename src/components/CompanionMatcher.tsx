@@ -19,6 +19,7 @@ import { generateCompanionIcebreakers, generateJointTripPlan } from '../services
 import { getAppSettings } from '../utils/settings';
 import { getTranslation } from '../utils/i18n';
 import { DestinationSelector } from './DestinationSelector';
+import { recordSearch, getTopSearches } from '../data/searchHistory';
 
 interface CompanionMatcherProps {
   trips: TravelTrip[];
@@ -113,6 +114,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
 
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (inputDest && inputDest !== 'All Destinations') recordSearch(inputDest);
     onSelectDestination(inputDest);
     onSelectScope(inputScope);
     onSelectInterest(inputInterest);
@@ -226,17 +228,8 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
   const sortedItineraryMatches = prioritizeFemale(itineraryMatchedTrips);
   const sortedOtherTrips = prioritizeFemale(otherPotentialTrips);
 
-  // Count starred companions according to destination filter
-  const starredCount = travelers.filter((t) => {
-    if (!t.isStarred || t.id === currentUser.id) return false;
-    if (selectedDestination === 'All Destinations') return true;
-    const q = selectedDestination.toLowerCase().split(',')[0].trim();
-    const matchesTrip = trips.some(
-      (tr) => tr.travelerId === t.id && tr.destination.toLowerCase().includes(q)
-    );
-    const matchesDest = t.currentDestination?.toLowerCase().includes(q);
-    return matchesTrip || matchesDest;
-  }).length;
+  // Count ALL starred companions (total saved by the user, across destinations)
+  const starredCount = travelers.filter((t) => t.isStarred && t.id !== currentUser.id).length;
 
   const handleOpenConnect = async (trip: TravelTrip, traveler: SoloTraveler) => {
     const { sharedInterests } = getOverlapDetails(trip);
@@ -599,16 +592,17 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
               </div>
             </label>
 
-            {/* Quick Destination Pill Tags */}
+            {/* Quick Destination Pill Tags — your most-searched destinations (or the world's top searches) */}
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Quick:</span>
-              {['All Destinations', 'Kyoto, Japan', 'Dubrovnik, Croatia', 'Amalfi Coast, Italy'].map((dest) => (
+              {['All Destinations', ...getTopSearches(4)].map((dest) => (
                 <button
                   key={dest}
                   type="button"
                   onClick={() => {
                     setInputDest(dest);
                     onSelectDestination(dest);
+                    if (dest !== 'All Destinations') recordSearch(dest);
                     setViewSavedOnly(false);
                     setTimeout(() => {
                       resultsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -841,7 +835,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                       <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
                       <span>Companion Reviews & Rating</span>
                       <span className="text-xs font-mono font-semibold text-slate-700">
-                        ({activeTravelerModal.safetyRating} / 5.0)
+                        ({activeTravelerModal.safetyRating.toFixed(1)} / 5.0 avg)
                       </span>
                     </h4>
                     <p className="text-[11px] text-slate-500">
@@ -875,11 +869,21 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
 
                           <div className="flex items-center text-amber-500 text-xs">
                             {Array.from({ length: 5 }).map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-3 h-3 ${i < rev.rating ? 'fill-amber-400 text-amber-500' : 'text-slate-200'}`}
-                              />
+                              <span key={i} className="relative inline-flex w-3 h-3">
+                                <Star className="w-3 h-3 text-slate-200" />
+                                {rev.rating >= i + 1 && (
+                                  <Star className="w-3 h-3 fill-amber-400 text-amber-500 absolute inset-0" />
+                                )}
+                                {rev.rating >= i + 0.5 && rev.rating < i + 1 && (
+                                  <span className="absolute inset-0 overflow-hidden w-1/2">
+                                    <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
+                                  </span>
+                                )}
+                              </span>
                             ))}
+                            <span className="ml-1 text-[10px] font-mono font-bold text-slate-500">
+                              {rev.rating.toFixed(1)}
+                            </span>
                           </div>
                         </div>
 
@@ -893,7 +897,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                     ))
                   ) : (
                     <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-center text-[11px] text-slate-500 dark:text-slate-400">
-                      No reviews yet for {activeTravelerModal.name.split(' ')[0]}. Be the first to leave a 5-star review!
+                      No reviews yet for {activeTravelerModal.name.split(' ')[0]}. Be the first to leave a review!
                     </div>
                   )}
                 </div>
@@ -910,25 +914,42 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                     )}
                   </div>
 
-                  {/* 5-Star Clickable Selector */}
+                  {/* 5-Star Clickable Selector — supports half-star steps (4.5, 3.5, ...) */}
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] text-slate-600 dark:text-slate-400">Your Rating:</span>
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setReviewRating(star)}
-                          className="p-0.5 cursor-pointer hover:scale-115 transition-transform"
-                        >
-                          <Star
-                            className={`w-4 h-4 ${star <= reviewRating ? 'fill-amber-400 text-amber-500' : 'text-slate-300'}`}
+                        <span key={star} className="relative inline-flex w-4 h-4">
+                          {/* left half → star - 0.5 */}
+                          <button
+                            type="button"
+                            onClick={() => setReviewRating(star - 0.5)}
+                            className="absolute inset-y-0 left-0 w-1/2 z-10 cursor-pointer"
+                            title={`${(star - 0.5).toFixed(1)} stars`}
                           />
-                        </button>
+                          {/* right half → full star */}
+                          <button
+                            type="button"
+                            onClick={() => setReviewRating(star)}
+                            className="absolute inset-y-0 right-0 w-1/2 z-10 cursor-pointer"
+                            title={`${star.toFixed(1)} stars`}
+                          />
+                          {/* base empty star */}
+                          <Star className="w-4 h-4 text-slate-300" />
+                          {/* filled portion: full, half, or none */}
+                          {reviewRating >= star && (
+                            <Star className="w-4 h-4 fill-amber-400 text-amber-500 absolute inset-0 pointer-events-none" />
+                          )}
+                          {reviewRating >= star - 0.5 && reviewRating < star && (
+                            <span className="absolute inset-0 overflow-hidden w-1/2 pointer-events-none">
+                              <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+                            </span>
+                          )}
+                        </span>
                       ))}
                     </div>
                     <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
-                      {reviewRating}.0 / 5.0
+                      {reviewRating.toFixed(1)} / 5.0
                     </span>
                   </div>
 
@@ -990,7 +1011,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                     className="w-full py-1.5 px-3 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-lg text-xs font-semibold hover:brightness-105 disabled:opacity-40 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Submit 5-Star Review</span>
+                    <span>Submit Review</span>
                   </button>
                 </div>
               </div>

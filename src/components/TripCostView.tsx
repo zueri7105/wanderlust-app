@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getTranslation } from '../utils/i18n';
 import { ExpenseItem, SoloPersonalExpense, SoloTraveler, TravelItinerary, TravelTrip } from '../types/travel';
 import { WORLD_CURRENCIES } from '../data/currencies';
+import { searchCities } from '../data/cityIndex';
+import { WORLD_COUNTRIES } from './DestinationSelector';
 import { getFxRates, refreshFxRates, rateFor, type FxState } from '../utils/currency';
 import {
   Calculator,
@@ -18,7 +20,10 @@ import {
   Trash2,
   X,
   Search,
-  Edit3
+  Edit3,
+  MapPin,
+  Globe,
+  ChevronDown
 } from 'lucide-react';
 
 export interface CurrencyDef {
@@ -37,6 +42,182 @@ export const TOP_5_CURRENCIES: CurrencyDef[] = [
   { code: 'GBP', name: 'British Pound', symbol: '£', rate: 0.79 },
   { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF', rate: 0.86 }
 ];
+
+// ─── Searchable Destination Combobox ────────────────────────────────────────
+// Shows the user's itinerary/trip destinations first, but also lets them search
+// ANY city or country in the world (or type a fully custom destination).
+interface DestinationComboboxProps {
+  value: string;
+  onChange: (dest: string) => void;
+  suggestions: string[];
+  allowAll?: boolean;
+  compact?: boolean;
+}
+
+const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
+  value,
+  onChange,
+  suggestions,
+  allowAll = false,
+  compact = false
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const trimmed = query.trim();
+  const displayValue = value === 'All' ? 'All Destinations' : value;
+  const suggestionMatches = trimmed
+    ? suggestions.filter((d) => d.toLowerCase().includes(trimmed.toLowerCase()))
+    : suggestions;
+  const cityMatches = trimmed.length >= 2 ? searchCities(trimmed, 6) : [];
+  const countryMatches =
+    trimmed.length >= 2
+      ? WORLD_COUNTRIES.filter((c) => c.country.toLowerCase().includes(trimmed.toLowerCase())).slice(0, 4)
+      : [];
+  const exactCovered = [...suggestionMatches, ...cityMatches.map((c) => `${c.city}, ${c.country}`), ...countryMatches.map((c) => c.country)]
+    .some((d) => d.toLowerCase() === trimmed.toLowerCase());
+
+  const pick = (dest: string) => {
+    onChange(dest);
+    setIsOpen(false);
+    setQuery('');
+  };
+
+  return (
+    <div ref={wrapRef} className={`relative ${compact ? '' : 'w-full'}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`inline-flex items-center justify-between gap-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium cursor-pointer ${
+          compact ? 'px-3 py-1.5 text-xs min-w-44' : 'w-full px-3 py-2 text-sm'
+        }`}
+      >
+        <span className="inline-flex items-center gap-1.5 truncate">
+          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span className="truncate max-w-56">{displayValue}</span>
+        </span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-72 max-w-[85vw] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden right-0">
+          <div className="p-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search any city or country…"
+                className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+          </div>
+          <div className="max-h-64 overflow-y-auto py-1 text-xs">
+            {allowAll && (
+              <button
+                type="button"
+                onClick={() => pick('All')}
+                className={`w-full text-left px-3 py-2 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer inline-flex items-center gap-2 ${
+                  value === 'All' ? 'text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800' : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5 text-slate-400" />
+                <span>All Destinations</span>
+              </button>
+            )}
+
+            {suggestionMatches.length > 0 && (
+              <>
+                <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Your Itinerary Destinations
+                </div>
+                {suggestionMatches.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => pick(d)}
+                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer inline-flex items-center gap-2 ${
+                      value === d ? 'font-semibold text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800' : 'text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="truncate">{d}</span>
+                  </button>
+                ))}
+              </>
+            )}
+
+            {cityMatches.length > 0 && (
+              <>
+                <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Cities
+                </div>
+                {cityMatches.map((c) => {
+                  const full = `${c.city}, ${c.country}`;
+                  return (
+                    <button
+                      key={full}
+                      type="button"
+                      onClick={() => pick(full)}
+                      className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-rose-400" />
+                      <span className="truncate">{full}</span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+
+            {countryMatches.length > 0 && (
+              <>
+                <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Countries
+                </div>
+                {countryMatches.map((c) => (
+                  <button
+                    key={c.country}
+                    type="button"
+                    onClick={() => pick(c.country)}
+                    className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-sky-400" />
+                    <span className="truncate">{c.country}</span>
+                  </button>
+                ))}
+              </>
+            )}
+
+            {trimmed.length >= 2 && !exactCovered && (
+              <button
+                type="button"
+                onClick={() => pick(trimmed)}
+                className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Use "<span className="font-semibold">{trimmed}</span>" as custom destination
+              </button>
+            )}
+
+            {trimmed.length >= 2 && suggestionMatches.length === 0 && cityMatches.length === 0 && countryMatches.length === 0 && (
+              <div className="px-3 py-2 text-slate-400">No matches — use the custom option above.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface TripCostViewProps {
   soloExpenses: SoloPersonalExpense[];
@@ -379,21 +560,16 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             </p>
           </div>
 
-          {/* Destination Filter Dropdown — choices follow the user's created itineraries */}
+          {/* Destination Filter — itinerary destinations + search any place in the world */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">Destination (from your itineraries):</span>
-            <select
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Destination (itinerary or search any place):</span>
+            <DestinationCombobox
               value={filterDestination}
-              onChange={(e) => setFilterDestination(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium cursor-pointer"
-            >
-              <option value="All">All Destinations</option>
-              {availableDestinations.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+              onChange={setFilterDestination}
+              suggestions={availableDestinations}
+              allowAll
+              compact
+            />
           </div>
         </div>
 
@@ -1212,19 +1388,13 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Destination (from your itineraries)
+                    Destination (itinerary or search any place)
                   </label>
-                  <select
+                  <DestinationCombobox
                     value={soloDest}
-                    onChange={(e) => setSoloDest(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  >
-                    {availableDestinations.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSoloDest}
+                    suggestions={availableDestinations}
+                  />
                 </div>
               </div>
 
@@ -1365,19 +1535,13 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Destination (from your itineraries)
+                  Destination (itinerary or search any place)
                 </label>
-                <select
+                <DestinationCombobox
                   value={sharedDest}
-                  onChange={(e) => setSharedDest(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                >
-                  {availableDestinations.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSharedDest}
+                  suggestions={availableDestinations}
+                />
               </div>
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">

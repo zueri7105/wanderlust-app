@@ -843,7 +843,8 @@ export function lookupCountryGuide(destinationText: string): CountryGuideData {
         'Dress modestly when visiting religious or historic sites; follow the local lead on shoes and head coverings.',
         'Ask permission before photographing people, ceremonies, or official buildings.',
         'Observe how locals queue, greet, and dine — mirroring them is the fastest way to blend in.',
-        'Respect local quiet hours and norms around alcohol and public behavior.'
+        'Respect local quiet hours and norms around alcohol and public behavior.',
+        'Learn the local hand gestures and table manners before you go — what is friendly at home can be rude abroad.'
       ],
       phrases: phrasesForCountry(destinationText),
       tipping: tippingForCountry(destinationText)

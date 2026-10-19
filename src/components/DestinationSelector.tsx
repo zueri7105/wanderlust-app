@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, Globe, Check, ChevronDown } from 'lucide-react';
+import { searchCities } from '../data/cityIndex';
 
 export interface DestinationCountry {
   country: string;
@@ -318,6 +319,9 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
     countriesByContinent[p.continent].push(p);
   });
 
+  // City search (hidden city index): "barcelon" → "Barcelona, Spain"
+  const cityMatches = searchTerm.trim().length >= 2 ? searchCities(searchTerm, 6) : [];
+
   // Sort countries alphabetically within each continent
   Object.keys(countriesByContinent).forEach((cont) => {
     countriesByContinent[cont].sort((a, b) => a.country.localeCompare(b.country));
@@ -419,10 +423,41 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
               </button>
             </div>
 
+            {/* Matching cities (hidden city index) — shown above countries while typing */}
+            {cityMatches.length > 0 && (
+              <div className="pb-1.5">
+                <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Cities
+                </div>
+                {cityMatches.map((cm) => {
+                  const label = `${cm.city}, ${cm.country}`;
+                  const isSelected = value === label;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => handleSelect(label)}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white font-bold'
+                          : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:brightness-105'
+                      }`}
+                    >
+                      <span className="truncate">
+                        <span className="font-bold">{cm.city}</span>
+                        <span className="text-slate-500 dark:text-slate-400">, {cm.country}</span>
+                      </span>
+                      {isSelected && <Check className="w-3 h-3 text-emerald-400 dark:text-emerald-600 shrink-0 ml-1" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Categorized Continents with Alphabetical Countries */}
-            {Object.keys(countriesByContinent).length === 0 ? (
+            {Object.keys(countriesByContinent).length === 0 && cityMatches.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-400">
-                No countries match "{searchTerm}"
+                No countries or cities match "{searchTerm}"
               </div>
             ) : (
               Object.entries(countriesByContinent).map(([continent, countryList]) => (

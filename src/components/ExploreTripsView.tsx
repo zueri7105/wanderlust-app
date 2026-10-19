@@ -22,7 +22,10 @@ import {
   Share2,
   ExternalLink
 } from 'lucide-react';
-import { DestinationSelector, WORLD_COUNTRIES } from './DestinationSelector';
+import { DestinationSelector, WORLD_COUNTRIES, CONTINENTS } from './DestinationSelector';
+import { searchCities } from '../data/cityIndex';
+import { recordSearch, getTopSearches } from '../data/searchHistory';
+import { TRENDING_DESTINATIONS } from '../data/trendingDestinations';
 import { getTranslation } from '../utils/i18n';
 import { getAppSettings } from '../utils/settings';
 
@@ -198,44 +201,24 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
     }
   ];
 
-  // Popular Destinations for horizontal scrolling
-  const popularDestinations = [
-    {
-      name: 'Kyoto, Japan',
-      image: kyotoImg,
-      activeTravelers: 14,
-      openActivities: 3,
-      tags: ['Temple Trails', 'Dawn Photography', 'Soba & Tea']
-    },
-    {
-      name: 'Dubrovnik, Croatia',
-      image: exploreImg,
-      activeTravelers: 9,
-      openActivities: 2,
-      tags: ['Old Town Ramparts', 'Sea Kayaking', 'Seafood Bistros']
-    },
-    {
-      name: 'Amalfi Coast, Italy',
-      image: amalfiImg,
-      activeTravelers: 11,
-      openActivities: 4,
-      tags: ['Cliff Trails', 'Shared Boat Charter', 'Limoncello']
-    },
-    {
-      name: 'Oaxaca, Mexico',
-      image: oaxacaImg,
-      activeTravelers: 8,
-      openActivities: 3,
-      tags: ['Market Crawl', 'Mezcal Distilleries', 'Textile Villages']
-    },
-    {
-      name: 'Madrid & Seville, Spain',
-      image: diningImg,
-      activeTravelers: 12,
-      openActivities: 5,
-      tags: ['Tapas Crawls', 'White Villages Roadtrip', 'Flamenco']
-    }
-  ];
+  // Trending destinations carousel — refreshed from Google's latest published
+  // travel search data (Google Flights / Search trends for 2026)
+  const imageByKey: Record<string, string> = {
+    kyoto: kyotoImg,
+    explore: exploreImg,
+    amalfi: amalfiImg,
+    oaxaca: oaxacaImg,
+    dining: diningImg,
+    stories: heroCompanionsImg
+  };
+  const popularDestinations = TRENDING_DESTINATIONS.map((d) => ({
+    name: d.name,
+    image: imageByKey[d.imageKey] || exploreImg,
+    activeTravelers: d.activeTravelers,
+    openActivities: d.openActivities,
+    tags: d.tags,
+    trendNote: d.trendNote
+  }));
 
   const scrollDestinations = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -341,6 +324,20 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
+  // Month/year picker popover (pick ANY month of ANY year, incl. roll-over years)
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState<number>(() => Number(selectedMonth.split('-')[0]));
+  const monthPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isMonthPickerOpen) return;
+    const onDocDown = (e: MouseEvent) => {
+      if (monthPickerRef.current?.contains(e.target as Node)) return;
+      setIsMonthPickerOpen(false);
+    };
+    document.addEventListener('mousedown', onDocDown);
+    return () => document.removeEventListener('mousedown', onDocDown);
+  }, [isMonthPickerOpen]);
+
   // Filter trips for selected month
   const tripsForSelectedMonth = useMemo(() => {
     return synchronizedUpcomingTrips.filter((t) => {
@@ -366,6 +363,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
   const handleExecuteSearch = (dest?: string) => {
     const target = dest || searchInput;
     if (target) {
+      recordSearch(target);
       onSelectDestination(target);
     }
     setHasSearched(true);
@@ -437,49 +435,133 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                 className="w-full pl-10 pr-4 py-3 bg-white text-slate-900 rounded-xl text-sm font-medium shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
 
-              {/* Country suggestions dropdown — portalled to body so the hero's overflow-hidden never clips it */}
+              {/* Destination suggestions dropdown — countries grouped by continent plus a hidden
+                  city index, so typing "barcelon" offers "Barcelona, Spain". Portalled to body. */}
               {isSearchFocused && createPortal(
                 <div
                   ref={searchDropRef}
                   style={{ left: searchDropPos.left, top: searchDropPos.top, width: searchDropPos.width }}
-                  className="fixed z-[1000] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-64 overflow-y-auto text-slate-900 dark:text-slate-100"
+                  className="fixed z-[1000] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-96 overflow-y-auto text-slate-900 dark:text-slate-100"
                 >
                   {(() => {
                     const q = searchInput.trim().toLowerCase();
-                    const matches = WORLD_COUNTRIES.filter((c) =>
-                      q ? c.country.toLowerCase().includes(q) : c.popular
-                    ).slice(0, 10);
-                    if (matches.length === 0) {
+                    const pick = (label: string) => (e: React.MouseEvent) => {
+                      e.preventDefault();
+                      setSearchInput(label);
+                      handleExecuteSearch(label);
+                      setIsSearchFocused(false);
+                    };
+
+                    if (q) {
+                      // Query mode: matching countries + matching cities (city index, typo tolerant)
+                      const countryMatches = WORLD_COUNTRIES.filter((c) =>
+                        c.country.toLowerCase().includes(q)
+                      ).slice(0, 8);
+                      const cityMatches = searchCities(searchInput, 6).filter(
+                        (cm) => !countryMatches.some((c) => c.country === cm.country && cm.city.toLowerCase() === q)
+                      );
+                      if (countryMatches.length === 0 && cityMatches.length === 0) {
+                        return (
+                          <div className="px-4 py-3 text-xs text-slate-500">
+                            No matching country or city — press Enter to search "{searchInput}" as a custom destination.
+                          </div>
+                        );
+                      }
                       return (
-                        <div className="px-4 py-3 text-xs text-slate-500">
-                          No matching country — press Enter to search "{searchInput}" as a custom destination.
-                        </div>
+                        <>
+                          {cityMatches.length > 0 && (
+                            <>
+                              <div className="px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                Cities
+                              </div>
+                              {cityMatches.map((cm) => (
+                                <button
+                                  key={`${cm.city}-${cm.country}`}
+                                  type="button"
+                                  onMouseDown={pick(`${cm.city}, ${cm.country}`)}
+                                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                >
+                                  <span className="flex items-center gap-2 text-sm font-medium">
+                                    <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                                    <span>
+                                      <span className="font-bold">{cm.city}</span>
+                                      <span className="text-slate-500">, {cm.country}</span>
+                                    </span>
+                                  </span>
+                                  <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold">City</span>
+                                </button>
+                              ))}
+                            </>
+                          )}
+                          {countryMatches.length > 0 && (
+                            <>
+                              <div className="px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                                Countries
+                              </div>
+                              {countryMatches.map((c) => (
+                                <button
+                                  key={c.country}
+                                  type="button"
+                                  onMouseDown={pick(c.country)}
+                                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                >
+                                  <span className="flex items-center gap-2 text-sm font-medium">
+                                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                    {c.country}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-semibold">{c.continent}</span>
+                                </button>
+                              ))}
+                            </>
+                          )}
+                        </>
                       );
                     }
+
+                    // Empty query: user's top WanderLust searches, then all countries by continent
+                    const topSearches = getTopSearches(5);
                     return (
                       <>
                         <div className="px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                          {q ? `${matches.length} matching countries` : 'Popular countries — start typing to search all'}
+                          Most searched on WanderLust
                         </div>
-                        {matches.map((c) => (
+                        {topSearches.map((d) => (
                           <button
-                            key={c.country}
+                            key={d}
                             type="button"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              setSearchInput(c.country);
-                              handleExecuteSearch(c.country);
-                              setIsSearchFocused(false);
-                            }}
+                            onMouseDown={pick(d)}
                             className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                           >
                             <span className="flex items-center gap-2 text-sm font-medium">
-                              <MapPin className="w-3.5 h-3.5 text-rose-500" />
-                              {c.country}
+                              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                              {d}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-semibold">{c.continent}</span>
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">Top 5</span>
                           </button>
                         ))}
+                        {CONTINENTS.map((cont) => {
+                          const list = WORLD_COUNTRIES.filter((c) => c.continent === cont);
+                          if (list.length === 0) return null;
+                          return (
+                            <div key={cont}>
+                              <div className="px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 sticky top-0">
+                                {cont} · {list.length} countries
+                              </div>
+                              <div className="grid grid-cols-2 gap-0.5 px-1.5 py-1">
+                                {list.map((c) => (
+                                  <button
+                                    key={c.country}
+                                    type="button"
+                                    onMouseDown={pick(c.country)}
+                                    className="px-2 py-1.5 text-left text-[11px] font-medium rounded-md hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer truncate"
+                                  >
+                                    {c.country}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </>
                     );
                   })()}
@@ -512,8 +594,8 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             </button>
 
             <span className="text-rose-100/60 hidden sm:inline">|</span>
-            <span className="text-rose-50 text-xs hidden sm:inline">Popular:</span>
-            {['Kyoto, Japan', 'Dubrovnik, Croatia', 'Amalfi Coast, Italy', 'Oaxaca, Mexico'].map((dest) => (
+            <span className="text-rose-50 text-xs hidden sm:inline">Most searched:</span>
+            {getTopSearches(4).map((dest) => (
               <button
                 key={dest}
                 onClick={() => {
@@ -529,7 +611,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
         </div>
       </section>
 
-      {/* 2. Popular Solo Destinations Carousel */}
+      {/* 2. Trending Destinations Carousel — per current Google travel search data */}
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -540,6 +622,10 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
               {getTranslation('popularSoloDestinations')}
             </h2>
+            <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-amber-500" />
+              Top 5 most-searched places in the world right now · Source: Google Flights & Search trends
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -578,6 +664,10 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                   />
                   <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-xs text-white text-[11px] px-2.5 py-1 rounded-md font-medium">
                     {dest.activeTravelers} Solo Travelers Active
+                  </div>
+                  <div className="absolute bottom-3 left-3 right-3 bg-gradient-to-r from-rose-600/90 to-orange-500/90 backdrop-blur-xs text-white text-[10px] px-2.5 py-1 rounded-md font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{dest.trendNote}</span>
                   </div>
                 </div>
 
@@ -754,17 +844,93 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             </p>
           </div>
 
-          {/* Month Selector Tabs */}
-          {availableMonths.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
+          {/* Month Selector — tap the month to open a full month/year picker */}
+          <div className="relative" ref={monthPickerRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setPickerYear(Number(selectedMonth.split('-')[0]));
+                setIsMonthPickerOpen((v) => !v);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-slate-950 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs hover:brightness-110 transition-all cursor-pointer"
+              title="Choose any month & year"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{formatMonthTitle(selectedMonth)}</span>
+              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isMonthPickerOpen ? 'rotate-90' : ''}`} />
+            </button>
+
+            {isMonthPickerOpen && (
+              <div className="absolute right-0 top-full mt-2 z-50 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-4 space-y-3">
+                {/* Year stepper — rolls into next / previous years */}
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setPickerYear((y) => y - 1)}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                    title="Previous year"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                  </button>
+                  <span className="font-display font-extrabold text-lg text-slate-950 dark:text-slate-50 tabular-nums">
+                    {pickerYear}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPickerYear((y) => y + 1)}
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                    title="Next year"
+                  >
+                    <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                  </button>
+                </div>
+                {/* 12 months */}
+                <div className="grid grid-cols-3 gap-1.5">
+                  {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((mName, idx) => {
+                    const key = `${pickerYear}-${String(idx + 1).padStart(2, '0')}`;
+                    const isSel = key === selectedMonth;
+                    const hasTrips = availableMonths.includes(key);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMonth(key);
+                          setIsMonthPickerOpen(false);
+                        }}
+                        className={`relative px-2 py-2 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                          isSel
+                            ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {mName}
+                        {hasTrips && (
+                          <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${isSel ? 'bg-white' : 'bg-emerald-500'}`} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 align-middle" />
+                  = months with trips. Pick any month of any year — trips rolling into next year are included.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Quick jump chips for months that actually have trips */}
+          {availableMonths.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5">
               {availableMonths.map((m) => (
                 <button
                   key={m}
                   onClick={() => setSelectedMonth(m)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                     selectedMonth === m
                       ? 'bg-rose-600 text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                   }`}
                 >
                   {formatMonthTitle(m)}

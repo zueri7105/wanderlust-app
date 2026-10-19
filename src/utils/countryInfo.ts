@@ -4319,38 +4319,69 @@ export function entryRuleBullet(text: string): string {
  * nationality. Every country resolves to its own passage — no generic or
  * "USA default" fallback.
  */
+const VISA_DISCLAIMER =
+  'This is a friendly suggestion based on typical rules, not official immigration advice — always double-check the official government or embassy website of your destination before booking.';
+
+/** Short verdict: does a {nationality} passport likely need a visa for {destination}? */
+export function visaVerdictFor(travelerNationality: string, text: string): { verdict: string; tone: 'free' | 'online' | 'embassy' } {
+  const nat = (travelerNationality || '').trim();
+  const name = countryNameFor(text) || text;
+  const info = countryInfoFor(text);
+  if (info && nat && norm(nat) === norm(name)) {
+    return { verdict: 'Home country — no visa needed', tone: 'free' };
+  }
+  if (!info) return { verdict: 'Check requirements', tone: 'online' };
+  switch (info.visaRegime) {
+    case 'schengen':
+    case 'euNonSchengen':
+    case 'cta':
+    case 'visaFree':
+      return { verdict: `Likely visa-free for a ${nat || 'your'} passport (up to ${info.visaDays || 90} days)`, tone: 'free' };
+    case 'ukEta':
+    case 'usEsta':
+    case 'canadaEta':
+    case 'auEta':
+    case 'nzEta':
+      return { verdict: `Online pre-authorisation likely required for a ${nat || 'your'} passport`, tone: 'online' };
+    case 'eVisaOrVoa':
+      return { verdict: `E-visa or visa-on-arrival likely required for a ${nat || 'your'} passport`, tone: 'online' };
+    default:
+      return { verdict: `Embassy visa likely required for a ${nat || 'your'} passport`, tone: 'embassy' };
+  }
+}
+
 export function visaPassageFor(travelerNationality: string, text: string): string {
   const nat = (travelerNationality || 'your').trim();
   const name = countryNameFor(text) || text;
   const info = countryInfoFor(text);
   if (!info) {
-    return `Entry rules for ${name} depend on your passport. As a ${nat} passport holder, check the official ${name} consulate or immigration portal for visa requirements and passport-validity rules before departure.`;
+    return `Entry rules for ${name} depend on your passport. As a ${nat} passport holder, check the official ${name} consulate or immigration portal for visa requirements and passport-validity rules before departure. ${VISA_DISCLAIMER}`;
   }
   if (norm(nat) === norm(name)) {
-    return `${name} is your home country — no visa or border formalities apply. Do carry your national ID or passport for domestic flights and hotel check-ins.`;
+    return `${name} is your home country — no visa or border formalities apply. Do carry your national ID or passport for domestic flights and hotel check-ins. ${VISA_DISCLAIMER}`;
   }
   switch (info.visaRegime) {
     case 'schengen':
-      return `${name} is part of the Schengen Area. As a ${nat} passport holder: most EU/EEA citizens enjoy free movement with just an ID card, while many other passports (UK, US, CA, AU, JP, KR and others) receive up to 90 days visa-free within any 180-day period — an ETIAS online pre-authorisation may be required before departure. Verify your exact status on the official EU or ${name} consulate portal, and carry a passport valid beyond your stay plus proof of accommodation and onward travel.`;
+      return `${name} is part of the Schengen Area. As a ${nat} passport holder: most EU/EEA citizens enjoy free movement with just an ID card, while many other passports (UK, US, CA, AU, JP, KR and others) receive up to 90 days visa-free within any 180-day period — an ETIAS online pre-authorisation may be required before departure. Verify your exact status on the official EU or ${name} consulate portal, and carry a passport valid beyond your stay plus proof of accommodation and onward travel. ${VISA_DISCLAIMER}`;
     case 'euNonSchengen':
-      return `${name} is an EU member outside the Schengen zone, so it applies its own border rules. As a ${nat} passport holder you will most likely enjoy visa-free entry for up to ${info.visaDays || 90} days, but confirm on the official ${name} immigration portal before booking, and carry proof of onward travel.`;
+      return `${name} is an EU member outside the Schengen zone, so it applies its own border rules. As a ${nat} passport holder you will most likely enjoy visa-free entry for up to ${info.visaDays || 90} days, but confirm on the official ${name} immigration portal before booking, and carry proof of onward travel. ${VISA_DISCLAIMER}`;
     case 'cta':
-      return `${name} forms the Common Travel Area with the UK. As a ${nat} passport holder, most visitors receive up to ${info.visaDays || 90} days visa-free; EU citizens can enter with a national ID card. Confirm details on the official ${name} immigration portal.`;
+      return `${name} forms the Common Travel Area with the UK. As a ${nat} passport holder, most visitors receive up to ${info.visaDays || 90} days visa-free; EU citizens can enter with a national ID card. Confirm details on the official ${name} immigration portal. ${VISA_DISCLAIMER}`;
     case 'ukEta':
-      return `The United Kingdom is not part of Schengen. As a ${nat} passport holder you will most likely need the UK Electronic Travel Authorisation (ETA) — applied for online before departure — after which eligible visitors can stay up to 6 months. Check the official UK government portal (gov.uk) for your passport's exact requirements.`;
+      return `The United Kingdom is not part of Schengen. As a ${nat} passport holder you will most likely need the UK Electronic Travel Authorisation (ETA) — applied for online before departure — after which eligible visitors can stay up to 6 months. Check the official UK government portal (gov.uk) for your passport's exact requirements. ${VISA_DISCLAIMER}`;
     case 'usEsta':
-      return `The United States runs the Visa Waiver Program: as a ${nat} passport holder you either need an approved ESTA (apply online at least 72 hours before flying, stays up to 90 days) or a B1/B2 visitor visa from a US embassy if your passport is not eligible. Verify on the official US State Department or CBP portal before booking, and expect detailed entry questions on arrival.`;
+      return `The United States runs the Visa Waiver Program: as a ${nat} passport holder you either need an approved ESTA (apply online at least 72 hours before flying, stays up to 90 days) or a B1/B2 visitor visa from a US embassy if your passport is not eligible. Verify on the official US State Department or CBP portal before booking, and expect detailed entry questions on arrival. ${VISA_DISCLAIMER}`;
     case 'canadaEta':
-      return `For Canada, as a ${nat} passport holder you will typically need either an eTA (Electronic Travel Authorization, applied online before flying) or a visitor visa, depending on your passport. Confirm on the official IRCC (Canada.ca) portal and carry proof of funds and onward travel.`;
+      return `For Canada, as a ${nat} passport holder you will typically need either an eTA (Electronic Travel Authorization, applied online before flying) or a visitor visa, depending on your passport. Confirm on the official IRCC (Canada.ca) portal and carry proof of funds and onward travel. ${VISA_DISCLAIMER}`;
     case 'auEta':
-      return `Australia has no visa on arrival: as a ${nat} passport holder you must arrange an electronic visa — an ETA (subclass 601), eVisitor (651), or visitor visa (600) — BEFORE departure via the official Australian Home Affairs portal or app. Biosecurity rules on food and outdoor gear are strict on arrival.`;
+      return `Australia has no visa on arrival: as a ${nat} passport holder you must arrange an electronic visa — an ETA (subclass 601), eVisitor (651), or visitor visa (600) — BEFORE departure via the official Australian Home Affairs portal or app. Biosecurity rules on food and outdoor gear are strict on arrival. ${VISA_DISCLAIMER}`;
     case 'nzEta':
-      return `For New Zealand, as a ${nat} passport holder: visa-waiver travelers need an NZeTA plus the IVL tourist levy arranged before flying; other passports need a visitor visa. Biosecurity declarations on arrival are strict — declare food and outdoor equipment. Check the official Immigration New Zealand portal.`;
+      return `For New Zealand, as a ${nat} passport holder: visa-waiver travelers need an NZeTA plus the IVL tourist levy arranged before flying; other passports need a visitor visa. Biosecurity declarations on arrival are strict — declare food and outdoor equipment. Check the official Immigration New Zealand portal. ${VISA_DISCLAIMER}`;
     case 'visaFree':
-      return `Good news: ${name} grants visa-free tourist entry of up to ${info.visaDays} days to many passports, including most EU, UK, US, CA, AU, JP and KR passports. As a ${nat} passport holder, confirm your exact allowance on the official ${name} immigration or consulate portal, ensure your passport is valid for at least 6 months, and carry proof of onward travel and accommodation.`;
+      return `Good news: ${name} grants visa-free tourist entry of up to ${info.visaDays} days to many passports, including most EU, UK, US, CA, AU, JP and KR passports. As a ${nat} passport holder, confirm your exact allowance on the official ${name} immigration or consulate portal, ensure your passport is valid for at least 6 months, and carry proof of onward travel and accommodation. ${VISA_DISCLAIMER}`;
     case 'eVisaOrVoa':
-      return `${name} typically requires an e-visa or offers visa-on-arrival for tourist stays of around ${info.visaDays} days for many passports. As a ${nat} passport holder, apply in advance via the official ${name} e-visa or consulate portal where possible, carry printed approval and proof of onward travel, and re-check the rules shortly before departure — policies in this category change frequently.`;
+      return `${name} typically requires an e-visa or offers visa-on-arrival for tourist stays of around ${info.visaDays} days for many passports. As a ${nat} passport holder, apply in advance via the official ${name} e-visa or consulate portal where possible, carry printed approval and proof of onward travel, and re-check the rules shortly before departure — policies in this category change frequently. ${VISA_DISCLAIMER}`;
     default:
-      return `${name} requires most foreign visitors to obtain a visa in advance from an embassy or consulate. As a ${nat} passport holder, start the application early through the official ${name} diplomatic mission, prepare your itinerary and bookings, and allow several days to weeks of processing time — do not rely on visa-on-arrival here.`;
+      return `${name} requires most foreign visitors to obtain a visa in advance from an embassy or consulate. As a ${nat} passport holder, start the application early through the official ${name} diplomatic mission, prepare your itinerary and bookings, and allow several days to weeks of processing time — do not rely on visa-on-arrival here. ${VISA_DISCLAIMER}`;
   }
 }

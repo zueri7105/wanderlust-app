@@ -10,7 +10,9 @@ import {
   Check,
   HeartHandshake,
   ShieldCheck,
-  Smile
+  Smile,
+  Languages,
+  Loader2
 } from 'lucide-react';
 import { playAudioAlert, getTranslation } from '../utils/i18n';
 import { getAppSettings } from '../utils/settings';
@@ -63,6 +65,60 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   const [filterStarredOnly, setFilterStarredOnly] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Message translation state: per message id, translated text + visibility
+  const [translations, setTranslations] = useState<Record<string, { status: 'loading' | 'done' | 'error'; text?: string }>>({});
+  const [showTranslation, setShowTranslation] = useState<Record<string, boolean>>({});
+
+  // Translate a received message into the app language (auto-detect source)
+  const handleTranslateMessage = async (msg: ChatMessage) => {
+    const existing = translations[msg.id];
+    if (existing?.status === 'done') {
+      setShowTranslation((prev) => ({ ...prev, [msg.id]: !prev[msg.id] }));
+      return;
+    }
+    if (existing?.status === 'loading') return;
+    setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'loading' } }));
+    const lang = getAppSettings().language;
+    const target = lang === 'zh' ? 'zh-CN' : lang;
+    try {
+      let translated = '';
+      // Primary: Google Translate free endpoint (auto source detection)
+      try {
+        const res = await fetch(
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(target)}&dt=t&q=${encodeURIComponent(msg.text)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          translated = (data?.[0] || []).map((seg: any[]) => seg?.[0] || '').join('');
+        }
+      } catch {
+        /* fall through to backup */
+      }
+      // Backup: MyMemory free API
+      if (!translated) {
+        const res = await fetch(
+          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(msg.text)}&langpair=Autodetect|${encodeURIComponent(target)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          translated = data?.responseData?.translatedText || '';
+        }
+      }
+      if (translated && translated.trim() && translated.trim().toLowerCase() !== msg.text.trim().toLowerCase()) {
+        setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'done', text: translated } }));
+        setShowTranslation((prev) => ({ ...prev, [msg.id]: true }));
+      } else if (translated) {
+        // Same-language message — nothing to translate
+        setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'done', text: '(Already in your language)' } }));
+        setShowTranslation((prev) => ({ ...prev, [msg.id]: true }));
+      } else {
+        throw new Error('empty translation');
+      }
+    } catch {
+      setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'error' } }));
+    }
+  };
 
   // All other travelers (excluding current user)
   const otherTravelers = travelers.filter((t) => t.id !== currentUser.id);
@@ -463,9 +519,42 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                         >
                           {msg.text}
                         </div>
-                        <span className="text-[10px] text-slate-400 font-mono mt-1 px-1">
-                          {msg.timestamp}
-                        </span>
+                        {/* Translation panel (received messages only) */}
+                        {!isMe && showTranslation[msg.id] && translations[msg.id]?.status === 'done' && (
+                          <div className="mt-1 px-3 py-2 max-w-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/70 dark:border-indigo-900/50 rounded-xl text-[11px] leading-relaxed text-indigo-900 dark:text-indigo-200 italic">
+                            {translations[msg.id]?.text}
+                          </div>
+                        )}
+                        {!isMe && translations[msg.id]?.status === 'error' && (
+                          <div className="mt-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] text-slate-500 dark:text-slate-400">
+                            Translation unavailable right now — check your connection and try again.
+                          </div>
+                        )}
+                        <div className={`flex items-center gap-2 mt-1 px-1 ${isMe ? 'flex-row-reverse' : ''}`}>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {msg.timestamp}
+                          </span>
+                          {!isMe && (
+                            <button
+                              type="button"
+                              onClick={() => handleTranslateMessage(msg)}
+                              className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                              title={showTranslation[msg.id] ? 'Hide translation' : 'Translate this message'}
+                            >
+                              {translations[msg.id]?.status === 'loading' ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span>Translating…</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Languages className="w-3 h-3" />
+                                  <span>{showTranslation[msg.id] && translations[msg.id]?.status === 'done' ? 'Hide translation' : 'Translate'}</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

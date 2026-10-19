@@ -103,10 +103,11 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
     reader.readAsDataURL(file);
   };
 
+  // Share My Profile — copies a friendly public profile link + intro text
   const handleCopyLink = () => {
-    navigator.clipboard?.writeText(
-      `https://wanderlust.app/profile/token_${currentUser.id}_live`
-    );
+    const profileUrl = `https://wanderlust.app/traveler/${currentUser.id}`;
+    const shareText = `Meet ${currentUser.name} on WanderLust! ${currentUser.age}-yr-old solo traveler from ${currentUser.homeCity}, ${currentUser.country} · ${currentUser.soloTripsCount} solo journeys · ★ ${currentUser.safetyRating}/5.0 companion rating. View profile: ${profileUrl}`;
+    navigator.clipboard?.writeText(shareText);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
   };
@@ -392,120 +393,146 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
           </form>
         ) : (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-4">
-                <div className="relative group">
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    className="w-18 h-18 rounded-2xl object-cover border-2 border-slate-200 dark:border-slate-700 shadow-sm"
-                  />
-                  <button
-                    onClick={() => {
-                      setIsEditingProfile(true);
-                      setTimeout(() => fileInputRef.current?.click(), 100);
-                    }}
-                    className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                    title="Change profile picture"
-                  >
-                    <Camera className="w-5 h-5" />
-                  </button>
-                </div>
+            {/* Vibrant traveler hero banner */}
+            <div className="relative -m-6 mb-0 rounded-t-xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-rose-500 via-orange-400 to-amber-400" />
+              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, white 1.5px, transparent 1.5px), radial-gradient(circle at 70% 60%, white 1px, transparent 1px), radial-gradient(circle at 45% 80%, white 1.2px, transparent 1.2px)', backgroundSize: '90px 90px, 60px 60px, 120px 120px' }} />
+              <div className="relative px-6 pt-6 pb-14 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative group shrink-0">
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-20 h-20 rounded-2xl object-cover border-[3px] border-white/80 shadow-lg"
+                    />
+                    <button
+                      onClick={() => {
+                        setIsEditingProfile(true);
+                        setTimeout(() => fileInputRef.current?.click(), 100);
+                      }}
+                      className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      title="Change profile picture"
+                    >
+                      <Camera className="w-5 h-5" />
+                    </button>
+                  </div>
 
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-display font-bold text-xl text-slate-950 dark:text-slate-50">
-                      {currentUser.name}
-                    </h3>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                      {currentUser.age} yrs
-                    </span>
-                    {currentUser.gender === 'female' && (
-                      <span className="text-[10px] text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded font-semibold">
-                        Female Solo Traveler
+                  <div className="text-white">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-display font-bold text-2xl drop-shadow-sm">
+                        {currentUser.name}
+                      </h3>
+                      <span className="text-xs text-white/85 font-mono">
+                        {currentUser.age} yrs
                       </span>
-                    )}
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Verified Solo Explorer</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-slate-400" />
-                      <span>From {currentUser.homeCity}, {currentUser.country}</span>
-                    </span>
-                    <span>·</span>
-                    <span>Pace: {currentUser.travelPace}</span>
-                    <span>·</span>
-                    <span className="font-mono">Tier: {currentUser.budgetTier}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-white/90 mt-1">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        <span>From {currentUser.homeCity}, {currentUser.country}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      {currentUser.gender === 'female' && (
+                        <span className="text-[10px] bg-white/20 backdrop-blur-xs border border-white/30 text-white px-2 py-0.5 rounded-full font-semibold">
+                          Female Solo Traveler
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-white/20 backdrop-blur-xs border border-white/30 text-white px-2 py-0.5 rounded-full">
+                        <ShieldCheck className="w-3 h-3" />
+                        <span>Verified Solo Explorer</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2">
                 <button
                   onClick={handleCopyLink}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md ${
+                    copiedLink
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-white text-rose-600 hover:bg-rose-50'
+                  }`}
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>{copiedLink ? 'Link Copied!' : 'Share Live Safety Link'}</span>
+                  {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
+                  <span>{copiedLink ? 'Profile Link Copied!' : 'Share My Profile'}</span>
                 </button>
               </div>
             </div>
 
+            {/* Stat chips overlapping the banner */}
+            <div className="grid grid-cols-3 gap-3 -mt-8 relative z-10 px-1">
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-md text-center">
+                <Compass className="w-4 h-4 text-rose-500 mx-auto mb-1" />
+                <div className="font-mono text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums leading-none">
+                  {currentUser.soloTripsCount}
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Solo Journeys</div>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-md text-center">
+                <HeartHandshake className="w-4 h-4 text-orange-500 mx-auto mb-1" />
+                <div className="font-mono text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums leading-none">
+                  {currentUser.vouchedByCount}
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Community Vouches</div>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-md text-center">
+                <ShieldCheck className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
+                <div className="font-mono text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums leading-none">
+                  ★ {currentUser.safetyRating}
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Companion Rating</div>
+              </div>
+            </div>
+
             {/* Bio */}
-            <div>
+            <div className="pt-5">
               <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                About Elena
+                About {currentUser.name.split(' ')[0]}
               </div>
               <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                 {currentUser.bio}
               </p>
             </div>
 
-            {/* Languages & Interests */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 text-xs">
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                  Languages
-                </div>
-                <div className="text-slate-800 dark:text-slate-200 font-medium">
-                  {currentUser.languages.join(' · ')}
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                  Interests
-                </div>
-                <div className="text-slate-800 dark:text-slate-200 font-medium">
-                  {currentUser.interests.join(' · ')}
-                </div>
-              </div>
+            {/* Travel style chips */}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 font-semibold">
+                <Compass className="w-3.5 h-3.5" />
+                <span>Pace: {currentUser.travelPace}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-300 font-semibold font-mono">
+                <span>Budget: {currentUser.budgetTier}</span>
+              </span>
             </div>
 
-            {/* Travel Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                <div className="text-slate-500 dark:text-slate-400">Completed Solo Journeys</div>
-                <div className="font-mono text-base font-bold text-slate-900 dark:text-slate-100 mt-0.5 tabular-nums">
-                  {currentUser.soloTripsCount} trips
+            {/* Languages & Interests */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/40 dark:to-cyan-950/30 border border-sky-200/70 dark:border-sky-900/50">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-sky-700 dark:text-sky-300 uppercase tracking-wider mb-1.5">
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Languages</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {currentUser.languages.map((lang) => (
+                    <span key={lang} className="px-2 py-0.5 bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 rounded-md text-slate-800 dark:text-slate-200 font-medium text-[11px]">
+                      {lang}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                <div className="text-slate-500 dark:text-slate-400">Community Vouches</div>
-                <div className="font-mono text-base font-bold text-slate-900 dark:text-slate-100 mt-0.5 tabular-nums">
-                  {currentUser.vouchedByCount} vouches
+              <div className="p-3.5 rounded-xl bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-950/40 dark:to-fuchsia-950/30 border border-violet-200/70 dark:border-violet-900/50">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300 uppercase tracking-wider mb-1.5">
+                  <Compass className="w-3.5 h-3.5" />
+                  <span>Interests</span>
                 </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                <div className="text-slate-500 dark:text-slate-400">Companion Rating</div>
-                <div className="font-mono text-base font-bold text-slate-900 dark:text-slate-100 mt-0.5 tabular-nums">
-                  ★ {currentUser.safetyRating} / 5.0
+                <div className="flex flex-wrap gap-1.5">
+                  {currentUser.interests.map((interest) => (
+                    <span key={interest} className="px-2 py-0.5 bg-white dark:bg-slate-800 border border-violet-200 dark:border-violet-800 rounded-md text-slate-800 dark:text-slate-200 font-medium text-[11px]">
+                      {interest}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
