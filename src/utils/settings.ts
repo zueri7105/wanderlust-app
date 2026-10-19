@@ -1,11 +1,13 @@
 // Central app-settings reader. All views read from here so changes in
 // Settings propagate everywhere (App re-renders on 'wanderlust-settings-changed').
 
+import type { AppLanguage } from './i18n';
+
 export type PresenceStatus = 'online' | 'dnd' | 'offline' | 'hidden';
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
-  language: 'en' | 'es' | 'zh' | 'ja' | 'fr' | 'de' | 'ko' | 'pt' | 'ar' | 'ru';
+  language: AppLanguage;
   unitSystem: 'metric' | 'imperial';
   femaleSafetyPriority: boolean;
   anonymousMode: boolean;
@@ -14,6 +16,8 @@ export interface AppSettings {
   emergencyInterval: 'off' | '15min' | '30min' | '1hour';
   /** Chat presence shown on your messages profile: green dot, DND moon, orange offline, or no dot */
   presenceStatus: PresenceStatus;
+  /** Language received messages are translated into. 'app' = follow the app language (default). */
+  translateLang: 'app' | AppLanguage;
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -25,7 +29,15 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   chatSounds: true,
   tripReminders: true,
   emergencyInterval: '30min',
-  presenceStatus: 'online'
+  presenceStatus: 'online',
+  translateLang: 'app'
+};
+
+/** Resolve the language code messages should be translated into (defaults to the app language). */
+export const getTranslateTarget = (): string => {
+  const s = getAppSettings();
+  const lang = s.translateLang === 'app' ? s.language : s.translateLang;
+  return lang === 'zh' ? 'zh-CN' : lang;
 };
 
 export function getAppSettings(): AppSettings {

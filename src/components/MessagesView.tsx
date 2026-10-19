@@ -16,7 +16,7 @@ import {
   Moon
 } from 'lucide-react';
 import { playAudioAlert, getTranslation } from '../utils/i18n';
-import { getAppSettings, presenceForTraveler, PresenceStatus } from '../utils/settings';
+import { getAppSettings, getTranslateTarget, presenceForTraveler, PresenceStatus } from '../utils/settings';
 
 /** Presence badge on avatars: green dot = online, moon = do not disturb, orange = offline, none = tracking off */
 export const PresenceBadge: React.FC<{ status: PresenceStatus; size?: 'sm' | 'md' }> = ({ status, size = 'md' }) => {
@@ -91,21 +91,21 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Message translation state: per message id, translated text + visibility
-  const [translations, setTranslations] = useState<Record<string, { status: 'loading' | 'done' | 'error'; text?: string }>>({});
+  // Message translation state: per message id, translated text + visibility (+ target used, so a
+  // language change in Settings re-translates instead of showing a stale language)
+  const [translations, setTranslations] = useState<Record<string, { status: 'loading' | 'done' | 'error'; text?: string; target?: string }>>({});
   const [showTranslation, setShowTranslation] = useState<Record<string, boolean>>({});
 
-  // Translate a received message into the app language (auto-detect source)
+  // Translate a received message into the chosen translation language (defaults to the app language)
   const handleTranslateMessage = async (msg: ChatMessage) => {
+    const target = getTranslateTarget();
     const existing = translations[msg.id];
-    if (existing?.status === 'done') {
+    if (existing?.status === 'done' && existing.target === target) {
       setShowTranslation((prev) => ({ ...prev, [msg.id]: !prev[msg.id] }));
       return;
     }
     if (existing?.status === 'loading') return;
-    setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'loading' } }));
-    const lang = getAppSettings().language;
-    const target = lang === 'zh' ? 'zh-CN' : lang;
+    setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'loading', target } }));
     try {
       let translated = '';
       // Primary: Google Translate free endpoint (auto source detection)
@@ -131,11 +131,11 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
         }
       }
       if (translated && translated.trim() && translated.trim().toLowerCase() !== msg.text.trim().toLowerCase()) {
-        setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'done', text: translated } }));
+        setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'done', text: translated, target } }));
         setShowTranslation((prev) => ({ ...prev, [msg.id]: true }));
       } else if (translated) {
         // Same-language message — nothing to translate
-        setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'done', text: '(Already in your language)' } }));
+        setTranslations((prev) => ({ ...prev, [msg.id]: { status: 'done', text: '(Already in your language)', target } }));
         setShowTranslation((prev) => ({ ...prev, [msg.id]: true }));
       } else {
         throw new Error('empty translation');

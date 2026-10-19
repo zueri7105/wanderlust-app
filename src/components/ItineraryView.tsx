@@ -474,6 +474,76 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDel
   );
 };
 
+// Whole-trip swipe-left-to-delete shell (pointer-driven, works on touch + mouse)
+const SwipeableTripShell: React.FC<{
+  canDelete: boolean;
+  onDelete: () => void;
+  children: React.ReactNode;
+}> = ({ canDelete, onDelete, children }) => {
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ startX: number; startY: number; startOffset: number; moved: boolean; horizontal: boolean } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!canDelete) return;
+    drag.current = { startX: e.clientX, startY: e.clientY, startOffset: offset, moved: false, horizontal: false };
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    const dx = e.clientX - drag.current.startX;
+    const dy = e.clientY - drag.current.startY;
+    // Only hijack clearly-horizontal swipes so vertical page scrolling keeps working
+    if (!drag.current.moved) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        drag.current = null; // vertical scroll — bail out
+        return;
+      }
+      drag.current.moved = true;
+      drag.current.horizontal = true;
+    }
+    setDragging(true);
+    setOffset(Math.min(0, Math.max(-SWIPE_DELETE_WIDTH, drag.current.startOffset + dx)));
+  };
+
+  const endDrag = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    setDragging(false);
+    setOffset((cur) => (cur < -SWIPE_DELETE_WIDTH / 2 ? -SWIPE_DELETE_WIDTH : 0));
+  };
+
+  return (
+    <div className="relative rounded-xl overflow-hidden group/trip">
+      {/* Red delete zone revealed behind the trip card when swiping left */}
+      {canDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="absolute inset-y-0 right-0 w-[88px] bg-gradient-to-br from-red-500 to-rose-600 flex flex-col items-center justify-center gap-1 text-white cursor-pointer"
+          title="Delete this trip"
+        >
+          <Trash2 className="w-5 h-5" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Delete</span>
+        </button>
+      )}
+
+      <div
+        style={{ transform: `translateX(${offset}px)` }}
+        className={`relative touch-pan-y ${dragging ? '' : 'transition-transform'}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onPointerLeave={endDrag}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
 export const ItineraryView: React.FC<ItineraryViewProps> = ({
   itineraries,
   currentUser,
@@ -1052,6 +1122,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         </div>
       ) : (
         <div className="space-y-6">
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 italic -mb-2">
+            Tip: swipe a trip card left to remove it — or tap a trip to open the full journey & guide.
+          </p>
           {sortedItineraries.map((itinerary) => {
             const isExpanded = !!expandedIds[itinerary.id];
             // Country knowledge overlay — keeps rules, customs, phrases & currency aligned
@@ -1068,8 +1141,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             const visaVerdict = visaVerdictFor(guideNat, `${itinerary.country || ''} ${itinerary.destination}`);
 
             return (
-              <div
+              <SwipeableTripShell
                 key={itinerary.id}
+                canDelete={!!onDeleteItinerary}
+                onDelete={() => handleDeleteTripFromEdit(itinerary)}
+              >
+              <div
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden transition-all"
               >
                 {/* Trip Itinerary Box Header (Clickable to Expand / Collapse) */}
@@ -1802,6 +1879,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   </div>
                 )}
               </div>
+              </SwipeableTripShell>
             );
           })}
         </div>

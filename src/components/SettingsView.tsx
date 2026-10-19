@@ -13,7 +13,8 @@ import {
   Volume2,
   HeartHandshake,
   CircleDot,
-  Info
+  Info,
+  Languages
 } from 'lucide-react';
 import { AppSettings, DEFAULT_APP_SETTINGS, PRESENCE_META, PresenceStatus } from '../utils/settings';
 
@@ -290,6 +291,44 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* 4b. Message Translation — which language received messages are translated into */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-indigo-400">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-400 to-violet-500 text-white flex items-center justify-center shadow-xs">
+              <Languages className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
+                Message Translation
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Tap "Translate" on any message and it lands in this language.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <select
+              value={settings.translateLang || 'app'}
+              onChange={(e) => updateSetting('translateLang', e.target.value as AppSettings['translateLang'])}
+              className="w-full px-3 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium cursor-pointer"
+            >
+              <option value="app">
+                Same as my app language ({LANGUAGES.find((l) => l.code === settings.language)?.native || 'English'})
+              </option>
+              {LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.flag} {lang.native} ({lang.name})
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400 leading-snug">
+              By default messages translate into your app language. Pick another language here if you'd rather read
+              translations in something else — handy while you're practising Spanish on the road!
+            </p>
           </div>
         </div>
 
