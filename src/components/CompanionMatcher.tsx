@@ -214,7 +214,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
     (trip) => !userDestinations.some((d) => d.includes(trip.destination.toLowerCase().split(',')[0]))
   );
 
-  // Safety setting: when "Prioritize Female Solo Travelers" is enabled in
+  // Safety setting: when "Prioritise Female Solo Travellers" is enabled in
   // Settings, verified female travelers are surfaced first in every list.
   const femaleSafetyPriority = getAppSettings().femaleSafetyPriority;
   const prioritizeFemale = (list: TravelTrip[]) =>
@@ -419,7 +419,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             })}
           </div>
 
-          {/* Traveler Pace & Trust stats */}
+          {/* Traveller Pace & Trust stats */}
           <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
             <span>Pace: <strong className="text-slate-700 dark:text-slate-200 font-semibold">{traveler.travelPace}</strong></span>
             <span className="font-mono tabular-nums">{traveler.budgetTier}</span>
@@ -595,7 +595,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             {/* Quick Destination Pill Tags — your most-searched destinations (or the world's top searches) */}
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Quick:</span>
-              {['All Destinations', ...getTopSearches(4)].map((dest) => (
+              {['All Destinations', ...getTopSearches(5)].map((dest) => (
                 <button
                   key={dest}
                   type="button"
@@ -700,7 +700,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                       <span>Companions Matching Your Itinerary & Upcoming Trips</span>
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Travelers heading to the exact destinations and dates you have planned in your schedule.
+                      Travellers heading to the exact destinations and dates you have planned in your schedule.
                     </p>
                   </div>
                   <span className="text-xs font-mono tabular-nums text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60 px-2.5 py-1 rounded-full font-semibold">
@@ -748,7 +748,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
         )}
       </div>
 
-      {/* Traveler Detail Modal */}
+      {/* Traveller Detail Modal */}
       {activeTravelerModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">

@@ -567,7 +567,7 @@ Destination: ${destination}.
 Travel together scope: ${tripScope} (same trip or part of the trip).
 Shared interests: ${sharedInterests.join(', ')}.
 
-Generate 3 friendly, natural, respectful conversation starter messages for Solo Traveler A to reach out to Solo Traveler B to propose traveling together for either the full trip or a portion of it.
+Generate 3 friendly, natural, respectful conversation starter messages for Solo Traveller A to reach out to Solo Traveller B to propose traveling together for either the full trip or a portion of it.
 Return exactly 3 lines, each line starting with a bullet or number, under 30 words each.`
       });
       const text = response.text || '';

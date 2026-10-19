@@ -12,10 +12,35 @@ import {
   ShieldCheck,
   Smile,
   Languages,
-  Loader2
+  Loader2,
+  Moon
 } from 'lucide-react';
 import { playAudioAlert, getTranslation } from '../utils/i18n';
-import { getAppSettings } from '../utils/settings';
+import { getAppSettings, presenceForTraveler, PresenceStatus } from '../utils/settings';
+
+/** Presence badge on avatars: green dot = online, moon = do not disturb, orange = offline, none = tracking off */
+export const PresenceBadge: React.FC<{ status: PresenceStatus; size?: 'sm' | 'md' }> = ({ status, size = 'md' }) => {
+  if (status === 'hidden') return null;
+  const pos = size === 'sm' ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5';
+  if (status === 'dnd') {
+    return (
+      <span
+        className={`absolute -bottom-0.5 -right-0.5 ${pos} bg-indigo-500 border-2 border-white dark:border-slate-900 rounded-full flex items-center justify-center`}
+        title="Do Not Disturb"
+      >
+        <Moon className={size === 'sm' ? 'w-1.5 h-1.5 text-white' : 'w-2 h-2 text-white'} />
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`absolute -bottom-0.5 -right-0.5 ${pos} border-2 border-white dark:border-slate-900 rounded-full ${
+        status === 'online' ? 'bg-emerald-500' : 'bg-orange-500'
+      }`}
+      title={status === 'online' ? 'Online' : 'Offline'}
+    />
+  );
+};
 
 interface MessagesViewProps {
   chats: Record<string, ChatMessage[]>;
@@ -310,7 +335,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                         referrerPolicy="no-referrer"
                         className={`w-11 h-11 rounded-full object-cover ring-2 ${isSelected ? 'ring-rose-300 dark:ring-rose-800' : 'ring-white dark:ring-slate-800'} shadow-sm`}
                       />
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
+                      <PresenceBadge status={presenceForTraveler(traveler.id, currentUser.id)} />
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -359,7 +384,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                     referrerPolicy="no-referrer"
                     className={`w-11 h-11 rounded-full object-cover ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 ring-rose-300 dark:ring-rose-800`}
                   />
-                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
+                  <PresenceBadge status={presenceForTraveler(selectedTraveler.id, currentUser.id)} />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -369,6 +394,25 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                     <span className="text-xs text-slate-500 dark:text-slate-400">
                       ({selectedTraveler.country})
                     </span>
+                    {(() => {
+                      const st = presenceForTraveler(selectedTraveler.id, currentUser.id);
+                      const labels: Record<PresenceStatus, string> = {
+                        online: 'Online now',
+                        dnd: 'Do not disturb',
+                        offline: 'Offline',
+                        hidden: ''
+                      };
+                      if (st === 'hidden') return null;
+                      return (
+                        <span
+                          className={`text-[10px] font-semibold ${
+                            st === 'online' ? 'text-emerald-600 dark:text-emerald-400' : st === 'dnd' ? 'text-indigo-500' : 'text-orange-500'
+                          }`}
+                        >
+                          · {labels[st]}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 truncate">
@@ -434,7 +478,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                 💡 Public daylight meetups recommended. Coordinate excursions and cost-splits safely.
               </span>
               <span className="font-mono font-semibold hidden sm:inline">
-                {selectedTraveler.isConfirmedBuddy ? 'Official Companion Buddy' : 'Verified Solo Traveler'}
+                {selectedTraveler.isConfirmedBuddy ? 'Official Companion Buddy' : 'Verified Solo Traveller'}
               </span>
             </div>
 
@@ -631,7 +675,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">No companion selected</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
-              Select a traveler from the left to view messages or start a new conversation.
+              Select a traveller from the left to view messages or start a new conversation.
             </p>
           </div>
         )}

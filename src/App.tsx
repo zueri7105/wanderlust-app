@@ -509,6 +509,7 @@ export default function App() {
             onOpenCreateTrip={() => setIsCreateTripOpen(true)}
             onToggleStarTraveler={handleToggleStarTraveler}
             onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
+            itineraries={itineraries}
           />
         )}
 
@@ -644,7 +645,7 @@ export default function App() {
         )}
 
         {/* Settings Tab for Design Customization (Light/Dark mode, Language, etc.) */}
-        {activeTab === 'settings' && <SettingsView />}
+        {activeTab === 'settings' && <SettingsView userGender={currentUser.gender} />}
       </main>
 
       {/* Active Trip Activity Chat Modal (For Activity Pods) */}

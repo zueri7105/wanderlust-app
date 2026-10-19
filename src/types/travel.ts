@@ -29,6 +29,8 @@ export interface SoloTraveler {
   safetyRating: number;
   vouchedByCount: number;
   currentDestination?: string;
+  instagram?: string; // Instagram handle (without @) shown as a social chip on the profile
+  website?: string;   // Personal website / blog / portfolio link
   isStarred?: boolean;
   reviews?: CompanionReview[];
   isConfirmedBuddy?: boolean;

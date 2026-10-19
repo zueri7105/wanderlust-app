@@ -1033,7 +1033,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
               No shared receipts recorded yet.
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+            <div className="space-y-2.5">
               {sortedShared.map((exp) => {
                 const payer = getTraveler(exp.payerId);
                 const splitCount = Math.max(1, exp.splitBetweenIds.length);
@@ -1048,55 +1048,55 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     key={exp.id}
                     onTouchStart={(e) => handleTouchStart(e, exp.id)}
                     onTouchEnd={(e) => handleTouchEnd(e, exp.id)}
-                    className={`relative overflow-hidden group transition-colors ${
+                    className={`relative overflow-hidden group transition-colors rounded-xl border ${
                       exp.settled
-                        ? 'bg-slate-50/80 dark:bg-slate-900/40 opacity-70'
-                        : 'bg-white dark:bg-slate-900 hover:bg-slate-50/60 dark:hover:brightness-105/40'
+                        ? 'bg-slate-50/80 dark:bg-slate-900/40 opacity-70 border-slate-200 dark:border-slate-800'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 shadow-xs hover:border-slate-300 dark:hover:border-slate-600'
                     }`}
                   >
                     <div
-                      className={`p-3.5 flex items-center justify-between text-xs gap-3 transition-transform ${
+                      className={`p-3.5 sm:p-4 transition-transform ${
                         isSwiped ? '-translate-x-16' : 'translate-x-0'
                       }`}
                     >
-                      <div className="min-w-0">
-                        <div
-                          className={`font-semibold truncate ${
-                            exp.settled
-                              ? 'line-through text-slate-400 dark:text-slate-500'
-                              : 'text-slate-900 dark:text-slate-100'
-                          }`}
-                        >
-                          {exp.title}
-                        </div>
-                        <div className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                          <span>{exp.destination}</span>
-                          <span aria-hidden="true">·</span>
-                          <span className="font-medium text-slate-700 dark:text-slate-300">{exp.category}</span>
-                          <span aria-hidden="true">·</span>
-                          <span className="font-mono tabular-nums">{exp.date}</span>
-                          {exp.receiptNote && (
-                            <>
-                              <span aria-hidden="true">·</span>
-                              <span className="italic text-slate-400">"{exp.receiptNote}"</span>
-                            </>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
-                          Paid by <strong>{payer.name}</strong> · Split {splitCount} ways ({formatMoney(convertedPerPerson, activeCurrency)}/person)
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 shrink-0">
-                        <div className="text-right">
+                      {/* Top: title + meta chips on the left, amount on the right */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
                           <div
-                            className={`font-mono tabular-nums font-bold text-sm ${
+                            className={`font-semibold text-[13px] leading-snug break-words ${
+                              exp.settled
+                                ? 'line-through text-slate-400 dark:text-slate-500'
+                                : 'text-slate-900 dark:text-slate-100'
+                            }`}
+                          >
+                            {exp.title}
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
+                            <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">
+                              {exp.destination}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-semibold">
+                              {exp.category}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono tabular-nums">
+                              {exp.date}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <div
+                            className={`font-mono tabular-nums font-bold text-base ${
                               exp.settled ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'
                             }`}
                           >
                             {formatMoney(convertedTotal, activeCurrency)}
                           </div>
-                          <div className="text-[11px] text-slate-500 font-mono tabular-nums">
+                          <div
+                            className={`text-[11px] font-mono tabular-nums font-medium ${
+                              amISplit ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                            }`}
+                          >
                             {amISplit
                               ? `Your part: ${formatMoney(convertedPerPerson, activeCurrency)}`
                               : 'Not in split'}
@@ -1107,29 +1107,44 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                             </div>
                           )}
                         </div>
+                      </div>
 
-                        {/* Settle Toggle Button */}
-                        <button
-                          type="button"
-                          onClick={() => onToggleSharedSettled(exp.id)}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                            exp.settled
-                              ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                              : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
-                          }`}
-                        >
-                          {exp.settled ? 'Settled ✓' : 'Mark Settled'}
-                        </button>
+                      {/* Receipt note gets its own full-width strip so nothing is cramped */}
+                      {exp.receiptNote && (
+                        <div className="mt-2 text-[11px] italic text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-lg px-2.5 py-1.5 break-words">
+                          "{exp.receiptNote}"
+                        </div>
+                      )}
 
-                        {/* Delete Trash Button */}
-                        <button
-                          type="button"
-                          onClick={() => onDeleteSharedExpense && onDeleteSharedExpense(exp.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 transition-colors cursor-pointer rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
-                          title="Delete shared receipt"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      {/* Bottom: paid-by line + roomy action buttons (stack full-width on phones) */}
+                      <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                          Paid by <strong>{payer.name}</strong> · Split {splitCount} ways (
+                          {formatMoney(convertedPerPerson, activeCurrency)}/person)
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onToggleSharedSettled(exp.id)}
+                            className={`flex-1 sm:flex-none px-3.5 py-2 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center ${
+                              exp.settled
+                                ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {exp.settled ? 'Settled ✓' : 'Mark Settled'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onDeleteSharedExpense && onDeleteSharedExpense(exp.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 transition-colors cursor-pointer rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
+                            title="Delete shared receipt"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
 

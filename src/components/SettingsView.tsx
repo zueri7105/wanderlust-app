@@ -11,9 +11,11 @@ import {
   RefreshCw,
   Lock,
   Volume2,
-  HeartHandshake
+  HeartHandshake,
+  CircleDot,
+  Info
 } from 'lucide-react';
-import { AppSettings, DEFAULT_APP_SETTINGS } from '../utils/settings';
+import { AppSettings, DEFAULT_APP_SETTINGS, PRESENCE_META, PresenceStatus } from '../utils/settings';
 
 export type { AppSettings } from '../utils/settings';
 
@@ -32,7 +34,7 @@ const LANGUAGES = [
   { code: 'ru', name: 'Russian', native: 'Русский', flag: '🇷🇺' }
 ] as const;
 
-export const SettingsView: React.FC = () => {
+export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('wanderlust_app_settings');
     if (saved) {
@@ -99,9 +101,9 @@ export const SettingsView: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 1. Theme & Appearance (Bright / Dark Mode) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-amber-400">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-xs">
               {settings.theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </div>
             <div>
@@ -109,7 +111,7 @@ export const SettingsView: React.FC = () => {
                 {getTranslation('themeLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Switch between Bright and Dark appearance for daytime or low-light travel.
+                Bright for daytime exploring, Dark for late-night planning.
               </p>
             </div>
           </div>
@@ -154,9 +156,9 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* 2. App Language */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-blue-400">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center shadow-xs">
               <Globe className="w-4 h-4" />
             </div>
             <div>
@@ -164,7 +166,7 @@ export const SettingsView: React.FC = () => {
                 {getTranslation('languageLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Choose the preferred language for navigation and guides.
+                Pick the language for menus, guides and messages.
               </p>
             </div>
           </div>
@@ -195,9 +197,9 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* 3. Units & Measurements */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-emerald-400">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center shadow-xs">
               <Sliders className="w-4 h-4" />
             </div>
             <div>
@@ -236,10 +238,65 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* 4. Safety & Solo Female Protection Mode */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
+        {/* 4. Chat Presence Status — pick the badge others see on your messages profile */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-cyan-400">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-sky-500 text-white flex items-center justify-center shadow-xs">
+              <CircleDot className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
+                Chat Presence Status
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Choose the badge companions see next to your messages profile.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            {(Object.keys(PRESENCE_META) as PresenceStatus[]).map((status) => {
+              const meta = PRESENCE_META[status];
+              const active = settings.presenceStatus === status;
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => updateSetting('presenceStatus', status)}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    active
+                      ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
+                      {status === 'hidden' ? (
+                        <span className="w-3 h-3 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600" title="No dot" />
+                      ) : status === 'dnd' ? (
+                        <span className="w-3.5 h-3.5 rounded-full bg-indigo-400 flex items-center justify-center">
+                          <Moon className="w-2 h-2 text-white" />
+                        </span>
+                      ) : (
+                        <span className="w-3 h-3 rounded-full" style={{ background: meta.dot || '#cbd5e1' }} />
+                      )}
+                      {meta.label}
+                    </span>
+                    {active && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                    {meta.hint}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 5. Safety & Solo Female Protection Mode */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-rose-400">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-400 to-red-500 text-white flex items-center justify-center shadow-xs">
               <Shield className="w-4 h-4" />
             </div>
             <div>
@@ -247,29 +304,41 @@ export const SettingsView: React.FC = () => {
                 {getTranslation('safetyLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Safeguards for female travelers and safe meetup protocols.
+                Safeguards and safe meet-up protocols while travelling.
               </p>
             </div>
           </div>
 
           <div className="space-y-3 text-xs">
-            <div className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg">
-              <div>
-                <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                  <HeartHandshake className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Prioritize Female Solo Travelers</span>
+            {/* Only travellers whose profile gender is female see this protection option */}
+            {userGender === 'female' ? (
+              <div className="flex items-center justify-between gap-3 p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 rounded-lg">
+                <div>
+                  <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <HeartHandshake className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Prioritise Female Solo Travellers</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Promote verified female solo traveller matches and safe public meet-up points.
+                  </div>
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Promote verified female solo traveler matches and safe public meet points.
+                <input
+                  type="checkbox"
+                  checked={settings.femaleSafetyPriority}
+                  onChange={(e) => updateSetting('femaleSafetyPriority', e.target.checked)}
+                  className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900 cursor-pointer"
+                />
+              </div>
+            ) : (
+              <div className="flex items-start gap-2.5 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                <Info className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Female-only matching</span> is
+                  available on profiles where gender is set to female. Update your gender under{' '}
+                  <span className="font-semibold">My Profile → Edit Profile</span> to unlock this option.
                 </div>
               </div>
-              <input
-                type="checkbox"
-                checked={settings.femaleSafetyPriority}
-                onChange={(e) => updateSetting('femaleSafetyPriority', e.target.checked)}
-                className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900 cursor-pointer"
-              />
-            </div>
+            )}
 
             <div className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg">
               <div>
@@ -278,7 +347,7 @@ export const SettingsView: React.FC = () => {
                   <span>Private Profile Browsing</span>
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Only show your full trip dates to travelers after mutual match acceptance.
+                  Only reveal your full trip dates to travellers after a mutual match.
                 </div>
               </div>
               <input
@@ -291,10 +360,10 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* 5. Notifications & Sound */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
+        {/* 6. Notifications & Sound */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-violet-400">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-fuchsia-500 text-white flex items-center justify-center shadow-xs">
               <Bell className="w-4 h-4" />
             </div>
             <div>
@@ -334,10 +403,10 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* 6. Emergency Auto-Ping Interval */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
+        {/* 7. Emergency Auto-Ping Interval */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-red-400 md:col-span-2">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-400 to-rose-600 text-white flex items-center justify-center shadow-xs">
               <Shield className="w-4 h-4" />
             </div>
             <div>
@@ -345,12 +414,12 @@ export const SettingsView: React.FC = () => {
                 Emergency GPS Refresh Interval
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Frequency for updating your location broadcast when traveling solo.
+                How often your live location refreshes while you are out exploring solo.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
             {(['off', '15min', '30min', '1hour'] as const).map((interval) => (
               <button
                 key={interval}

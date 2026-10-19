@@ -16,8 +16,12 @@ import {
   Upload,
   Plus,
   Trash2,
-  X
+  X,
+  Instagram,
+  Link2
 } from 'lucide-react';
+import { PresenceBadge } from './MessagesView';
+import { presenceForTraveler } from '../utils/settings';
 
 interface MyProfileViewProps {
   currentUser: SoloTraveler;
@@ -63,6 +67,16 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
   const [budgetTier, setBudgetTier] = useState<BudgetTier>(currentUser.budgetTier);
   const [languagesStr, setLanguagesStr] = useState(currentUser.languages.join(', '));
   const [interestsStr, setInterestsStr] = useState(currentUser.interests.join(', '));
+  const [instagram, setInstagram] = useState(currentUser.instagram || '');
+  const [website, setWebsite] = useState(currentUser.website || '');
+
+  // Normalised helpers so the social chips always render clean links
+  const instagramHandle = (currentUser.instagram || '').replace(/^@/, '').trim();
+  const websiteUrl = (currentUser.website || '').trim();
+  const websiteHref = websiteUrl
+    ? (/^https?:\/\//i.test(websiteUrl) ? websiteUrl : `https://${websiteUrl}`)
+    : '';
+  const websiteLabel = websiteUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '');
 
   // File input ref for photo upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -163,7 +177,9 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
       travelPace,
       budgetTier,
       languages: languagesStr.split(',').map((s) => s.trim()).filter(Boolean),
-      interests: interestsStr.split(',').map((s) => s.trim()).filter(Boolean)
+      interests: interestsStr.split(',').map((s) => s.trim()).filter(Boolean),
+      instagram: instagram.replace(/^@/, '').trim(),
+      website: website.trim()
     });
     setIsEditingProfile(false);
   };
@@ -195,7 +211,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
         {isEditingProfile ? (
           <form onSubmit={handleSaveProfile} className="space-y-5 text-xs">
             <h3 className="font-display font-bold text-base text-slate-950 dark:text-slate-50 pb-2 border-b border-slate-100 dark:border-slate-800">
-              Edit Personal Traveler Details
+              Edit Personal Traveller Details
             </h3>
 
             {/* Profile Picture Upload Section as requested */}
@@ -375,6 +391,50 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
               </div>
             </div>
 
+            {/* Social links — Instagram & personal site */}
+            <div className="p-4 rounded-xl bg-gradient-to-br from-fuchsia-50 via-pink-50 to-orange-50 dark:from-fuchsia-950/30 dark:via-pink-950/20 dark:to-orange-950/20 border border-pink-200/70 dark:border-pink-900/40 space-y-3">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-pink-700 dark:text-pink-300 uppercase tracking-wider">
+                <Instagram className="w-3.5 h-3.5" />
+                <span>Show off your adventures</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Instagram Handle <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">@</span>
+                    <input
+                      type="text"
+                      placeholder="wander.anya"
+                      value={instagram}
+                      onChange={(e) => setInstagram(e.target.value)}
+                      className="w-full pl-7 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Appears as a tappable Instagram chip on your profile banner.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Blog / Website <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. anyatravels.com"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Your travel blog, portfolio or YouTube — anywhere companions can see more of you.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
@@ -405,6 +465,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                       alt={currentUser.name}
                       className="w-20 h-20 rounded-2xl object-cover border-[3px] border-white/80 shadow-lg"
                     />
+                    <PresenceBadge status={presenceForTraveler(currentUser.id, currentUser.id)} />
                     <button
                       onClick={() => {
                         setIsEditingProfile(true);
@@ -435,13 +496,37 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                     <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                       {currentUser.gender === 'female' && (
                         <span className="text-[10px] bg-white/20 backdrop-blur-xs border border-white/30 text-white px-2 py-0.5 rounded-full font-semibold">
-                          Female Solo Traveler
+                          Female Solo Traveller
                         </span>
                       )}
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-white/20 backdrop-blur-xs border border-white/30 text-white px-2 py-0.5 rounded-full">
                         <ShieldCheck className="w-3 h-3" />
                         <span>Verified Solo Explorer</span>
                       </span>
+                      {instagramHandle && (
+                        <a
+                          href={`https://instagram.com/${instagramHandle}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-white bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 shadow-sm hover:brightness-110 transition-all"
+                          title="Open Instagram profile"
+                        >
+                          <Instagram className="w-3 h-3" />
+                          <span>@{instagramHandle}</span>
+                        </a>
+                      )}
+                      {websiteUrl && (
+                        <a
+                          href={websiteHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold bg-white/20 backdrop-blur-xs border border-white/30 text-white px-2 py-0.5 rounded-full hover:bg-white/30 transition-colors"
+                          title="Open personal website"
+                        >
+                          <Link2 className="w-3 h-3" />
+                          <span>{websiteLabel}</span>
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -618,7 +703,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                     {/* Relationship to the NOC (optional, free text) */}
                     <div className="sm:col-span-4">
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Relationship to the NOC / Traveler <span className="font-normal text-slate-400">(optional)</span>
+                        Relationship to the NOC / Traveller <span className="font-normal text-slate-400">(optional)</span>
                       </label>
                       <input
                         type="text"

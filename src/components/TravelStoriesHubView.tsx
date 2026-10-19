@@ -96,8 +96,8 @@ export const INITIAL_ARTICLES: KnowledgeArticle[] = [
     authorCity: 'Melbourne, Australia',
     date: '2026-09-20',
     readTime: '6 min read',
-    summary: 'Actionable safety protocols for women traveling independently: safe public rendezvous, verifying traveler profiles, setting boundaries, and trusting your intuition.',
-    tags: ['Safety First', 'Female Travelers', 'Verification', 'Vouching'],
+    summary: 'Actionable safety protocols for women travelling independently: safe public rendezvous, verifying traveller profiles, setting boundaries, and trusting your intuition.',
+    tags: ['Safety First', 'Female Travellers', 'Verification', 'Vouching'],
     likesCount: 264,
     content: [
       'Public Daytime Meeting Points: When meeting travel companions from the app for the first time, always pick open, well-lit cafes or landmark transit hubs (e.g. Kyoto Tower exit, Stradun Onofrio Fountain). Avoid remote spots for first meetings.',

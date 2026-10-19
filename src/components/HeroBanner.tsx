@@ -48,7 +48,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           {/* Left Column: Editorial Copy */}
           <div className="lg:col-span-7 flex flex-col justify-center">
             <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-3">
-              <span>Solo Travelers Connected</span>
+              <span>Solo Travellers Connected</span>
               <span aria-hidden="true">·</span>
               <span>Full Trip or Part of Trip</span>
               <span aria-hidden="true">·</span>

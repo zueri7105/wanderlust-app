@@ -96,7 +96,7 @@ export const TripChatModal: React.FC<TripChatModalProps> = ({
           <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-center text-xs text-slate-500 space-y-1">
             <div className="font-semibold text-slate-700 flex items-center justify-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              Solo Traveler Coordination Space
+              Solo Traveller Coordination Space
             </div>
             <p>
               Coordinate meeting logistics and travel plans. Keep conversations respectful, confirm your daylight meetup spot, and check in with your safety contact.

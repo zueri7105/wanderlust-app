@@ -339,7 +339,7 @@ const APP_PACKS: Array<{ match: string[]; apps: TravelApp[] }> = [
   {
     match: ['brazil', 'rio de janeiro', 'sao paulo', 'salvador', 'florianopolis'],
     apps: [
-      A('Uber / 99', 'Ride-hailing everywhere — 99 is the local favorite'),
+      A('Uber / 99', 'Ride-hailing everywhere — 99 is the local favourite'),
       A('Moovit', 'Metro & bus routing in Rio & São Paulo'),
       A('Buser / ClickBus', 'Long-distance bus booking')
     ]

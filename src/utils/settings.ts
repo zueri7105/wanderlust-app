@@ -1,6 +1,8 @@
 // Central app-settings reader. All views read from here so changes in
 // Settings propagate everywhere (App re-renders on 'wanderlust-settings-changed').
 
+export type PresenceStatus = 'online' | 'dnd' | 'offline' | 'hidden';
+
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   language: 'en' | 'es' | 'zh' | 'ja' | 'fr' | 'de' | 'ko' | 'pt' | 'ar' | 'ru';
@@ -10,6 +12,8 @@ export interface AppSettings {
   chatSounds: boolean;
   tripReminders: boolean;
   emergencyInterval: 'off' | '15min' | '30min' | '1hour';
+  /** Chat presence shown on your messages profile: green dot, DND moon, orange offline, or no dot */
+  presenceStatus: PresenceStatus;
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -20,7 +24,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   anonymousMode: false,
   chatSounds: true,
   tripReminders: true,
-  emergencyInterval: '30min'
+  emergencyInterval: '30min',
+  presenceStatus: 'online'
 };
 
 export function getAppSettings(): AppSettings {
@@ -40,4 +45,26 @@ export const EMERGENCY_INTERVAL_MS: Record<AppSettings['emergencyInterval'], num
   '15min': 15 * 60 * 1000,
   '30min': 30 * 60 * 1000,
   '1hour': 60 * 60 * 1000
+};
+
+// ─── Chat presence helpers ────────────────────────────────────────────────────
+export const PRESENCE_META: Record<PresenceStatus, { label: string; hint: string; dot: string | null }> = {
+  online: { label: 'Online', hint: 'Green dot — you are around and happy to chat.', dot: '#22c55e' },
+  dnd: { label: 'Do Not Disturb', hint: 'Moon badge — quiet mode, replies may be slow.', dot: '#818cf8' },
+  offline: { label: 'Appear Offline', hint: 'Orange dot — you look away to others.', dot: '#f97316' },
+  hidden: { label: 'Presence Off', hint: 'No dot at all — presence tracking is switched off.', dot: null }
+};
+
+/** Deterministic demo presence for other travellers (so the UI shows variety). */
+export const demoPresenceFor = (travelerId: string): PresenceStatus => {
+  const order: PresenceStatus[] = ['online', 'dnd', 'offline', 'online', 'hidden', 'online'];
+  let hash = 0;
+  for (let i = 0; i < travelerId.length; i++) hash = (hash * 31 + travelerId.charCodeAt(i)) >>> 0;
+  return order[hash % order.length];
+};
+
+/** Resolve the presence to show for a traveller id (the current user follows their setting). */
+export const presenceForTraveler = (travelerId: string, currentUserId: string): PresenceStatus => {
+  if (travelerId === currentUserId) return getAppSettings().presenceStatus;
+  return demoPresenceFor(travelerId);
 };

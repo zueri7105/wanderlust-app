@@ -263,7 +263,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
             {freeOnlyFilter
               ? 'Try turning off the "Free Activities Only" filter or propose a free sunrise meetup yourself!'
-              : 'Be the first solo traveler to propose an activity or road trip in this destination!'}
+              : 'Be the first solo traveller to propose an activity or road trip in this destination!'}
           </p>
           <div className="flex items-center justify-center gap-3 pt-2">
             {freeOnlyFilter && (
@@ -408,7 +408,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                         ))}
                       </div>
                       <span className="text-[11px] text-slate-500">
-                        Organized by {host.name.split(' ')[0]}
+                        Organised by {host.name.split(' ')[0]}
                       </span>
                     </div>
 

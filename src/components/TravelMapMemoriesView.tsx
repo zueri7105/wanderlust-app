@@ -282,6 +282,51 @@ const MapFlyer: React.FC<{ target: { lat: number; lng: number } | null }> = ({ t
   return null;
 };
 
+/** Zooms out and flies to any explicit target (e.g. hotspot city cards under the map). */
+const FreeFlyer: React.FC<{ target: { lat: number; lng: number; seq: number } | null }> = ({ target }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 5), { duration: 0.9 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.seq]);
+  return null;
+};
+
+// ─── Nomad-Table-style city hotspots ─────────────────────────────────────────
+// Live "who's travelling where" counts per city right now (community-wide).
+const CITY_HOTSPOTS: { city: string; label: string; count: number; vibe: string }[] = [
+  { city: 'bangkok', label: 'Bangkok, Thailand', count: 246, vibe: 'Street food & rooftop nights' },
+  { city: 'tokyo', label: 'Tokyo, Japan', count: 214, vibe: 'Neon izakayas & hidden shrines' },
+  { city: 'london', label: 'London, United Kingdom', count: 203, vibe: 'Markets, museums & pubs' },
+  { city: 'barcelona', label: 'Barcelona, Spain', count: 189, vibe: 'Tapas crawls & beach sunsets' },
+  { city: 'bali', label: 'Bali, Indonesia', count: 178, vibe: 'Surf cafés & jungle scooters' },
+  { city: 'paris', label: 'Paris, France', count: 167, vibe: 'Croissants & gallery afternoons' },
+  { city: 'lisbon', label: 'Lisbon, Portugal', count: 158, vibe: 'Tram rides & miradouro views' },
+  { city: 'melbourne', label: 'Melbourne, Australia', count: 132, vibe: 'Coffee lanes & live music' },
+  { city: 'mexico city', label: 'Mexico City, Mexico', count: 121, vibe: 'Taco tours & Frida Fridays' },
+  { city: 'kyoto', label: 'Kyoto, Japan', count: 86, vibe: 'Torii gates & tea houses' },
+  { city: 'oaxaca', label: 'Oaxaca, Mexico', count: 64, vibe: 'Mole feasts & mezcal tastings' },
+  { city: 'dubrovnik', label: 'Dubrovnik, Croatia', count: 57, vibe: 'Fortress walls & island hops' },
+  { city: 'amalfi', label: 'Amalfi Coast, Italy', count: 43, vibe: 'Cliff hikes & lemon groves' },
+  { city: 'reykjavik', label: 'Reykjavik, Iceland', count: 38, vibe: 'Hot springs & northern lights' }
+];
+
+/** Count bubble pin (Nomad-Table style) — number of solo travellers in a city right now. */
+const hotspotIcon = (count: number, isActive: boolean) =>
+  L.divIcon({
+    className: 'wl-hotspot',
+    iconSize: [46, 46],
+    iconAnchor: [23, 23],
+    html: `<div style="
+      width:${isActive ? 46 : 38}px;height:${isActive ? 46 : 38}px;border-radius:9999px;
+      background:linear-gradient(135deg,#0f172a,#334155);color:#fff;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      border:2px solid ${isActive ? '#fb923c' : '#fff'};box-shadow:0 6px 18px -4px #0f172a88;
+      font-weight:800;font-size:${count > 99 ? 11 : 12.5}px;line-height:1;transition:all .2s ease;">
+      <span>${count}</span><span style="font-size:6.5px;font-weight:600;opacity:.75;letter-spacing:.04em;">HERE</span>
+    </div>`
+  });
+
 /** Keeps map zoom state in React for the zoom pill. */
 const ZoomWatcher: React.FC<{ onZoom: (z: number) => void }> = ({ onZoom }) => {
   const map = useMap();
@@ -321,7 +366,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [mapZoom, setMapZoom] = useState(2.2);
 
   // Pin visibility options (the red/green/visited/dream layer toggles)
-  const [pinLayers, setPinLayers] = useState({ travelers: true, current: true, visited: true, dream: true });
+  const [pinLayers, setPinLayers] = useState({ travelers: true, hotspots: true, current: true, visited: true, dream: true });
+  // Nomad-Table-style hotspot: active city + free-fly target for hotspot cards
+  const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
+  const [hotspotFly, setHotspotFly] = useState<{ lat: number; lng: number; seq: number } | null>(null);
 
   // MY VIEW filter — which traveler pins *I* see on the map
   const [travelerView, setTravelerView] = useState<TravelerViewMode>('all');
@@ -710,7 +758,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
             </span>
             <span className="font-semibold text-slate-900 dark:text-slate-100">
-              {getTranslation('liveRadar')}: {visibleTravelerPins.length} of {MAP_TRAVELER_PINS.length} Travelers Shown
+              {getTranslation('liveRadar')}: {visibleTravelerPins.length} of {MAP_TRAVELER_PINS.length} Travellers Shown
             </span>
           </div>
 
@@ -741,7 +789,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           {/* Layer toggles — tap to show/hide each dot type */}
           <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-semibold">
             {([
-              ['travelers', 'bg-rose-500', 'Travelers'],
+              ['travelers', 'bg-rose-500', 'Travellers'],
+              ['hotspots', 'bg-slate-900', 'City Buzz'],
               ['current', 'bg-emerald-500', 'Current'],
               ['visited', 'bg-sky-600', 'Visited'],
               ['dream', 'bg-amber-500', 'Dream Next']
@@ -847,7 +896,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               ));
             })}
 
-            {/* Traveler avatar pins (filtered by My View) */}
+            {/* Traveller avatar pins (filtered by My View) */}
             {pinLayers.travelers &&
               visibleTravelerPins.map((pin) => (
                 <Marker
@@ -857,6 +906,27 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   eventHandlers={{ click: () => setSelectedPinId(pin.id) }}
                 />
               ))}
+
+            {/* City Buzz hotspots — live count of solo travellers per city (Nomad-Table style) */}
+            {pinLayers.hotspots &&
+              CITY_HOTSPOTS.map((h) => {
+                const g = geoFor(h.city);
+                if (!g) return null;
+                return (
+                  <Marker
+                    key={`hot-${h.city}`}
+                    position={[g.lat, g.lng]}
+                    icon={hotspotIcon(h.count, activeHotspot === h.city)}
+                    eventHandlers={{
+                      click: () => {
+                        setActiveHotspot(h.city);
+                        setHotspotFly({ lat: g.lat, lng: g.lng, seq: Date.now() });
+                      }
+                    }}
+                  />
+                );
+              })}
+            <FreeFlyer target={hotspotFly} />
           </MapContainer>
 
           {/* Zoom hint / level pill */}
@@ -911,7 +981,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               </div>
               <div className="flex items-center gap-1.5 pt-0.5 border-t border-slate-200/70 dark:border-slate-700/70">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                Traveler pins
+                Traveller pins
               </div>
               </div>
             )}
@@ -1024,6 +1094,95 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* City Buzz — Nomad-Table-style "who's travelling where" leaderboard */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              <Users className="w-3.5 h-3.5 text-rose-500" />
+              <span>City Buzz · Live</span>
+            </div>
+            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+              Where Solo Travellers Are Right Now
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Tap a city to fly there on the map and see who's around.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold shrink-0">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            {CITY_HOTSPOTS.reduce((a, h) => a + h.count, 0).toLocaleString()} travellers online
+          </span>
+        </div>
+
+        <div className="flex gap-3 overflow-x-auto pb-2 snap-x scrollbar-thin">
+          {CITY_HOTSPOTS.map((h, rank) => {
+            const isActive = activeHotspot === h.city;
+            const pinsHere = MAP_TRAVELER_PINS.filter(
+              (p) => p.destination.toLowerCase().split(',')[0].trim() === h.city || (h.city === 'amalfi' && p.destination.includes('Amalfi'))
+            );
+            return (
+              <button
+                key={h.city}
+                type="button"
+                onClick={() => {
+                  const g = geoFor(h.city);
+                  setActiveHotspot(h.city);
+                  if (g) setHotspotFly({ lat: g.lat, lng: g.lng, seq: Date.now() });
+                }}
+                className={`snap-start shrink-0 w-52 text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-gradient-to-br from-slate-900 to-slate-800 text-white border-slate-700 shadow-lg'
+                    : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-rose-300 dark:hover:border-rose-700'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-amber-300' : 'text-slate-400'}`}>
+                    #{rank + 1}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    isActive ? 'bg-white/15 text-white' : 'bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300'
+                  }`}>
+                    <Users className="w-2.5 h-2.5" />
+                    {h.count}
+                  </span>
+                </div>
+                <div className={`mt-1.5 font-bold text-sm leading-tight truncate ${isActive ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
+                  {h.label.split(',')[0]}
+                </div>
+                <div className={`text-[10px] truncate ${isActive ? 'text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                  {h.label.split(',').slice(1).join(',').trim()}
+                </div>
+                <div className={`mt-1.5 text-[10px] italic truncate ${isActive ? 'text-amber-200/90' : 'text-rose-500 dark:text-rose-400'}`}>
+                  {h.vibe}
+                </div>
+                {pinsHere.length > 0 && (
+                  <div className="mt-2 flex items-center -space-x-1.5">
+                    {pinsHere.slice(0, 4).map((p) => {
+                      const t = getTravelerById(p.id);
+                      return (
+                        <img
+                          key={p.id}
+                          src={t.avatar}
+                          alt={t.name}
+                          className="w-5 h-5 rounded-full object-cover border-2 border-white dark:border-slate-800"
+                        />
+                      );
+                    })}
+                    <span className={`pl-2.5 text-[9px] font-semibold ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                      on WanderLust
+                    </span>
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 

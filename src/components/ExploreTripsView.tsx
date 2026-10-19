@@ -131,7 +131,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
   // Active Interactive Meetup Photo Modal
   const [selectedMeetup, setSelectedMeetup] = useState<MeetupStory | null>(null);
 
-  // Interactive Solo Traveler Meetup Photos
+  // Interactive Solo Traveller Meetup Photos
   const meetupStories: MeetupStory[] = [
     {
       id: 'meetup_1',
@@ -231,7 +231,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
     return (
       travelers.find((t) => t.id === travelerId) || {
         id: travelerId,
-        name: 'Fellow Solo Traveler',
+        name: 'Fellow Solo Traveller',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
         country: 'Global Explorer',
         homeCity: 'Wanderer',
@@ -302,17 +302,27 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
     return combined.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
   }, [myTrips, itineraries]);
 
+  // All 'YYYY-MM' month keys a trip touches (handles trips spanning month/year boundaries)
+  const monthKeysForTrip = (t: { startDate: string; endDate: string }): string[] => {
+    const start = new Date(t.startDate);
+    const end = new Date(t.endDate || t.startDate);
+    if (isNaN(start.getTime())) return [];
+    const keys: string[] = [];
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const last = isNaN(end.getTime()) || end < start ? new Date(start.getFullYear(), start.getMonth(), 1) : new Date(end.getFullYear(), end.getMonth(), 1);
+    let guard = 0;
+    while (cursor <= last && guard < 36) {
+      keys.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+      cursor.setMonth(cursor.getMonth() + 1);
+      guard++;
+    }
+    return keys;
+  };
+
   // Extract all available trip months in format 'YYYY-MM'
   const availableMonths = useMemo(() => {
     const months = Array.from(
-      new Set(
-        synchronizedUpcomingTrips.map((t) => {
-          const d = new Date(t.startDate);
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          return `${year}-${month}`;
-        })
-      )
+      new Set(synchronizedUpcomingTrips.flatMap((t) => monthKeysForTrip(t)))
     ).sort();
     return months;
   }, [synchronizedUpcomingTrips]);
@@ -338,13 +348,9 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
     return () => document.removeEventListener('mousedown', onDocDown);
   }, [isMonthPickerOpen]);
 
-  // Filter trips for selected month
+  // Filter trips for selected month (includes trips that span into this month)
   const tripsForSelectedMonth = useMemo(() => {
-    return synchronizedUpcomingTrips.filter((t) => {
-      const d = new Date(t.startDate);
-      const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      return mStr === selectedMonth;
-    });
+    return synchronizedUpcomingTrips.filter((t) => monthKeysForTrip(t).includes(selectedMonth));
   }, [synchronizedUpcomingTrips, selectedMonth]);
 
   // Jump to nearest month that has trips
@@ -518,27 +524,9 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                       );
                     }
 
-                    // Empty query: user's top WanderLust searches, then all countries by continent
-                    const topSearches = getTopSearches(5);
+                    // Empty query: all countries of the world, grouped by continent
                     return (
                       <>
-                        <div className="px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                          Most searched on WanderLust
-                        </div>
-                        {topSearches.map((d) => (
-                          <button
-                            key={d}
-                            type="button"
-                            onMouseDown={pick(d)}
-                            className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                          >
-                            <span className="flex items-center gap-2 text-sm font-medium">
-                              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-                              {d}
-                            </span>
-                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">Top 5</span>
-                          </button>
-                        ))}
                         {CONTINENTS.map((cont) => {
                           const list = WORLD_COUNTRIES.filter((c) => c.continent === cont);
                           if (list.length === 0) return null;
@@ -595,7 +583,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
 
             <span className="text-rose-100/60 hidden sm:inline">|</span>
             <span className="text-rose-50 text-xs hidden sm:inline">Most searched:</span>
-            {getTopSearches(4).map((dest) => (
+            {getTopSearches(5).map((dest) => (
               <button
                 key={dest}
                 onClick={() => {
@@ -663,7 +651,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-xs text-white text-[11px] px-2.5 py-1 rounded-md font-medium">
-                    {dest.activeTravelers} Solo Travelers Active
+                    {dest.activeTravelers} Solo Travellers Active
                   </div>
                   <div className="absolute bottom-3 left-3 right-3 bg-gradient-to-r from-rose-600/90 to-orange-500/90 backdrop-blur-xs text-white text-[10px] px-2.5 py-1 rounded-md font-semibold flex items-center gap-1">
                     <Sparkles className="w-3 h-3 shrink-0" />
@@ -1045,7 +1033,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
         )}
       </section>
 
-      {/* 5. AT THE VERY BOTTOM: Interactive Photos of Solo Travelers Meeting Up Together */}
+      {/* 5. AT THE VERY BOTTOM: Interactive Photos of Solo Travellers Meeting Up Together */}
       <section className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -1093,7 +1081,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                     {item.country}
                   </div>
 
-                  {/* Travelers meeting up avatars on photo */}
+                  {/* Travellers meeting up avatars on photo */}
                   <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                     <div className="flex items-center -space-x-2">
                       {item.travelerAvatars.map((av, i) => (
@@ -1105,7 +1093,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                         />
                       ))}
                       <span className="pl-3 text-[11px] font-semibold text-white drop-shadow-md">
-                        {item.travelerNames.length} Travelers Met
+                        {item.travelerNames.length} Travellers Met
                       </span>
                     </div>
 
@@ -1179,10 +1167,10 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             </div>
 
             <div className="p-6 space-y-4 overflow-y-auto text-xs">
-              {/* Connected Travelers */}
+              {/* Connected Travellers */}
               <div>
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                  Solo Travelers Who Connected:
+                  Solo Travellers Who Connected:
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {selectedMeetup.travelerNames.map((name, i) => (

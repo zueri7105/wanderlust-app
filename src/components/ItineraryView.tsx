@@ -1063,7 +1063,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             const guideEmergency = emergencyNumbersFor(
               `${itinerary.country || ''} ${itinerary.destination}`
             );
-            // Traveler nationality's home currency (for the dual exchange-rate display)
+            // Traveller nationality's home currency (for the dual exchange-rate display)
             const natCurrency = countryInfoFor(guideNat)?.currency || { code: 'EUR', symbol: '€', name: 'Euro' };
             const visaVerdict = visaVerdictFor(guideNat, `${itinerary.country || ''} ${itinerary.destination}`);
 
@@ -1277,7 +1277,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                 Travel Guide · {itinerary.travelGuide.destinationCity || itinerary.destination.split(',')[0]} ({itinerary.travelGuide.destinationCountry})
                               </h4>
                               <p className="text-xs text-slate-500 dark:text-slate-400">
-                                Verified run-through for traveler nationality:{' '}
+                                Verified run-through for traveller nationality:{' '}
                                 <strong className="text-slate-800 dark:text-slate-200">{itinerary.travelGuide.travelerNationality}</strong>
                               </p>
                             </div>
@@ -1739,7 +1739,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2.5">
                             <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm">
                               <AlertTriangle className="w-4 h-4 text-amber-600" />
-                              <span>Cultural Shocks & Traveler Realities</span>
+                              <span>Cultural Shocks & Traveller Realities</span>
                             </div>
                             <div className="space-y-2 pt-1">
                               {itinerary.travelGuide.culturalShocks?.map((shock, idx) => (
