@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getTranslation } from '../utils/i18n';
-import { KnowledgeArticle, SoloTraveler } from '../types/travel';
+import { KnowledgeArticle, KnowledgeArticleCategory, SoloTraveler } from '../types/travel';
 import {
   BookOpen,
   Search,
@@ -125,14 +125,25 @@ export const INITIAL_ARTICLES: KnowledgeArticle[] = [
   }
 ];
 
-const CATEGORIES = [
-  'All Articles',
-  'Cultures & Traditions',
+const STORY_CATEGORIES: KnowledgeArticleCategory[] = [
+  'Culture & Traditions',
   'Solo Female Safety',
   'Local Dining Etiquette',
   'Transit & Digital Hacks',
-  'Hidden Gems'
-] as const;
+  'Hidden Gems',
+  'Budget & Money Hacks',
+  'Visas & Border Crossings',
+  'Accommodation Hacks',
+  'Adventure & Outdoors',
+  'Food & Street Eats',
+  'Nightlife & Social Scene',
+  'Photography & Content',
+  'Health & Wellbeing',
+  'Meeting People & Companions',
+  'Packing & Gear'
+];
+
+const CATEGORIES = ['All Articles', ...STORY_CATEGORIES] as const;
 
 interface TravelStoriesHubViewProps {
   currentUser: SoloTraveler;
@@ -183,8 +194,9 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
   const [newCategory, setNewCategory] = useState<KnowledgeArticle['category']>('Culture & Traditions');
   const [newDestination, setNewDestination] = useState('Japan');
   const [newSummary, setNewSummary] = useState('');
+  // New stories start with one subheading + one paragraph ready to fill in
   const [newBlocks, setNewBlocks] = useState<StoryBlock[]>([
-    { type: 'p', text: '' },
+    { type: 'h2', text: '' },
     { type: 'p', text: '' }
   ]);
   const [newTags, setNewTags] = useState('Culture, Solo Tips, Travel Advice');
@@ -242,7 +254,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
     setNewTitle('');
     setNewSummary('');
     setNewBlocks([
-      { type: 'p', text: '' },
+      { type: 'h2', text: '' },
       { type: 'p', text: '' }
     ]);
   };
@@ -628,11 +640,11 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                     onChange={(e) => setNewCategory(e.target.value as any)}
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
                   >
-                    <option value="Culture & Traditions">Culture & Traditions</option>
-                    <option value="Solo Female Safety">Solo Female Safety</option>
-                    <option value="Local Dining Etiquette">Local Dining Etiquette</option>
-                    <option value="Transit & Digital Hacks">Transit & Digital Hacks</option>
-                    <option value="Hidden Gems">Hidden Gems</option>
+                    {STORY_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

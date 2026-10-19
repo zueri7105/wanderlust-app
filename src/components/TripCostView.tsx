@@ -28,12 +28,14 @@ export interface CurrencyDef {
   rate: number; // units per 1 USD
 }
 
+// Row 1 of the currency basket — 6 major travel currencies (USD, EUR, CNY, JPY, GBP, CHF)
 export const TOP_5_CURRENCIES: CurrencyDef[] = [
   { code: 'USD', name: 'US Dollar', symbol: '$', rate: 1.0 },
   { code: 'EUR', name: 'Euro', symbol: '€', rate: 0.92 },
   { code: 'CNY', name: 'Chinese Yuan', symbol: '¥', rate: 7.15 },
   { code: 'JPY', name: 'Japanese Yen', symbol: '¥', rate: 152.0 },
-  { code: 'GBP', name: 'British Pound', symbol: '£', rate: 0.79 }
+  { code: 'GBP', name: 'British Pound', symbol: '£', rate: 0.79 },
+  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF', rate: 0.86 }
 ];
 
 interface TripCostViewProps {
@@ -70,7 +72,8 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
     selectedDestination !== 'All Destinations' ? selectedDestination : 'All'
   );
 
-  // User-added custom currencies in Row 2 (max 5)
+  // User-added custom currencies in Row 2 (max 6) — starts empty so first-time
+  // users see just the 6 primary currencies until they add their own
   const [customCurrencies, setCustomCurrencies] = useState<CurrencyDef[]>(() => {
     const saved = localStorage.getItem('wanderlust_custom_currencies');
     if (saved) {
@@ -80,10 +83,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
         // fallback
       }
     }
-    return [
-      { code: 'CAD', name: 'Canadian Dollar', symbol: 'CA$', rate: 1.36 },
-      { code: 'MXN', name: 'Mexican Peso', symbol: 'MX$', rate: 18.5 }
-    ];
+    return [];
   });
 
   // Save custom currencies
@@ -158,10 +158,10 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
     })}`;
   };
 
-  // Add custom currency handler (max 5)
+  // Add custom currency handler (max 6)
   const handleAddCustomCurrency = (cur: CurrencyDef) => {
-    if (customCurrencies.length >= 5) {
-      alert('You can have at most 5 custom currencies in the basket.');
+    if (customCurrencies.length >= 6) {
+      alert('You can have at most 6 custom currencies in the basket.');
       return;
     }
     if (allKnownCurrencies.some((c) => c.code === cur.code)) {
@@ -397,7 +397,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
           </div>
         </div>
 
-        {/* Currency Basket Box: 2 rows of 5 currencies as requested */}
+        {/* Currency Basket Box: 2 rows of 6 currencies as requested */}
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -439,12 +439,12 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             </div>
           </div>
 
-          {/* Row 1: Top 5 Currencies (USD, EUR, CNY, JPY, GBP) */}
+          {/* Row 1: 6 Primary Currencies (USD, EUR, CNY, JPY, GBP, CHF) */}
           <div className="space-y-1">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Row 1: Primary Currencies
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               {TOP_5_CURRENCIES.map((c) => {
                 const isActive = activeCurrency === c.code;
                 return (
@@ -470,23 +470,23 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             </div>
           </div>
 
-          {/* Row 2: User Added Currencies (max 5) + Add Currency Button */}
+          {/* Row 2: User Added Currencies (max 6) + Add Currency Button */}
           <div className="space-y-1 pt-2 border-t border-slate-200/70 dark:border-slate-700">
             <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              <span>Row 2: Custom Currencies ({customCurrencies.length}/5)</span>
-              {customCurrencies.length < 5 && (
+              <span>Row 2: Custom Currencies ({customCurrencies.length}/6)</span>
+              {customCurrencies.length < 6 && (
                 <button
                   type="button"
                   onClick={() => setIsAddCurrencyModalOpen(true)}
                   className="text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1 normal-case font-semibold"
                 >
                   <Plus className="w-3 h-3" />
-                  <span>Add Currency (max 5)</span>
+                  <span>Add Currency (max 6)</span>
                 </button>
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               {customCurrencies.map((c) => {
                 const isActive = activeCurrency === c.code;
                 return (
@@ -526,7 +526,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
               })}
 
               {/* Slot placeholder / Add Currency button in Row 2 */}
-              {customCurrencies.length < 5 && (
+              {customCurrencies.length < 6 && (
                 <button
                   type="button"
                   onClick={() => setIsAddCurrencyModalOpen(true)}
@@ -537,8 +537,8 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                 </button>
               )}
 
-              {/* Empty slot indicators if fewer than 5 */}
-              {Array.from({ length: Math.max(0, 4 - customCurrencies.length) }).map((_, i) => (
+              {/* Empty slot indicators if fewer than 6 */}
+              {Array.from({ length: Math.max(0, 5 - customCurrencies.length) }).map((_, i) => (
                 <div
                   key={`empty_${i}`}
                   className="hidden sm:flex px-3 py-2 rounded-lg border border-slate-200/50 dark:border-slate-800/50 text-[10px] text-slate-400 items-center justify-center font-mono"
@@ -987,7 +987,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             </button>
 
             <h3 className="font-display font-bold text-base text-slate-950 dark:text-slate-50">
-              Add Currency to Row 2 Basket (Max 5)
+              Add Currency to Row 2 Basket (Max 6)
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Choose from popular world travel currencies or enter a custom currency.

@@ -32,11 +32,14 @@ import {
   Sunrise,
   Sun,
   MoonStar,
-  Pencil
+  Pencil,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { generateDestinationTravelGuide } from '../services/geminiService';
 import { formatTemperature } from '../utils/units';
 import { lookupCountryGuide, visaAdviceFor, tippingAdviceFor } from '../utils/countryGuides';
+import { cardAcceptanceForCountry, tippingForCountry } from '../utils/countryInfo';
 import { getFxRates, refreshFxRates, benchmarkString, type FxState } from '../utils/currency';
 import { getTranslation } from '../utils/i18n';
 import { WORLD_COUNTRIES } from './DestinationSelector';
@@ -245,6 +248,19 @@ export function resolveDestinationCurrency(itinerary: TravelItinerary) {
     };
   }
 
+  // Any other recognised country: use its own currency (never default to USD)
+  const kbFallback = lookupCountryGuide(destLower);
+  if (kbFallback.key !== 'generic') {
+    return {
+      code: kbFallback.currencyCode,
+      name: `${kbFallback.currencyName} (${kbFallback.currencySymbol} / ${kbFallback.currencyCode})`,
+      symbol: kbFallback.currencySymbol,
+      rateBenchmark: '',
+      cardAcceptance: cardAcceptanceForCountry(destLower),
+      tippingRules: tippingForCountry(destLower)
+    };
+  }
+
   return {
     code: 'USD',
     name: 'US Dollar ($)',
@@ -286,6 +302,38 @@ const DAY_TIME_ROWS: Array<{
 ];
 
 const SWIPE_DELETE_WIDTH = 88;
+
+/** Default packing checklist — connectivity essentials only; travelers add their own items. */
+const DEFAULT_PACKING_ITEMS = [
+  'Pocket WiFi / eSIM (stay connected everywhere)',
+  'Power bank (10,000mAh+ for full-day exploring)'
+];
+
+/** Deterministic small hash for per-city weather variation on multi-city trips. */
+const hashStr = (s: string): number => {
+  let h = 7;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+};
+
+/** Shift every °C value in a temperature string by delta degrees. */
+const shiftCelsius = (s: string, delta: number): string =>
+  s.replace(/(-?\d+)\s*°C/g, (_m, n) => `${Number(n) + delta}°C`);
+
+const CITY_CONDITION_VARIANTS = [
+  'Expect sunny intervals with pleasant afternoons.',
+  'Mostly clear skies with a light local breeze.',
+  'Passing clouds with mild, comfortable temperatures.',
+  'Bright mornings giving way to cooler evenings.',
+  'Occasional short showers possible — pack a light layer.'
+];
+
+/** Split a morning/afternoon/evening block into individual tasks ("a · b", "a; b"). */
+const splitTasks = (text: string): string[] =>
+  (text || '')
+    .split(/[\n\r]+|[·•;]\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 interface SwipeableDayCardProps {
   day: ItineraryDay;
@@ -380,19 +428,33 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDel
               )}
             </div>
 
-            <div className="space-y-1.5">
-              {DAY_TIME_ROWS.map(({ key, label, Icon, chip, dot }) => (
-                <div key={key} className="flex items-start gap-2.5">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide shrink-0 mt-0.5 ${chip}`}>
-                    <Icon className="w-3 h-3" />
-                    <span className="hidden sm:inline">{label}</span>
-                  </span>
-                  <span className="relative text-xs leading-relaxed text-slate-600 dark:text-slate-300 pl-2.5">
-                    <span className={`absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full ${dot}`} />
-                    {day[key]}
-                  </span>
-                </div>
-              ))}
+            <div className="space-y-2.5">
+              {DAY_TIME_ROWS.map(({ key, label, Icon, chip, dot }) => {
+                const tasks = splitTasks(day[key]);
+                return (
+                  <div key={key} className="flex items-start gap-2.5">
+                    <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide shrink-0 mt-0.5 w-[88px] sm:w-[104px] ${chip}`}>
+                      <Icon className="w-3 h-3" />
+                      <span className="hidden sm:inline">{label}</span>
+                    </span>
+                    {/* Dotted task list: one dot per task, connected by a dashed string */}
+                    <div className="flex-1 min-w-0">
+                      {tasks.map((task, taskIdx) => (
+                        <div key={taskIdx} className="relative pl-4 pb-2 last:pb-0">
+                          {taskIdx < tasks.length - 1 && (
+                            <span
+                              aria-hidden="true"
+                              className="absolute left-[2.5px] top-[13px] bottom-0 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
+                            />
+                          )}
+                          <span className={`absolute left-0 top-[5px] w-1.5 h-1.5 rounded-full ${dot} ring-2 ring-white dark:ring-slate-900`} />
+                          <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{task}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {day.companionGoal && (
@@ -460,6 +522,24 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [editTripDays, setEditTripDays] = useState<ItineraryDay[]>([]);
   const [editTripNotes, setEditTripNotes] = useState('');
+
+  // Visibility toggle popup ("open to public" / "private")
+  const [visibilityToast, setVisibilityToast] = useState<{ isPublic: boolean; text: string } | null>(null);
+  const visibilityToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleToggleVisibility = (itin: TravelItinerary) => {
+    const isPublic = (itin.visibility || 'public') === 'public';
+    const nextPublic = !isPublic;
+    onUpdateItinerary?.({ ...itin, visibility: nextPublic ? 'public' : 'private' });
+    if (visibilityToastTimer.current) clearTimeout(visibilityToastTimer.current);
+    setVisibilityToast({
+      isPublic: nextPublic,
+      text: nextPublic
+        ? `${itin.destination} is now open to public — other travelers can discover this trip and connect with you.`
+        : `${itin.destination} is now private — visible only to you.`
+    });
+    visibilityToastTimer.current = setTimeout(() => setVisibilityToast(null), 3200);
+  };
 
   const handleOpenEditTrip = (itin: TravelItinerary) => {
     setEditingTripId(itin.id);
@@ -575,12 +655,18 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     };
   }, []);
 
-  // Form state — destination split into Country box + City box
-  const [formCountry, setFormCountry] = useState('Croatia');
-  const [formCity, setFormCity] = useState('Dubrovnik');
-  const formDest = formCity.trim() && formCountry.trim()
-    ? `${formCity.trim()}, ${formCountry.trim()}`
-    : (formCity.trim() || formCountry.trim());
+  // Form state — destination split into Country box + City box.
+  // City is optional (country alone is enough for companion matching) and may
+  // hold several comma-separated cities for multi-city trips.
+  const [formCountry, setFormCountry] = useState('');
+  const [formCity, setFormCity] = useState('');
+  const formCities = formCity
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const formDest = formCities.length > 0 && formCountry.trim()
+    ? `${formCities.join(' · ')}, ${formCountry.trim()}`
+    : (formCities.join(' · ') || formCountry.trim());
   const [formStartDate, setFormStartDate] = useState('2026-11-01');
   const [formEndDate, setFormEndDate] = useState('2026-11-05');
   const [formNotes, setFormNotes] = useState('');
@@ -767,7 +853,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     const kb = lookupCountryGuide(formDest);
     const nat = currentUser.country || 'Germany';
     const country = formCountry.trim() || (kb.key !== 'generic' ? kb.name : formDest);
-    const city = formCity.trim() || formDest;
+    const city = formCities[0] || formDest;
     const visaText = visaAdviceFor(nat, kb);
     const tippingText = tippingAdviceFor(nat, kb);
     const kbCurrency = {
@@ -875,6 +961,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       travelerId: currentUser.id,
       destination: formDest,
       country: country,
+      cities: formCities,
       startDate: formStartDate,
       endDate: formEndDate,
       companionPurpose: selectedPurposes.length > 0 ? selectedPurposes : ['Solo Exploration'],
@@ -992,9 +1079,28 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         <span className="font-mono text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                           {itinerary.startDate} – {itinerary.endDate}
                         </span>
-                        <span className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-2 py-0.5 rounded">
-                          Open to Public (Change in Settings)
-                        </span>
+                        {/* Eye icon visibility toggle — tap to open to public / make private */}
+                        {(() => {
+                          const isPublic = (itinerary.visibility || 'public') === 'public';
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleVisibility(itinerary);
+                              }}
+                              title={isPublic ? 'Open to public — tap to make private' : 'Private — tap to open to public'}
+                              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                                isPublic
+                                  ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-100'
+                                  : 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 hover:bg-slate-200'
+                              }`}
+                            >
+                              {isPublic ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                              <span>{isPublic ? 'Open to Public' : 'Private'}</span>
+                            </button>
+                          );
+                        })()}
                         {itinerary.tripScope && (
                           <span className="text-[10px] font-semibold text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-800 px-2 py-0.5 rounded">
                             {itinerary.tripScope}
@@ -1005,6 +1111,24 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-1">
                         {itinerary.notes}
                       </p>
+
+                      {/* Multi-city route chips */}
+                      {itinerary.cities && itinerary.cities.length > 1 && (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px]">
+                          <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                          {itinerary.cities.map((c, i) => (
+                            <span key={c} className="inline-flex items-center gap-1">
+                              <span className="px-1.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900 font-semibold">
+                                {c}
+                              </span>
+                              {i < itinerary.cities!.length - 1 && (
+                                <ArrowRight className="w-3 h-3 text-slate-400" />
+                              )}
+                            </span>
+                          ))}
+                          <span className="text-slate-400 ml-1">multi-city trip</span>
+                        </div>
+                      )}
 
                       {/* Companion Purpose Badges */}
                       <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -1153,10 +1277,54 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                 <span>City Weather Trend & Outlook</span>
                               </div>
                               <span className="text-[10px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 px-2 py-0.5 rounded font-mono font-medium">
-                                City-Specific
+                                {itinerary.cities && itinerary.cities.length > 1 ? `${itinerary.cities.length} Cities` : 'City-Specific'}
                               </span>
                             </div>
 
+                            {/* Multi-city trips: one weather card per city */}
+                            {itinerary.cities && itinerary.cities.length > 1 ? (
+                              <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                                {itinerary.cities.map((cityName, cityIdx) => {
+                                  const base = itinerary.travelGuide.weatherOutlook;
+                                  const shift = ((hashStr(cityName) % 5) - 2); // -2..+2 °C variation per city
+                                  const conditions = CITY_CONDITION_VARIANTS[hashStr(cityName) % CITY_CONDITION_VARIANTS.length];
+                                  return (
+                                    <div
+                                      key={cityName}
+                                      className="bg-white/80 dark:bg-slate-800/70 border border-sky-100 dark:border-slate-700 rounded-xl p-3 space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="font-bold text-slate-900 dark:text-slate-100 text-xs flex items-center gap-1.5">
+                                          <MapPin className="w-3 h-3 text-rose-500" />
+                                          {cityName}
+                                        </span>
+                                        <span className="font-mono tabular-nums font-bold text-slate-950 dark:text-slate-50 text-[11px]">
+                                          {formatTemperature(shiftCelsius(base?.temperatureRange || '14°C – 23°C', shift))}
+                                        </span>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
+                                        <div className="bg-amber-50 dark:bg-amber-950/30 px-2 py-1 rounded border border-amber-200 dark:border-amber-800">
+                                          <span className="text-amber-700 dark:text-amber-400">Day:</span>{' '}
+                                          <span className="font-bold text-amber-900 dark:text-amber-200">{formatTemperature(shiftCelsius(base?.daytimeAvg || '20°C', shift))}</span>
+                                        </div>
+                                        <div className="bg-indigo-50 dark:bg-indigo-950/30 px-2 py-1 rounded border border-indigo-200 dark:border-indigo-800">
+                                          <span className="text-indigo-500 dark:text-indigo-400">Night:</span>{' '}
+                                          <span className="font-bold text-indigo-900 dark:text-indigo-200">{formatTemperature(shiftCelsius(base?.nighttimeAvg || '13°C', shift))}</span>
+                                        </div>
+                                      </div>
+                                      <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                        {base?.conditions ? `${base.conditions} ` : ''}{conditions}
+                                      </p>
+                                      {cityIdx === 0 && base?.clothingAdvice && (
+                                        <p className="text-[10px] text-amber-800 dark:text-amber-300">
+                                          <strong>Clothing advice for the route:</strong> {base.clothingAdvice}
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
                             <div className="space-y-1.5 text-slate-700 dark:text-slate-300">
                               <div>
                                 <span className="font-semibold text-slate-900 dark:text-slate-100">Location:</span>{' '}
@@ -1184,6 +1352,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                 </div>
                               )}
                             </div>
+                            )}
                           </div>
 
                           {/* Checklist and Notes (Removed 'fully editable' badge as requested) */}
@@ -1195,13 +1364,22 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               </div>
                             </div>
 
-                            {/* Checklist Items */}
+                            {/* Checklist Items — starts with just WiFi & power bank; add your own */}
                             {(() => {
-                              const defaultItems = itinerary.travelGuide.recommendedToBring || [];
+                              const defaultItems = DEFAULT_PACKING_ITEMS;
                               const currentItems = checklistByItin[itinerary.id] || defaultItems;
+                              const packedCount = currentItems.filter(
+                                (item, idx) => checkedPackingItems[`${itinerary.id}_pack_${item}_${idx}`]
+                              ).length;
 
                               return (
                                 <div className="space-y-2">
+                                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                                    <span>Essentials to get you started — add your own below.</span>
+                                    <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-300">
+                                      {packedCount}/{currentItems.length} packed
+                                    </span>
+                                  </div>
                                   <ul className="space-y-1.5 text-slate-700 dark:text-slate-300 max-h-48 overflow-y-auto pr-1">
                                     {currentItems.map((item, idx) => {
                                       const checkKey = `${itinerary.id}_pack_${item}_${idx}`;
@@ -1210,7 +1388,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                       return (
                                         <li
                                           key={idx}
-                                          className="flex items-center justify-between gap-2 group hover:bg-white dark:hover:brightness-105 p-1 rounded transition-colors"
+                                          className={`flex items-center justify-between gap-2 group px-2.5 py-1.5 rounded-lg border transition-colors ${
+                                            isChecked
+                                              ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200/70 dark:border-emerald-900/50'
+                                              : 'bg-white dark:bg-slate-800 border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-800'
+                                          }`}
                                         >
                                           <div
                                             onClick={() => togglePackingCheck(checkKey)}
@@ -1528,6 +1710,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         </div>
       )}
 
+      {/* Visibility toggle popup (open to public / private) */}
+      {visibilityToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] animate-in fade-in slide-in-from-bottom-2">
+          <div className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-semibold backdrop-blur-md ${
+            visibilityToast.isPublic
+              ? 'bg-emerald-600/95 border-emerald-400/50 text-white'
+              : 'bg-slate-900/95 border-slate-600/50 text-white'
+          }`}>
+            {visibilityToast.isPublic ? <Eye className="w-4 h-4 shrink-0" /> : <EyeOff className="w-4 h-4 shrink-0" />}
+            <span>{visibilityToast.text}</span>
+          </div>
+        </div>
+      )}
+
       {/* Plan New Itinerary Modal with Dynamic Multi-Day Builder */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1572,13 +1768,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   <div>
                     <input
                       type="text"
-                      required
-                      placeholder="City (e.g. Dubrovnik)"
+                      placeholder="City — optional (e.g. Dubrovnik, or Kyoto, Osaka)"
                       value={formCity}
                       onChange={(e) => setFormCity(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
                     />
-                    <span className="block text-[10px] text-slate-400 mt-1">City</span>
+                    <span className="block text-[10px] text-slate-400 mt-1">
+                      City — optional. Visiting several cities? Separate them with commas. Leave blank to match companions by country.
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1947,6 +2144,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             rows={2}
                             value={d[key]}
                             onChange={(e) => handleUpdateEditDay(idx, key, e.target.value)}
+                            placeholder={`${label} tasks — one per line`}
                             className="flex-1 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 resize-y"
                           />
                         </div>

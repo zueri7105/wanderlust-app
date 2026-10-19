@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X, Globe, Check, ChevronDown } from 'lucide-react';
 
 export interface DestinationCountry {
@@ -241,12 +242,46 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContinent, setSelectedContinent] = useState<string>('All Continents');
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Close on outside click
+  // Portal dropdown position — fixed to the trigger's viewport rect so the
+  // dropdown is NEVER clipped by overflow-hidden/rounded parent containers.
+  const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number; width: number }>({
+    left: 0,
+    top: 0,
+    width: 320
+  });
+
+  const updateDropdownPos = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const width = Math.min(Math.max(rect.width, 320), vw - 16, 400);
+    const left = Math.max(8, Math.min(rect.left, vw - width - 8));
+    setDropdownPos({ left, top: rect.bottom + 6, width });
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updateDropdownPos();
+    window.addEventListener('scroll', updateDropdownPos, true);
+    window.addEventListener('resize', updateDropdownPos);
+    return () => {
+      window.removeEventListener('scroll', updateDropdownPos, true);
+      window.removeEventListener('resize', updateDropdownPos);
+    };
+  }, [isOpen]);
+
+  // Close on outside click (dropdown is portaled to <body>, so check both refs)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        (!dropdownRef.current || !dropdownRef.current.contains(target))
+      ) {
         setIsOpen(false);
       }
     };
@@ -313,9 +348,14 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 sm:right-auto sm:w-[380px] mt-1.5 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+      {/* Dropdown Menu — portaled to <body> so overflow-hidden parents can't clip it */}
+      {isOpen &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={{ left: dropdownPos.left, top: dropdownPos.top, width: dropdownPos.width }}
+            className="fixed z-[1000] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+          >
           {/* Small Search Bar on Top as requested */}
           <div className="p-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60">
             <div className="relative">
@@ -414,8 +454,9 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
               ))
             )}
           </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

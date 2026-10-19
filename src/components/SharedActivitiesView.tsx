@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { TravelActivity, SoloTraveler } from '../types/travel';
-import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign, Trash2, EyeOff } from 'lucide-react';
+import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign, Trash2, EyeOff, CalendarDays, ArrowRight } from 'lucide-react';
 import { generateSafeMeetingGuide } from '../services/geminiService';
 import { getTranslation } from '../utils/i18n';
+import { WORLD_CURRENCIES } from '../data/currencies';
 
 interface SharedActivitiesViewProps {
   activities: TravelActivity[];
@@ -16,7 +17,26 @@ interface SharedActivitiesViewProps {
   onDeleteActivity?: (activityId: string) => void;
 }
 
-const CATEGORIES = ['All Categories', 'Adventure', 'Transport & Roadtrip', 'Culture & Sights', 'Food & Drink'];
+const ACTIVITY_CATEGORY_OPTIONS = [
+  'Adventure',
+  'Transport & Roadtrip',
+  'Culture & Sights',
+  'Food & Drink',
+  'Nightlife',
+  'Street Food Crawl',
+  'Sunrise & Sunset Spots',
+  'Photography Walk',
+  'Hiking & Trail Safety',
+  'Museums & Art',
+  'Boat & Water Sports',
+  'Night Markets & Shopping',
+  'Coffee & Co-working',
+  'Language & Cultural Exchange',
+  'Cooking Class & Workshops',
+  'Wellness & Yoga'
+];
+
+const CATEGORIES = ['All Categories', ...ACTIVITY_CATEGORY_OPTIONS];
 
 export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
   activities,
@@ -58,23 +78,37 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
   // Form state
   const [formDest, setFormDest] = useState(selectedDestination !== 'All Destinations' ? selectedDestination : 'Kyoto, Japan');
   const [formTitle, setFormTitle] = useState('');
-  const [formCategory, setFormCategory] = useState<'Adventure' | 'Food & Drink' | 'Culture & Sights' | 'Transport & Roadtrip'>('Adventure');
+  const [formCategory, setFormCategory] = useState<string>('Adventure');
   const [formDate, setFormDate] = useState('2026-10-21');
-  const [formTime, setFormTime] = useState('07:00 AM');
+  const [formEndDate, setFormEndDate] = useState(''); // optional — multi-day activities
+  // Time picker via scroll rows (hour / minute / AM-PM)
+  const [formHour, setFormHour] = useState('07');
+  const [formMinute, setFormMinute] = useState('00');
+  const [formAmPm, setFormAmPm] = useState<'AM' | 'PM'>('AM');
   const [formLoc, setFormLoc] = useState('');
   const [formMeet, setFormMeet] = useState('');
   const [formMax, setFormMax] = useState(4);
-  const [formCost, setFormCost] = useState(0);
+  // Blank by default so the user types their own value (no forced "0")
+  const [formCost, setFormCost] = useState('');
   const [formCurrency, setFormCurrency] = useState('USD');
   const [formCostNote, setFormCostNote] = useState('Split equally among participants');
   const [formDesc, setFormDesc] = useState('');
+
+  const HOUR_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const MINUTE_OPTIONS = ['00', '15', '30', '45'];
 
   const getTraveler = (id: string) => travelers.find((t) => t.id === id) || travelers[0];
 
   const filteredActivities = activities.filter((act) => {
     if (hiddenActivities.includes(act.id)) return false;
-    if (selectedDestination !== 'All Destinations' && act.destination !== selectedDestination) {
-      return false;
+    if (selectedDestination !== 'All Destinations') {
+      const sel = selectedDestination.toLowerCase().split(',')[0].trim();
+      const actDest = act.destination.toLowerCase();
+      const actPrefix = actDest.split(',')[0].trim();
+      const cityMatch = (act.cities || []).some((c) => c.toLowerCase().includes(sel) || sel.includes(c.toLowerCase()));
+      if (!actDest.includes(sel) && !selectedDestination.toLowerCase().includes(actPrefix) && !cityMatch) {
+        return false;
+      }
     }
     if (selectedCategory !== 'All Categories' && act.category !== selectedCategory) {
       return false;
@@ -107,17 +141,24 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
     e.preventDefault();
     if (!formTitle || !formLoc) return;
 
+    // Multi-city support: "Kyoto, Osaka, Japan" → cities [Kyoto, Osaka] (last part = country)
+    const destParts = formDest.split(',').map((s) => s.trim()).filter(Boolean);
+    const cities = destParts.length > 1 ? destParts.slice(0, -1) : [];
+    const formTime = `${formHour}:${formMinute} ${formAmPm}`;
+
     onCreateNewActivity({
-      destination: formDest,
+      destination: formDest.trim(),
+      ...(cities.length > 0 ? { cities } : {}),
       title: formTitle,
       category: formCategory,
       date: formDate,
+      ...(formEndDate && formEndDate > formDate ? { endDate: formEndDate } : {}),
       time: formTime,
       locationName: formLoc,
       meetPointPublic: formMeet || `${formLoc} main entrance public gate`,
       hostId: currentUser.id,
       maxCapacity: Number(formMax),
-      estimatedCostTotal: Number(formCost),
+      estimatedCostTotal: formCost.trim() === '' ? 0 : Math.max(0, Number(formCost) || 0),
       currency: formCurrency,
       costSplitNote: formCostNote,
       description: formDesc
@@ -127,6 +168,8 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
     setFormTitle('');
     setFormLoc('');
     setFormDesc('');
+    setFormEndDate('');
+    setFormCost('');
   };
 
   return (
@@ -235,7 +278,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                 <div>
                   {/* Top unboxed metadata line */}
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-semibold text-slate-900 dark:text-slate-100">{act.destination}</span>
                       <span aria-hidden="true">·</span>
                       <span>{act.category}</span>
@@ -255,6 +298,23 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   <h3 className="font-display font-bold text-base text-slate-950 dark:text-slate-50 leading-snug">
                     {act.title}
                   </h3>
+
+                  {/* Multi-city route chips */}
+                  {act.cities && act.cities.length > 1 && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                      <MapPin className="w-3 h-3 text-sky-500 shrink-0" />
+                      {act.cities.map((city, i) => (
+                        <React.Fragment key={city}>
+                          {i > 0 && <ArrowRight className="w-2.5 h-2.5 text-slate-400" />}
+                          <span className="text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 px-1.5 py-0.5 rounded">
+                            {city}
+                          </span>
+                        </React.Fragment>
+                      ))}
+                      <span className="text-[10px] text-slate-400 italic">multi-city meetup</span>
+                    </div>
+                  )}
+
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
                     {act.description}
                   </p>
@@ -263,7 +323,20 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 rounded-lg space-y-2 text-xs">
                     <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                       <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="font-mono tabular-nums">{act.date} at {act.time}</span>
+                      <span className="font-mono tabular-nums">
+                        {act.date}
+                        {act.endDate && act.endDate !== act.date && (
+                          <>
+                            <span className="text-slate-400"> → </span>
+                            {act.endDate}
+                            <span className="ml-1 text-[10px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-1.5 py-0.5 rounded">
+                              multi-day
+                            </span>
+                          </>
+                        )}
+                        <span className="text-slate-400"> at </span>
+                        {act.time}
+                      </span>
                     </div>
                     <div className="flex items-start gap-2 text-slate-700 dark:text-slate-300">
                       <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
@@ -465,18 +538,19 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
             <form onSubmit={handleFormSubmit} className="mt-5 space-y-4 text-xs">
               <div>
                 <label className="block font-medium text-slate-700 mb-1">
-                  Destination
+                  Destination (multiple cities welcome)
                 </label>
-                <select
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Kyoto, Osaka, Japan — list cities separated by commas, country last"
                   value={formDest}
                   onChange={(e) => setFormDest(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                >
-                  <option value="Kyoto, Japan">Kyoto, Japan</option>
-                  <option value="Oaxaca, Mexico">Oaxaca, Mexico</option>
-                  <option value="Amalfi Coast, Italy">Amalfi Coast, Italy</option>
-                  <option value="Lisbon, Portugal">Lisbon, Portugal</option>
-                </select>
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Single city is fine too (e.g. "Lisbon, Portugal"). Multi-city routes show as connected chips on the card.
+                </p>
               </div>
 
               <div>
@@ -500,13 +574,14 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   </label>
                   <select
                     value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value as any)}
+                    onChange={(e) => setFormCategory(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                   >
-                    <option value="Adventure">Adventure</option>
-                    <option value="Transport & Roadtrip">Transport & Roadtrip</option>
-                    <option value="Culture & Sights">Culture & Sights</option>
-                    <option value="Food & Drink">Food & Drink</option>
+                    {ACTIVITY_CATEGORY_OPTIONS.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -528,7 +603,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-medium text-slate-700 mb-1">
-                    Date
+                    Start Date
                   </label>
                   <input
                     type="date"
@@ -541,16 +616,53 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
 
                 <div>
                   <label className="block font-medium text-slate-700 mb-1">
-                    Time
+                    End Date <span className="text-slate-400 font-normal">(optional — multi-day)</span>
                   </label>
                   <input
-                    type="text"
-                    required
-                    placeholder="08:00 AM"
-                    value={formTime}
-                    onChange={(e) => setFormTime(e.target.value)}
+                    type="date"
+                    min={formDate}
+                    value={formEndDate}
+                    onChange={(e) => setFormEndDate(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Meetup Time — scroll to choose
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <select
+                    value={formHour}
+                    onChange={(e) => setFormHour(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  >
+                    {HOUR_OPTIONS.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={formMinute}
+                    onChange={(e) => setFormMinute(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  >
+                    {MINUTE_OPTIONS.map((m) => (
+                      <option key={m} value={m}>
+                        :{m}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={formAmPm}
+                    onChange={(e) => setFormAmPm(e.target.value as 'AM' | 'PM')}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
                 </div>
               </div>
 
@@ -589,9 +701,9 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   <input
                     type="number"
                     min="0"
-                    placeholder="0 if free"
+                    placeholder="Leave blank if free"
                     value={formCost}
-                    onChange={(e) => setFormCost(Number(e.target.value))}
+                    onChange={(e) => setFormCost(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
@@ -605,10 +717,11 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                     onChange={(e) => setFormCurrency(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                   >
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="JPY">JPY (¥)</option>
-                    <option value="MXN">MXN ($)</option>
+                    {WORLD_CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.code} ({c.symbol}) — {c.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

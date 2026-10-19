@@ -565,6 +565,7 @@ export default function App() {
           <TravelMapMemoriesView
             currentUser={currentUser}
             travelers={travelers}
+            itineraries={itineraries}
             onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
             onGoToItinerary={(dest) => {
               setSelectedDestination(dest);

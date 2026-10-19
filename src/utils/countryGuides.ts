@@ -4,8 +4,20 @@
  * For every known destination country this provides: entry rules & regulations,
  * cultural norms & customs, and basic local-language phrases — plus the local
  * currency and the Schengen/visa group used for nationality-aware visa and
- * tipping advice. Unknown countries fall back to a sensible generic profile.
+ * tipping advice. Detailed entries exist for major destinations; ALL 197
+ * selectable countries resolve to a country-specific profile via countryInfo
+ * (correct currency, local greetings, fixed per-country visa passage) — only
+ * truly unrecognised text falls back to a generic profile.
  */
+
+import {
+  countryInfoFor,
+  countryNameFor,
+  phrasesForCountry,
+  tippingForCountry,
+  entryRuleBullet,
+  visaPassageFor
+} from './countryInfo';
 
 export interface CountryPhrase {
   phrase: string;
@@ -25,6 +37,8 @@ export interface CountryGuideData {
   currencySymbol: string;
   /** Passport/visa group used for nationality-aware advice */
   region: 'Schengen' | 'EU-non-Schengen' | 'UK' | 'USMCA' | 'EastAsia' | 'SEAsia' | 'Oceania' | 'Other';
+  /** Canonical country name for the fixed per-country visa passage (set for info-built guides) */
+  visaCountry?: string;
   /** Rules & regulations every traveler should know on arrival */
   entryRules: string[];
   /** Local customs & social norms */
@@ -802,6 +816,39 @@ export function lookupCountryGuide(destinationText: string): CountryGuideData {
   for (const g of COUNTRY_GUIDES) {
     if (g.aliases.some((a) => t.includes(a))) return g;
   }
+  // Full 197-country coverage: build a country-specific guide from countryInfo
+  // so currency, greetings, entry rules and visa advice are ALWAYS for the
+  // actual destination country — never a generic USD/EUR/English fallback.
+  const info = countryInfoFor(destinationText);
+  const canonical = countryNameFor(destinationText);
+  if (info && canonical) {
+    return {
+      key: canonical.toLowerCase(),
+      name: canonical,
+      aliases: [],
+      currencyCode: info.currency.code,
+      currencyName: info.currency.name,
+      currencySymbol: info.currency.symbol,
+      region: info.region,
+      visaCountry: canonical,
+      entryRules: [
+        entryRuleBullet(destinationText),
+        'Passport should be valid for at least 6 months beyond your arrival date.',
+        'Carry proof of onward/return travel and your first accommodation booking — border officers may ask.',
+        `Check ${canonical} customs rules for restricted items (medicines, food, drones, large cash amounts) before packing.`,
+        `Save ${canonical} emergency numbers and your embassy's contact details on arrival.`
+      ],
+      customs: [
+        `A few words of the local language open doors in ${canonical} — start with hello and thank you.`,
+        'Dress modestly when visiting religious or historic sites; follow the local lead on shoes and head coverings.',
+        'Ask permission before photographing people, ceremonies, or official buildings.',
+        'Observe how locals queue, greet, and dine — mirroring them is the fastest way to blend in.',
+        'Respect local quiet hours and norms around alcohol and public behavior.'
+      ],
+      phrases: phrasesForCountry(destinationText),
+      tipping: tippingForCountry(destinationText)
+    };
+  }
   return {
     ...GENERIC_GUIDE,
     key: 'generic',
@@ -832,6 +879,8 @@ export function isSameRegionTraveler(nationality: string, dest: CountryGuideData
  */
 export function visaAdviceFor(travelerNationality: string, dest: CountryGuideData): string {
   const nat = travelerNationality.trim() || 'your nationality';
+  // Info-built guides carry a fixed, fully country-specific visa passage.
+  if (dest.visaCountry) return visaPassageFor(nat, dest.visaCountry);
   if (isSameRegionTraveler(nat, dest)) {
     if (dest.region === 'Schengen') {
       return `As a ${nat} traveler, you enjoy free movement within the Schengen area — no visa needed for ${dest.name}. Carry your passport or national ID card, and respect the 90-days-in-180 rule if you are not an EU citizen.`;

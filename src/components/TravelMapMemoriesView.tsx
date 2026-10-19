@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getTranslation } from '../utils/i18n';
 import { haversineKm, formatDistance, estimateFlightTime } from '../utils/units';
-import { SoloTraveler, TravelMemory } from '../types/travel';
-import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, useMap } from 'react-leaflet';
+import { SoloTraveler, TravelItinerary, TravelMemory } from '../types/travel';
+import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import COUNTRIES_GEO from '../data/countriesGeo';
 import {
   MapPin,
   Share2,
@@ -32,6 +33,7 @@ import {
 interface TravelMapMemoriesViewProps {
   currentUser: SoloTraveler;
   travelers: SoloTraveler[];
+  itineraries?: TravelItinerary[];
   onOpenChatWithTraveler: (traveler: SoloTraveler, destination?: string) => void;
   onGoToItinerary: (destination: string) => void;
 }
@@ -208,6 +210,30 @@ const STATUS_STYLES: Record<TravelMemory['status'], { dot: string; badge: string
   'Dream Next': { dot: '#f59e0b', badge: 'bg-amber-500 text-white' }
 };
 
+/** Normalize a country name for GeoJSON matching (lowercase, strip diacritics). */
+const normCountry = (s: string) =>
+  (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+/** App display name (normalized) → Natural Earth ADMIN name (normalized). */
+const GEO_NAME_ALIASES: Record<string, string> = {
+  'united states': 'united states of america',
+  'tanzania': 'united republic of tanzania',
+  'timor-leste': 'east timor',
+  'serbia': 'republic of serbia',
+  'bahamas': 'the bahamas',
+  "cote d'ivoire": 'ivory coast'
+};
+
+/** Resolve any user-entered country text to the normalized Natural Earth name. */
+const geoKeyFor = (countryText: string) => {
+  const n = normCountry(countryText);
+  return GEO_NAME_ALIASES[n] || n;
+};
+
+type TravelerViewMode = 'all' | 'nearby' | 'buddies';
+/** "People nearby" radius for the My View traveler filter */
+const NEARBY_RADIUS_KM = 1500;
+
 type MapPrivacy = 'everyone' | 'companions' | 'current';
 
 /** Migrate legacy memories: single-photo shape → multi-photo, % coords → lat/lng. */
@@ -271,6 +297,7 @@ const ZoomWatcher: React.FC<{ onZoom: (z: number) => void }> = ({ onZoom }) => {
 export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   currentUser,
   travelers,
+  itineraries = [],
   onOpenChatWithTraveler,
   onGoToItinerary
 }) => {
@@ -293,6 +320,9 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
   // Pin visibility options (the red/green/visited/dream layer toggles)
   const [pinLayers, setPinLayers] = useState({ travelers: true, current: true, visited: true, dream: true });
+
+  // MY VIEW filter — which traveler pins *I* see on the map
+  const [travelerView, setTravelerView] = useState<TravelerViewMode>('all');
 
   // Map privacy: what OTHER people can see of my dots
   const [mapPrivacy, setMapPrivacy] = useState<MapPrivacy>(() => {
@@ -320,6 +350,56 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [newNote, setNewNote] = useState('');
   const [newTaggedCompanion, setNewTaggedCompanion] = useState('');
   const [newStatus, setNewStatus] = useState<'Visited' | 'Current Location' | 'Dream Next'>('Visited');
+  const [selectedItineraryId, setSelectedItineraryId] = useState('');
+
+  /** Auto-fill the memory from one of my itineraries (journal passage generated from the days). */
+  const generateFromItinerary = (itineraryId: string) => {
+    setSelectedItineraryId(itineraryId);
+    if (!itineraryId) return;
+    const it = itineraries.find((i) => i.id === itineraryId);
+    if (!it) return;
+
+    const city = it.cities?.[0] || it.destination.split(',')[0].trim();
+    const country = it.country || it.destination.split(',').slice(-1)[0].trim();
+    const today = new Date();
+    const start = new Date(it.startDate);
+    const end = new Date(it.endDate);
+    const status: 'Visited' | 'Current Location' | 'Dream Next' =
+      end < today ? 'Visited' : start <= today ? 'Current Location' : 'Dream Next';
+
+    // Confirmed companion buddies headed to the same destination come along automatically
+    const destLow = `${it.destination} ${country} ${city}`.toLowerCase();
+    const buddies = travelers
+      .filter(
+        (t) =>
+          t.isConfirmedBuddy &&
+          t.currentDestination &&
+          destLow.includes(t.currentDestination.split(',')[0].trim().toLowerCase())
+      )
+      .map((t) => t.name);
+
+    const dayLines = it.days.map((d) => {
+      const parts = [d.morningActivity, d.afternoonActivity, d.eveningActivity].filter(Boolean);
+      return `Day ${d.dayNumber}${d.title ? ` — ${d.title}` : ''}: ${parts.join(' · ')}`;
+    });
+
+    setNewCity(city);
+    setNewCountry(country);
+    setNewStatus(status);
+    setNewDate(start.toLocaleString('default', { month: 'long', year: 'numeric' }));
+    setNewNote(
+      `My ${it.days.length}-day ${it.tripScope || 'trip'} in ${it.destination}. ` +
+        (buddies.length > 0 ? `Traveled together with ${buddies.join(' & ')}. ` : 'Traveled solo. ') +
+        (it.notes ? `${it.notes} ` : '') +
+        `\n\n${dayLines.join('\n')}`
+    );
+    setNewTaggedCompanion(buddies.join(', '));
+  };
+
+  const removeTaggedName = (name: string) => {
+    const names = newTaggedCompanion.split(',').map((s) => s.trim()).filter(Boolean);
+    setNewTaggedCompanion(names.filter((n) => n !== name).join(', '));
+  };
 
   const saveMemories = (updated: TravelMemory[]) => {
     setMemories(updated);
@@ -381,10 +461,20 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     setNewNote('');
     setNewTaggedCompanion('');
     setNewPhotos([DEFAULT_MEMORY_PHOTO]);
+    setSelectedItineraryId('');
   };
 
   const handleDeleteMemory = (id: string) => {
     saveMemories(memories.filter((m) => m.id !== id));
+  };
+
+  /** Remove one tagged companion from a saved memory (the "with whom I travelled" chips). */
+  const handleRemoveMemoryCompanion = (memId: string, name: string) => {
+    saveMemories(
+      memories.map((m) =>
+        m.id === memId ? { ...m, companionsTagged: m.companionsTagged.filter((c) => c !== name) } : m
+      )
+    );
   };
 
   const handleSaveNote = (id: string) => {
@@ -441,6 +531,53 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const getTravelerById = (id: string) => {
     if (id === 'user_current') return currentUser;
     return travelers.find((t) => t.id === id) || travelers[0];
+  };
+
+  // My View filter: all travelers / people nearby (≤1,500 km) / confirmed buddies only
+  const visibleTravelerPins = MAP_TRAVELER_PINS.filter((pin) => {
+    if (pin.isMe) return true;
+    if (travelerView === 'all') return true;
+    if (travelerView === 'buddies') return !!getTravelerById(pin.id).isConfirmedBuddy;
+    return haversineKm(MY_GEO.lat, MY_GEO.lng, pin.lat, pin.lng) <= NEARBY_RADIUS_KM;
+  });
+
+  // Country colouring: each country's strongest status wins (Current > Visited > Dream)
+  const countryStatusMap = useMemo(() => {
+    const priority: Record<TravelMemory['status'], number> = {
+      'Current Location': 3,
+      'Visited': 2,
+      'Dream Next': 1
+    };
+    const map = new Map<string, TravelMemory['status']>();
+    memories.forEach((m) => {
+      const key = geoKeyFor(m.country || m.destination);
+      if (!key) return;
+      const cur = map.get(key);
+      if (!cur || priority[m.status] > priority[cur]) map.set(key, m.status);
+    });
+    return map;
+  }, [memories]);
+
+  // Bump this key whenever statuses change so react-leaflet re-applies the style fn
+  const geoLayerKey = useMemo(
+    () => [...countryStatusMap.entries()].map(([k, v]) => `${k}:${v}`).sort().join('|'),
+    [countryStatusMap]
+  );
+
+  const styleCountryFeature = (feature?: { properties?: { name?: string } }) => {
+    const name = feature?.properties?.name;
+    const status = name ? countryStatusMap.get(normCountry(name)) : undefined;
+    if (!status) {
+      return { fillColor: 'transparent', fillOpacity: 0, color: 'transparent', weight: 0 };
+    }
+    const color = STATUS_STYLES[status].dot;
+    return {
+      fillColor: color,
+      fillOpacity: status === 'Current Location' ? 0.4 : 0.3,
+      color,
+      weight: 1.2,
+      opacity: 0.8
+    };
   };
 
   const activePinTraveler = getTravelerById(selectedPinId);
@@ -521,8 +658,32 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
             </span>
             <span className="font-semibold text-slate-900 dark:text-slate-100">
-              {getTranslation('liveRadar')}: {MAP_TRAVELER_PINS.length} Travelers Active
+              {getTranslation('liveRadar')}: {visibleTravelerPins.length} of {MAP_TRAVELER_PINS.length} Travelers Shown
             </span>
+          </div>
+
+          {/* My View — filter which traveler pins I see */}
+          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-semibold">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-0.5">My view:</span>
+            {([
+              ['all', 'All travelers'],
+              ['nearby', `People nearby (≤${NEARBY_RADIUS_KM.toLocaleString()} km)`],
+              ['buddies', 'Confirmed buddies']
+            ] as const).map(([val, label]) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setTravelerView(val)}
+                className={`px-2 py-1 rounded-full border transition-all cursor-pointer ${
+                  travelerView === val
+                    ? 'bg-rose-600 border-rose-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-rose-300'
+                }`}
+                title={`Filter traveler pins: ${label}`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Layer toggles — tap to show/hide each dot type */}
@@ -573,6 +734,13 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             <ZoomWatcher onZoom={setMapZoom} />
             <MapFlyer target={activePinInfo} />
 
+            {/* Country colouring — Visited / Current / Dream countries filled on the world map */}
+            <GeoJSON
+              key={geoLayerKey || 'geo-base'}
+              data={COUNTRIES_GEO as any}
+              style={styleCountryFeature as any}
+            />
+
             {/* Flight arc You → selected traveler */}
             {!activePinInfo.isMe && (
               <Polyline
@@ -584,21 +752,27 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               />
             )}
 
-            {/* My memory journal dots */}
+            {/* My memory journal CITY dots — dark halo ring + solid colour dot so cities
+                stand out clearly from the filled country shapes underneath */}
             {visibleMemoryDots.map((mem) => (
-              <CircleMarker
-                key={`dot-${mem.id}`}
-                center={[mem.coordinates.lat!, mem.coordinates.lng!]}
-                radius={6}
-                pathOptions={{
-                  color: '#ffffff',
-                  weight: 2,
-                  fillColor: STATUS_STYLES[mem.status].dot,
-                  fillOpacity: 1
-                }}
-                eventHandlers={{ click: () => setActiveFilter(mem.status) }}
-              >
-              </CircleMarker>
+              <React.Fragment key={`dot-${mem.id}`}>
+                <CircleMarker
+                  center={[mem.coordinates.lat!, mem.coordinates.lng!]}
+                  radius={9}
+                  pathOptions={{ color: '#0f172a', weight: 1.5, fillColor: '#ffffff', fillOpacity: 0.9 }}
+                />
+                <CircleMarker
+                  center={[mem.coordinates.lat!, mem.coordinates.lng!]}
+                  radius={5.5}
+                  pathOptions={{
+                    color: '#ffffff',
+                    weight: 1.5,
+                    fillColor: STATUS_STYLES[mem.status].dot,
+                    fillOpacity: 1
+                  }}
+                  eventHandlers={{ click: () => setActiveFilter(mem.status) }}
+                />
+              </React.Fragment>
             ))}
 
             {/* Confirmed companions' shared trail dots */}
@@ -621,9 +795,9 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               ));
             })}
 
-            {/* Traveler avatar pins */}
+            {/* Traveler avatar pins (filtered by My View) */}
             {pinLayers.travelers &&
-              MAP_TRAVELER_PINS.map((pin) => (
+              visibleTravelerPins.map((pin) => (
                 <Marker
                   key={pin.id}
                   position={[pin.lat, pin.lng]}
@@ -639,6 +813,35 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               <LocateFixed className="w-3 h-3 text-emerald-300" />
               {mapZoom > 3 ? `Zoom ${mapZoom.toFixed(1)}×` : 'Scroll / pinch to zoom · drag to explore'}
             </span>
+          </div>
+
+          {/* Map legend — country fills vs city dots */}
+          <div className="absolute top-3 right-3 z-[500] pointer-events-none hidden sm:block">
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-lg space-y-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Map legend</div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#10b981', opacity: 0.4, border: '1px solid #10b981' }} />
+                Current country
+                <span className="w-2 h-2 rounded-full ml-2" style={{ background: '#10b981', outline: '1.5px solid #0f172a' }} />
+                Current city
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#0ea5e9', opacity: 0.35, border: '1px solid #0ea5e9' }} />
+                Visited country
+                <span className="w-2 h-2 rounded-full ml-2" style={{ background: '#0ea5e9', outline: '1.5px solid #0f172a' }} />
+                Visited city
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#f59e0b', opacity: 0.35, border: '1px solid #f59e0b' }} />
+                Dream country
+                <span className="w-2 h-2 rounded-full ml-2" style={{ background: '#f59e0b', outline: '1.5px solid #0f172a' }} />
+                Dream city
+              </div>
+              <div className="flex items-center gap-1.5 pt-0.5 border-t border-slate-200/70 dark:border-slate-700/70">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                Traveler pins
+              </div>
+            </div>
           </div>
 
           {/* Active Pin Overlay Card (stays fixed, not zoomed) */}
@@ -722,11 +925,11 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           </div>
         </div>
 
-        {/* Map privacy selector — what others can see of MY pins */}
+        {/* Map privacy selector — OTHERS SEE ME: who can see my pins */}
         <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-slate-50/60 dark:bg-slate-900">
           <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Who can see my Visited & Dream pins:
+            Others see me — who can see my Visited & Dream pins:
           </span>
           <div className="flex items-center gap-1.5">
             {([
@@ -914,7 +1117,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                       </div>
                     )}
 
-                    {/* Companions Tagged */}
+                    {/* Companions Tagged (optional — each chip can be removed) */}
                     {mem.companionsTagged.length > 0 && (
                       <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 flex-wrap">
                         <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
@@ -924,9 +1127,17 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                         {mem.companionsTagged.map((c) => (
                           <span
                             key={c}
-                            className="text-[11px] font-semibold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 px-2 py-0.5 rounded-full"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 pl-2 pr-1 py-0.5 rounded-full"
                           >
                             {c}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMemoryCompanion(mem.id, c)}
+                              className="p-0.5 rounded-full hover:bg-orange-200 dark:hover:bg-orange-900 text-orange-500 hover:text-orange-800 dark:hover:text-orange-200 transition-colors cursor-pointer"
+                              title={`Remove ${c} from this memory`}
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
                           </span>
                         ))}
                       </div>
@@ -1093,6 +1304,31 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             </p>
 
             <form onSubmit={handleCreateMemory} className="mt-4 space-y-3.5 text-xs">
+              {/* Generate journal from one of my itineraries */}
+              {itineraries.length > 0 && (
+                <div className="p-3 rounded-xl bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-950/30 dark:to-orange-950/30 border border-rose-200/70 dark:border-rose-900/50">
+                  <label className="block font-semibold text-rose-800 dark:text-rose-300 mb-1.5">
+                    Generate from my itinerary (optional)
+                  </label>
+                  <select
+                    value={selectedItineraryId}
+                    onChange={(e) => generateFromItinerary(e.target.value)}
+                    className="w-full px-3 py-2 border border-rose-200 dark:border-rose-900 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  >
+                    <option value="">— Fill in manually instead —</option>
+                    {itineraries.map((it) => (
+                      <option key={it.id} value={it.id}>
+                        {it.destination} · {it.startDate} → {it.endDate} ({it.days.length} days)
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-rose-600/80 dark:text-rose-300/70 mt-1">
+                    Auto-fills city, country, date &amp; status, writes the journal passage from your itinerary days, and tags
+                    confirmed travel buddies — everything stays editable below.
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -1157,9 +1393,30 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Companion(s) Tagged (optional)
                 </label>
+                {/* Removable chips for already-tagged companions */}
+                {newTaggedCompanion.split(',').map((s) => s.trim()).filter(Boolean).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    {newTaggedCompanion.split(',').map((s) => s.trim()).filter(Boolean).map((name) => (
+                      <span
+                        key={name}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 pl-2 pr-1 py-0.5 rounded-full"
+                      >
+                        {name}
+                        <button
+                          type="button"
+                          onClick={() => removeTaggedName(name)}
+                          className="p-0.5 rounded-full hover:bg-orange-200 dark:hover:bg-orange-900 text-orange-500 hover:text-orange-800 dark:hover:text-orange-200 transition-colors cursor-pointer"
+                          title={`Remove ${name}`}
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <input
                   type="text"
-                  placeholder="e.g. Kenji Sato, Sofia Morales"
+                  placeholder="e.g. Kenji Sato, Sofia Morales — or leave blank if you traveled solo"
                   value={newTaggedCompanion}
                   onChange={(e) => setNewTaggedCompanion(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"

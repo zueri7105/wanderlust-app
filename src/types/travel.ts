@@ -76,9 +76,13 @@ export type ActivityCategory =
 export interface TravelActivity {
   id: string;
   destination: string;
+  /** All cities covered by the activity (multi-city socials) */
+  cities?: string[];
   title: string;
   category: ActivityCategory;
   date: string;
+  /** Optional end date for multi-day activities (YYYY-MM-DD) */
+  endDate?: string;
   time: string;
   locationName: string;
   meetPointPublic: string;
@@ -183,6 +187,8 @@ export interface TravelItinerary {
   travelerId: string;
   destination: string;
   country: string;
+  /** All cities visited on this trip (multi-city trips); empty when only a country was given */
+  cities?: string[];
   startDate: string;
   endDate: string;
   companionPurpose: string[];
@@ -230,10 +236,27 @@ export interface TravelMemory {
   status: 'Visited' | 'Current Location' | 'Dream Next';
 }
 
+export type KnowledgeArticleCategory =
+  | 'Culture & Traditions'
+  | 'Solo Female Safety'
+  | 'Local Dining Etiquette'
+  | 'Transit & Digital Hacks'
+  | 'Hidden Gems'
+  | 'Budget & Money Hacks'
+  | 'Visas & Border Crossings'
+  | 'Accommodation Hacks'
+  | 'Adventure & Outdoors'
+  | 'Food & Street Eats'
+  | 'Nightlife & Social Scene'
+  | 'Photography & Content'
+  | 'Health & Wellbeing'
+  | 'Meeting People & Companions'
+  | 'Packing & Gear';
+
 export interface KnowledgeArticle {
   id: string;
   title: string;
-  category: 'Culture & Traditions' | 'Solo Female Safety' | 'Local Dining Etiquette' | 'Transit & Digital Hacks' | 'Hidden Gems';
+  category: KnowledgeArticleCategory;
   destination: string;
   authorName: string;
   authorAvatar: string;
@@ -254,4 +277,3 @@ export interface SafeCheckinRecord {
   shareLiveStatus: boolean;
   safePledgeSigned: boolean;
 }
-

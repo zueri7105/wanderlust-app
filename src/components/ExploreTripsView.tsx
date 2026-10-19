@@ -1,4 +1,5 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { TravelTrip, SoloTraveler, TravelItinerary } from '../types/travel';
 import {
   Calendar,
@@ -91,6 +92,36 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
   // Search input state
   const [searchInput, setSearchInput] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Portalled country-suggestion dropdown (escapes hero's overflow-hidden clipping)
+  const searchWrapRef = useRef<HTMLDivElement>(null);
+  const searchDropRef = useRef<HTMLDivElement>(null);
+  const [searchDropPos, setSearchDropPos] = useState({ left: 0, top: 0, width: 320 });
+  const updateSearchDropPos = () => {
+    const rect = searchWrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const vw = window.innerWidth;
+    const width = Math.min(Math.max(rect.width, 280), vw - 16, 480);
+    const left = Math.min(Math.max(rect.left, 8), vw - width - 8);
+    setSearchDropPos({ left, top: rect.bottom + 6, width });
+  };
+  useEffect(() => {
+    if (!isSearchFocused) return;
+    updateSearchDropPos();
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (searchWrapRef.current?.contains(t) || searchDropRef.current?.contains(t)) return;
+      setIsSearchFocused(false);
+    };
+    window.addEventListener('scroll', updateSearchDropPos, true);
+    window.addEventListener('resize', updateSearchDropPos);
+    document.addEventListener('mousedown', onDown);
+    return () => {
+      window.removeEventListener('scroll', updateSearchDropPos, true);
+      window.removeEventListener('resize', updateSearchDropPos);
+      document.removeEventListener('mousedown', onDown);
+    };
+  }, [isSearchFocused]);
   const [hasSearched, setHasSearched] = useState(false);
   const [femaleOnlyFilter, setFemaleOnlyFilter] = useState(false);
 
@@ -393,7 +424,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
 
           {/* Search Bar Input with all-countries suggestions */}
           <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-start gap-2 max-w-xl">
-            <div className="relative flex-1">
+            <div className="relative flex-1" ref={searchWrapRef}>
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 z-10" />
               <input
                 type="text"
@@ -406,9 +437,13 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                 className="w-full pl-10 pr-4 py-3 bg-white text-slate-900 rounded-xl text-sm font-medium shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300"
               />
 
-              {/* Country suggestions dropdown — all countries, filterable */}
-              {isSearchFocused && (
-                <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-64 overflow-y-auto z-50 text-slate-900 dark:text-slate-100">
+              {/* Country suggestions dropdown — portalled to body so the hero's overflow-hidden never clips it */}
+              {isSearchFocused && createPortal(
+                <div
+                  ref={searchDropRef}
+                  style={{ left: searchDropPos.left, top: searchDropPos.top, width: searchDropPos.width }}
+                  className="fixed z-[1000] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-64 overflow-y-auto text-slate-900 dark:text-slate-100"
+                >
                   {(() => {
                     const q = searchInput.trim().toLowerCase();
                     const matches = WORLD_COUNTRIES.filter((c) =>
@@ -448,7 +483,8 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                       </>
                     );
                   })()}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
             <button
