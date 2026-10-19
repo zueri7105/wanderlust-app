@@ -32,7 +32,10 @@ const LANGUAGES = [
   { code: 'ko', name: 'Korean', native: '한국어', flag: '🇰🇷' },
   { code: 'pt', name: 'Portuguese', native: 'Português', flag: '🇵🇹' },
   { code: 'ar', name: 'Arabic', native: 'العربية', flag: '🇸🇦' },
-  { code: 'ru', name: 'Russian', native: 'Русский', flag: '🇷🇺' }
+  { code: 'ru', name: 'Russian', native: 'Русский', flag: '🇷🇺' },
+  { code: 'it', name: 'Italian', native: 'Italiano', flag: '🇮🇹' },
+  { code: 'tr', name: 'Turkish', native: 'Türkçe', flag: '🇹🇷' },
+  { code: 'pl', name: 'Polish', native: 'Polski', flag: '🇵🇱' }
 ] as const;
 
 export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) => {

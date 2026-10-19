@@ -331,6 +331,20 @@ const hotspotIcon = (count: number, isActive: boolean) =>
     </div>`
   });
 
+/** Water-droplet pin for MY memory journal entries — photo pinned at its location. */
+const memoryDropletIcon = (photo: string, color: string, isDream: boolean) =>
+  L.divIcon({
+    className: 'wl-mem',
+    iconSize: [40, 48],
+    iconAnchor: [20, 46],
+    html: `<div style="
+      position:relative;width:36px;height:36px;border-radius:9999px 9999px 9999px 3px;
+      transform:rotate(-45deg);background:#fff;border:2.5px solid ${color};
+      box-shadow:0 8px 18px -6px ${color}99;overflow:hidden;${isDream ? 'opacity:.85;border-style:dashed;' : ''}">
+      <img src="${photo}" style="width:100%;height:100%;object-fit:cover;transform:rotate(45deg) scale(1.42);" draggable="false"/>
+    </div>`
+  });
+
 /** Keeps map zoom state in React for the zoom pill. */
 const ZoomWatcher: React.FC<{ onZoom: (z: number) => void }> = ({ onZoom }) => {
   const map = useMap();
@@ -416,6 +430,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [isMapFullscreen, setIsMapFullscreen] = useState(true);
   // On-map Memories Journal drawer (combined into the map)
   const [isJournalOpen, setIsJournalOpen] = useState(false);
+  // Show journal memories as water-droplet photo pins on the map
+  const [memoryDropletsOn, setMemoryDropletsOn] = useState(true);
 
   /** Fly the map to a memory's city dot and highlight its status. */
   const flyToMemory = (mem: TravelMemory) => {
@@ -824,8 +840,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               ['current', 'bg-emerald-500', 'Current'],
               ['visited', 'bg-sky-600', 'Visited'],
               ['dream', 'bg-amber-500', 'Dream Next']
-            ] as const).map(([key, dotClass, label]) => (
-              <button
+            ] as const).map(([key, dotClass, label]) => (<button
                 key={key}
                 type="button"
                 onClick={() => setPinLayers((p) => ({ ...p, [key]: !p[key] }))}
@@ -841,6 +856,21 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 {pinLayers[key] ? <Eye className="w-3 h-3 text-slate-400" /> : <EyeOff className="w-3 h-3 text-slate-400" />}
               </button>
             ))}
+            {/* Journal droplet pins toggle */}
+            <button
+              type="button"
+              onClick={() => setMemoryDropletsOn((v) => !v)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all cursor-pointer ${
+                memoryDropletsOn
+                  ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-400 line-through'
+              }`}
+              title="Show journal memories as water-droplet photo pins on the map"
+            >
+              <MapPin className={`w-3 h-3 ${memoryDropletsOn ? 'text-rose-500' : 'opacity-30'}`} />
+              Droplets
+              {memoryDropletsOn ? <Eye className="w-3 h-3 text-slate-400" /> : <EyeOff className="w-3 h-3 text-slate-400" />}
+            </button>
           </div>
         </div>
         )}
@@ -893,26 +923,43 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
             {/* My memory journal CITY dots — dark halo ring + solid colour dot so cities
                 stand out clearly from the filled country shapes underneath */}
-            {visibleMemoryDots.map((mem) => (
-              <React.Fragment key={`dot-${mem.id}`}>
-                <CircleMarker
-                  center={[mem.coordinates.lat!, mem.coordinates.lng!]}
-                  radius={9}
-                  pathOptions={{ color: '#0f172a', weight: 1.5, fillColor: '#ffffff', fillOpacity: 0.9 }}
+            {!memoryDropletsOn &&
+              visibleMemoryDots.map((mem) => (
+                <React.Fragment key={`dot-${mem.id}`}>
+                  <CircleMarker
+                    center={[mem.coordinates.lat!, mem.coordinates.lng!]}
+                    radius={9}
+                    pathOptions={{ color: '#0f172a', weight: 1.5, fillColor: '#ffffff', fillOpacity: 0.9 }}
+                  />
+                  <CircleMarker
+                    center={[mem.coordinates.lat!, mem.coordinates.lng!]}
+                    radius={5.5}
+                    pathOptions={{
+                      color: '#ffffff',
+                      weight: 1.5,
+                      fillColor: STATUS_STYLES[mem.status].dot,
+                      fillOpacity: 1
+                    }}
+                    eventHandlers={{ click: () => setActiveFilter(mem.status) }}
+                  />
+                </React.Fragment>
+              ))}
+
+            {/* Water-droplet journal pins — my memories pinned as photos at their locations
+                (toggle in the Journal drawer / layer chips). Tap one to open its journal entry. */}
+            {memoryDropletsOn &&
+              visibleMemoryDots.map((mem) => (
+                <Marker
+                  key={`drop-${mem.id}`}
+                  position={[mem.coordinates.lat!, mem.coordinates.lng!]}
+                  icon={memoryDropletIcon(
+                    mem.photos[0] || DEFAULT_MEMORY_PHOTO,
+                    STATUS_STYLES[mem.status].dot,
+                    mem.status === 'Dream Next'
+                  )}
+                  eventHandlers={{ click: () => flyToMemory(mem) }}
                 />
-                <CircleMarker
-                  center={[mem.coordinates.lat!, mem.coordinates.lng!]}
-                  radius={5.5}
-                  pathOptions={{
-                    color: '#ffffff',
-                    weight: 1.5,
-                    fillColor: STATUS_STYLES[mem.status].dot,
-                    fillOpacity: 1
-                  }}
-                  eventHandlers={{ click: () => setActiveFilter(mem.status) }}
-                />
-              </React.Fragment>
-            ))}
+              ))}
 
             {/* Confirmed companions' shared trail dots */}
             {Object.entries(COMPANION_TRAILS).map(([tid, dots]) => {
@@ -992,6 +1039,17 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   {label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setMemoryDropletsOn((v) => !v)}
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full whitespace-nowrap transition-all cursor-pointer ${
+                  memoryDropletsOn ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 line-through'
+                }`}
+                title="Show journal memories as water-droplet photo pins on the map"
+              >
+                <MapPin className={`w-3 h-3 ${memoryDropletsOn ? 'text-rose-500' : 'opacity-30'}`} />
+                Drops
+              </button>
             </div>
           )}
 
@@ -1094,14 +1152,29 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     {filteredMemories.length}/{memories.length}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsJournalOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                  title="Close journal"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setMemoryDropletsOn((v) => !v)}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
+                      memoryDropletsOn
+                        ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                    }`}
+                    title="Show journal memories as water-droplet photo pins on the map"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    <span>{memoryDropletsOn ? 'Droplets on' : 'Droplets off'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsJournalOpen(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    title="Close journal"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Status filter pills */}

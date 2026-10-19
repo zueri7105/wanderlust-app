@@ -93,7 +93,7 @@ export default function App() {
   });
 
   // Active Companion Chat Thread
-  const [activeCompanionChatId, setActiveCompanionChatId] = useState<string | null>('user_kenji');
+  const [activeCompanionChatId, setActiveCompanionChatId] = useState<string | null>(null);
 
   // Modals
   const [isCreateTripOpen, setIsCreateTripOpen] = useState(false);

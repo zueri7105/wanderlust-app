@@ -154,25 +154,32 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   // All other travelers (excluding current user)
   const otherTravelers = travelers.filter((t) => t.id !== currentUser.id);
 
+  // Which chat is open. null = show the conversations list (a traveller always remains tappable,
+  // and the back button / tapping elsewhere returns you to the list — chats can never get "stuck").
+  const [openChatId, setOpenChatId] = useState<string | null>(null);
+
+  const selectedTraveler = openChatId ? travelers.find((t) => t.id === openChatId) || null : null;
+
+  // Requests to open a chat from elsewhere (map, companions, trip cards...) always win
+  useEffect(() => {
+    if (activeTravelerId) {
+      setOpenChatId(activeTravelerId);
+    }
+  }, [activeTravelerId]);
+
+  const openChat = (travelerId: string) => {
+    setOpenChatId(travelerId);
+    onSelectTraveler(travelerId);
+  };
+  const closeChat = () => setOpenChatId(null);
+
   // Get active thread travelers: travelers who either have chat history or are currently selected
   const activeConversationTravelerIds = Array.from(
     new Set([
       ...Object.keys(chats).filter((key) => otherTravelers.some((t) => t.id === key)),
-      ...(activeTravelerId ? [activeTravelerId] : [])
+      ...(openChatId ? [openChatId] : [])
     ])
   );
-
-  // Default to first conversation if none selected
-  const selectedTraveler =
-    travelers.find((t) => t.id === activeTravelerId) ||
-    travelers.find((t) => t.id === activeConversationTravelerIds[0]) ||
-    otherTravelers[0];
-
-  useEffect(() => {
-    if (selectedTraveler && activeTravelerId !== selectedTraveler.id) {
-      onSelectTraveler(selectedTraveler.id);
-    }
-  }, [selectedTraveler, activeTravelerId, onSelectTraveler]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -260,7 +267,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-white/15 backdrop-blur-sm border border-white/25 rounded-full mb-3">
               <MessageSquare className="w-3.5 h-3.5" />
-              <span>Direct Companion Messaging</span>
+              <span>{getTranslation('directMessaging')}</span>
             </div>
             <h2 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight">
               {getTranslation('messagesTitle')}
@@ -271,11 +278,11 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             <div className="mt-3.5 flex flex-wrap gap-2 text-[11px] font-semibold">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                {activeChatCount} active conversation{activeChatCount === 1 ? '' : 's'}
+                {activeChatCount} {getTranslation('activeChats')}
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20">
                 <ShieldCheck className="w-3 h-3" />
-                Verified solo travelers
+                {getTranslation('verifiedSoloTravelers')}
               </span>
             </div>
           </div>
@@ -289,7 +296,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             }`}
           >
             <Star className={`w-3.5 h-3.5 ${filterStarredOnly ? 'fill-amber-400 text-amber-500' : ''}`} />
-            <span>Starred Only</span>
+            <span>{getTranslation('starredOnly')}</span>
           </button>
         </div>
       </div>
@@ -306,7 +313,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search companions or destination..."
+                placeholder={getTranslation('searchCompanionsChat')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-full bg-slate-100 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-900 dark:text-slate-100 transition-colors"
@@ -329,7 +336,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                 return (
                   <div
                     key={traveler.id}
-                    onClick={() => onSelectTraveler(traveler.id)}
+                    onClick={() => openChat(traveler.id)}
                     className={`p-3 flex items-start gap-3 cursor-pointer rounded-xl transition-all ${
                       isSelected
                         ? 'bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-950/40 dark:to-orange-950/30 border border-rose-200 dark:border-rose-900/60 shadow-xs'
@@ -398,9 +405,9 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                 {/* Mobile back-to-list */}
                 <button
                   type="button"
-                  onClick={() => onSelectTraveler(null as any)}
+                  onClick={closeChat}
                   className="md:hidden p-1.5 -ml-1 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
-                  title="Back to conversations"
+                  title={getTranslation('backToChats')}
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
@@ -705,9 +712,9 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center text-white mb-3 shadow-lg shadow-rose-500/30">
               <MessageSquare className="w-7 h-7" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">No companion selected</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{getTranslation('noCompanionSelected')}</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
-              Select a traveller from the left to view messages or start a new conversation.
+              {getTranslation('selectTravelerHint')}
             </p>
           </div>
         )}
@@ -720,7 +727,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             itineraries={itineraries}
             onClose={() => setProfilePopupTravelerId(null)}
             onOpenChat={(t) => {
-              onSelectTraveler(t.id);
+              openChat(t.id);
               setProfilePopupTravelerId(null);
             }}
           />

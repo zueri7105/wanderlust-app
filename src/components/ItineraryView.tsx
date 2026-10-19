@@ -397,15 +397,22 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDel
         onPointerLeave={endDrag}
       >
         <div className="p-4 sm:p-5 flex gap-4">
-          {/* Timeline rail — the coloured line runs continuously through every day circle
-              (incl. days added later), and simply stops after the final day */}
-          <div className="relative flex flex-col items-center shrink-0 w-10">
-            {!isLast && (
-              <div className="absolute top-10 -bottom-5 sm:-bottom-5 w-0.5 bg-gradient-to-b from-rose-400 via-orange-300 to-rose-300 dark:from-rose-700 dark:via-orange-800 dark:to-rose-800" />
-            )}
-            <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-display font-extrabold text-sm shadow-md shadow-orange-500/30">
+          {/* Timeline rail — a single continuous gradient line from the day circle to the very
+              bottom of THIS card, fading lighter as it descends. It never pokes outside the card,
+              and because it's drawn for every day, newly added days connect seamlessly. */}
+          <div className="relative flex flex-col items-center shrink-0 w-10 self-stretch">
+            <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-display font-extrabold text-sm shadow-md shadow-orange-500/30 shrink-0">
               {day.dayNumber}
             </div>
+            {!isLast && (
+              <div
+                className="flex-1 w-[3px] rounded-full mt-1"
+                style={{
+                  background:
+                    'linear-gradient(to bottom, rgba(251,113,133,0.95), rgba(251,146,60,0.55), rgba(254,205,170,0.12))'
+                }}
+              />
+            )}
           </div>
 
           {/* Day body */}
@@ -1109,7 +1116,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       {sortedItineraries.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
           <Calendar className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">No itineraries yet</h3>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{getTranslation('noItinerariesYet')}</h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
             Create your first detailed itinerary box with multi-day morning, afternoon, and evening schedules.
           </p>
@@ -1118,13 +1125,13 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             className="mt-4 inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Create Itinerary Box</span>
+            <span>{getTranslation('createItineraryBox')}</span>
           </button>
         </div>
       ) : (
         <div className="space-y-6">
           <p className="text-[11px] text-slate-400 dark:text-slate-500 italic -mb-2">
-            Tip: swipe a trip card left to remove it — or tap a trip to open the full journey & guide.
+            {getTranslation('itineraryTipSwipe')}
           </p>
           {sortedItineraries.map((itinerary) => {
             const isExpanded = !!expandedIds[itinerary.id];
@@ -1254,7 +1261,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       title="Edit this trip — all days at once, or delete the trip"
                     >
                       <Pencil className="w-3.5 h-3.5" />
-                      <span>Edit Trip</span>
+                      <span>{getTranslation('editTrip')}</span>
                     </button>
                     <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                       {isExpanded ? 'Hide Details' : 'Tap to View Detailed Solo Journey & Guide'}
@@ -1285,7 +1292,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
                         >
                           <Users className="w-3.5 h-3.5" />
-                          <span>Find Matching Companions</span>
+                          <span>{getTranslation('findMatchingCompanions')}</span>
                         </button>
 
                         <button
@@ -1324,7 +1331,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
                           >
                             <Pencil className="w-3.5 h-3.5" />
-                            <span>Edit Trip</span>
+                            <span>{getTranslation('editTrip')}</span>
                           </button>
                         </div>
                       </div>
@@ -1362,7 +1369,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           </div>
 
                           <span className="text-xs text-emerald-800 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md self-start sm:self-auto">
-                            Verified Destination Guide
+                            {getTranslation('verifiedGuide')}
                           </span>
                         </div>
 
