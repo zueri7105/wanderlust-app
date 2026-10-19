@@ -19,6 +19,7 @@ import { generateCompanionIcebreakers, generateJointTripPlan } from '../services
 import { getAppSettings } from '../utils/settings';
 import { getTranslation } from '../utils/i18n';
 import { DestinationSelector } from './DestinationSelector';
+import { TravelerProfilePopup } from './TravelerProfilePopup';
 import { recordSearch, getTopSearches } from '../data/searchHistory';
 
 interface CompanionMatcherProps {
@@ -72,6 +73,8 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
   onAddReview
 }) => {
   const [activeTravelerModal, setActiveTravelerModal] = useState<SoloTraveler | null>(null);
+  // Avatar-tap profile popup (bio + public trips)
+  const [profilePopupTravelerId, setProfilePopupTravelerId] = useState<string | null>(null);
   const [viewSavedOnly, setViewSavedOnly] = useState(false);
   const [femaleOnly, setFemaleOnly] = useState(false);
   const [connectModalData, setConnectModalData] = useState<{
@@ -319,12 +322,19 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               {traveler.avatar ? (
-                <img
-                  src={traveler.avatar}
-                  alt={traveler.name}
-                  referrerPolicy="no-referrer"
-                  className="w-12 h-12 rounded-full object-cover ring-2 ring-white dark:ring-slate-800 shadow-md shrink-0"
-                />
+                <button
+                  type="button"
+                  onClick={() => setProfilePopupTravelerId(traveler.id)}
+                  className="shrink-0 cursor-pointer rounded-full hover:scale-105 transition-transform"
+                  title={`View ${traveler.name.split(' ')[0]}'s profile`}
+                >
+                  <img
+                    src={traveler.avatar}
+                    alt={traveler.name}
+                    referrerPolicy="no-referrer"
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-white dark:ring-slate-800 shadow-md"
+                  />
+                </button>
               ) : (
                 <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${gradient} text-white font-bold flex items-center justify-center text-base shrink-0 shadow-md`}>
                   {traveler.name.charAt(0)}
@@ -749,7 +759,19 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
       </div>
 
       {/* Traveller Detail Modal */}
+      {/* Avatar-tap profile popup — bio + trips shared publicly */}
+      {profilePopupTravelerId && (
+        <TravelerProfilePopup
+          traveler={travelers.find((t) => t.id === profilePopupTravelerId) || travelers[0]}
+          currentUserId={currentUser.id}
+          itineraries={itineraries}
+          onClose={() => setProfilePopupTravelerId(null)}
+          onOpenChat={(t) => onOpenChatWithTraveler(t, selectedDestination || t.currentDestination || '')}
+        />
+      )}
+
       {activeTravelerModal && (
+
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
             <button

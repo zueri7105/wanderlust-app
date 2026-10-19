@@ -593,6 +593,7 @@ export default function App() {
             travelers={travelers}
             currentUser={currentUser}
             trips={trips}
+            itineraries={itineraries}
             activeTravelerId={activeCompanionChatId}
             onSelectTraveler={setActiveCompanionChatId}
             onSendMessage={handleSendDirectMessage}

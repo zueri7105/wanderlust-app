@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SoloTraveler, TravelTrip, ChatMessage } from '../types/travel';
+import { SoloTraveler, TravelTrip, ChatMessage, TravelItinerary } from '../types/travel';
 import {
   MessageSquare,
   Send,
@@ -13,8 +13,10 @@ import {
   Smile,
   Languages,
   Loader2,
-  Moon
+  Moon,
+  ChevronLeft
 } from 'lucide-react';
+import { TravelerProfilePopup } from './TravelerProfilePopup';
 import { playAudioAlert, getTranslation } from '../utils/i18n';
 import { getAppSettings, getTranslateTarget, presenceForTraveler, PresenceStatus } from '../utils/settings';
 
@@ -53,6 +55,7 @@ interface MessagesViewProps {
   onToggleStarTraveler: (travelerId: string) => void;
   onGoToItinerary: (destination: string) => void;
   onConfirmBuddy?: (travelerId: string) => void;
+  itineraries?: TravelItinerary[];
 }
 
 const QUICK_STARTERS = [
@@ -83,13 +86,16 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
   onSendMessage,
   onToggleStarTraveler,
   onGoToItinerary,
-  onConfirmBuddy
+  onConfirmBuddy,
+  itineraries = []
 }) => {
   const [inputText, setInputText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStarredOnly, setFilterStarredOnly] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Avatar-tap profile popup (bio + public trips)
+  const [profilePopupTravelerId, setProfilePopupTravelerId] = useState<string | null>(null);
 
   // Message translation state: per message id, translated text + visibility (+ target used, so a
   // language change in Settings re-translates instead of showing a stale language)
@@ -288,10 +294,12 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
         </div>
       </div>
 
-      {/* Main Chat Container: 2-column layout */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-12 min-h-[640px]">
-        {/* Left Column: Companion Conversations List */}
-        <div className="md:col-span-5 lg:col-span-4 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/60 dark:bg-slate-950/40">
+      {/* Main Chat Container: 2-column layout (list left, chat right) — chat stays glued in view
+          with a sticky offset under the nav, so no scrolling the page to reach messages.
+          On mobile it switches to a single pane: list ⇄ chat with a back button. */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-12 h-[calc(100vh-10rem)] md:h-[calc(100vh-11rem)] md:sticky md:top-20 min-h-[480px]">
+        {/* Left Column: Companion Conversations List (hidden on mobile while a chat is open) */}
+        <div className={`md:col-span-5 lg:col-span-4 border-r border-slate-200 dark:border-slate-800 flex-col bg-slate-50/60 dark:bg-slate-950/40 min-h-0 ${selectedTraveler ? 'hidden md:flex' : 'flex'}`}>
           {/* Search bar inside left column */}
           <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <div className="relative">
@@ -329,12 +337,22 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                     }`}
                   >
                     <div className="relative shrink-0">
-                      <img
-                        src={traveler.avatar}
-                        alt={traveler.name}
-                        referrerPolicy="no-referrer"
-                        className={`w-11 h-11 rounded-full object-cover ring-2 ${isSelected ? 'ring-rose-300 dark:ring-rose-800' : 'ring-white dark:ring-slate-800'} shadow-sm`}
-                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProfilePopupTravelerId(traveler.id);
+                        }}
+                        className="cursor-pointer rounded-full hover:scale-105 transition-transform block"
+                        title={`View ${traveler.name.split(' ')[0]}'s profile`}
+                      >
+                        <img
+                          src={traveler.avatar}
+                          alt={traveler.name}
+                          referrerPolicy="no-referrer"
+                          className={`w-11 h-11 rounded-full object-cover ring-2 ${isSelected ? 'ring-rose-300 dark:ring-rose-800' : 'ring-white dark:ring-slate-800'} shadow-sm`}
+                        />
+                      </button>
                       <PresenceBadge status={presenceForTraveler(traveler.id, currentUser.id)} />
                     </div>
 
@@ -371,13 +389,27 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Active Conversation Pane */}
+        {/* Right Column: Active Conversation Pane (hidden on mobile until a chat is picked) */}
         {selectedTraveler ? (
-          <div className="md:col-span-7 lg:col-span-8 flex flex-col h-[640px] bg-slate-50/40 dark:bg-slate-950/20">
+          <div className="md:col-span-7 lg:col-span-8 flex flex-col h-full min-h-0 bg-slate-50/40 dark:bg-slate-950/20 max-md:col-span-1">
             {/* Companion Header Bar */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 bg-white dark:bg-slate-900">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="relative shrink-0">
+            <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-white dark:bg-slate-900 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {/* Mobile back-to-list */}
+                <button
+                  type="button"
+                  onClick={() => onSelectTraveler(null as any)}
+                  className="md:hidden p-1.5 -ml-1 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0"
+                  title="Back to conversations"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfilePopupTravelerId(selectedTraveler.id)}
+                  className="relative shrink-0 cursor-pointer rounded-full hover:scale-105 transition-transform"
+                  title={`View ${selectedTraveler.name.split(' ')[0]}'s profile`}
+                >
                   <img
                     src={selectedTraveler.avatar}
                     alt={selectedTraveler.name}
@@ -385,7 +417,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                     className={`w-11 h-11 rounded-full object-cover ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 ring-rose-300 dark:ring-rose-800`}
                   />
                   <PresenceBadge status={presenceForTraveler(selectedTraveler.id, currentUser.id)} />
-                </div>
+                </button>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
@@ -669,7 +701,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             </div>
           </div>
         ) : (
-          <div className="md:col-span-7 lg:col-span-8 flex flex-col items-center justify-center text-center p-12 bg-white dark:bg-slate-900">
+          <div className="hidden md:flex md:col-span-7 lg:col-span-8 flex-col items-center justify-center text-center p-12 bg-white dark:bg-slate-900">
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center text-white mb-3 shadow-lg shadow-rose-500/30">
               <MessageSquare className="w-7 h-7" />
             </div>
@@ -678,6 +710,20 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
               Select a traveller from the left to view messages or start a new conversation.
             </p>
           </div>
+        )}
+
+        {/* Avatar-tap profile popup — bio + trips shared publicly */}
+        {profilePopupTravelerId && (
+          <TravelerProfilePopup
+            traveler={travelers.find((t) => t.id === profilePopupTravelerId) || travelers[0]}
+            currentUserId={currentUser.id}
+            itineraries={itineraries}
+            onClose={() => setProfilePopupTravelerId(null)}
+            onOpenChat={(t) => {
+              onSelectTraveler(t.id);
+              setProfilePopupTravelerId(null);
+            }}
+          />
         )}
       </div>
     </div>

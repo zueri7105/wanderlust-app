@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, GeoJSON, useMa
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import COUNTRIES_GEO from '../data/countriesGeo';
+import { TravelerProfilePopup } from './TravelerProfilePopup';
 import {
   MapPin,
   Share2,
@@ -373,6 +374,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   // Nomad-Table-style hotspot: active city + free-fly target for hotspot cards
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
   const [hotspotFly, setHotspotFly] = useState<{ lat: number; lng: number; seq: number } | null>(null);
+  // Traveller profile popup (tap a map pin's "View Profile")
+  const [profileTravelerId, setProfileTravelerId] = useState<string | null>(null);
 
   // MY VIEW filter — which traveler pins *I* see on the map
   const [travelerView, setTravelerView] = useState<TravelerViewMode>('all');
@@ -408,8 +411,9 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   // Map legend collapsed/expanded
   const [legendCollapsed, setLegendCollapsed] = useState(false);
-  // Full-screen map mode (viewport-filling overlay)
-  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+  // Full-screen map mode (viewport-filling overlay) — opens full-screen by default so the
+  // first thing you see is the big world map; exit with Esc / the minimise button.
+  const [isMapFullscreen, setIsMapFullscreen] = useState(true);
   // On-map Memories Journal drawer (combined into the map)
   const [isJournalOpen, setIsJournalOpen] = useState(false);
 
@@ -773,9 +777,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         </div>
       </div>
 
-      {/* Map Card */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
-        {/* Map Top Bar: live counter + layer toggles */}
+      {/* Map Card — wraps inline; in full-screen mode the map overlays escape the card */}
+      <div className={isMapFullscreen ? 'contents' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm'}>
+        {/* Map Top Bar: live counter + layer toggles (hidden in full-screen — controls float on the map) */}
+        {!isMapFullscreen && (
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-rose-50/70 via-orange-50/50 to-amber-50/70 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
@@ -838,6 +843,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             ))}
           </div>
         </div>
+        )}
 
         {/* Interactive real world map (OpenStreetMap/CARTO tiles — zoom & pan native) */}
         <div
@@ -939,8 +945,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 />
               ))}
 
-            {/* City Buzz hotspots — live count of solo travellers per city (Nomad-Table style) */}
-            {pinLayers.hotspots &&
+            {/* City Buzz hotspots — live count of solo travellers per city (Nomad-Table style).
+                Only rendered at world/region zoom so the count bubbles never cover nearby
+                traveller profile pics when you zoom in. */}
+            {pinLayers.hotspots && mapZoom <= 3.5 &&
               CITY_HOTSPOTS.map((h) => {
                 const g = geoFor(h.city);
                 if (!g) return null;
@@ -961,11 +969,41 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             <FreeFlyer target={hotspotFly} />
           </MapContainer>
 
+          {/* Full-screen controls row — compact layer toggles floating on the map */}
+          {isMapFullscreen && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-xl text-[10px] font-semibold max-w-[calc(100vw-7rem)] overflow-x-auto">
+              {([
+                ['travelers', 'bg-rose-500', 'Travellers'],
+                ['hotspots', 'bg-slate-900', 'City Buzz'],
+                ['current', 'bg-emerald-500', 'Current'],
+                ['visited', 'bg-sky-600', 'Visited'],
+                ['dream', 'bg-amber-500', 'Dream']
+              ] as const).map(([key, dotClass, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPinLayers((p) => ({ ...p, [key]: !p[key] }))}
+                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full whitespace-nowrap transition-all cursor-pointer ${
+                    pinLayers[key] ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 line-through'
+                  }`}
+                  title={`Show / hide ${label} pins`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${dotClass} ${pinLayers[key] ? '' : 'opacity-30'}`} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Zoom hint / level pill */}
           <div className="absolute top-3 left-3 z-[500] pointer-events-none">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/70 text-white text-[10px] font-bold backdrop-blur shadow-md">
               <LocateFixed className="w-3 h-3 text-emerald-300" />
-              {mapZoom > 3 ? `Zoom ${mapZoom.toFixed(1)}×` : 'Scroll / pinch to zoom · drag to explore'}
+              {mapZoom > 3
+                ? mapZoom > 3.5 && pinLayers.hotspots
+                  ? `Zoom ${mapZoom.toFixed(1)}× · City Buzz counts hidden — travellers clear`
+                  : `Zoom ${mapZoom.toFixed(1)}×`
+                : 'Scroll / pinch to zoom · drag to explore'}
             </span>
           </div>
 
@@ -974,7 +1012,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             type="button"
             onClick={() => setIsMapFullscreen((v) => !v)}
             className="absolute top-3 right-3 z-[600] w-8 h-8 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer transition-colors"
-            title={isMapFullscreen ? 'Exit full-screen map (Esc)' : 'Open full-screen map'}
+            title={isMapFullscreen ? 'Exit full-screen map' : 'Open full-screen map'}
           >
             {isMapFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
@@ -1198,13 +1236,22 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
               <div className="flex items-center gap-1.5 shrink-0">
                 {!activePinInfo.isMe ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpenChatWithTraveler(activePinTraveler, activePinInfo.destination)}
-                    className="px-3 py-1.5 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-xl text-xs font-bold hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-md shadow-orange-500/25"
-                  >
-                    Say Hello
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setProfileTravelerId(activePinTraveler.id)}
+                      className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                    >
+                      View Profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenChatWithTraveler(activePinTraveler, activePinInfo.destination)}
+                      className="px-3 py-1.5 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-xl text-xs font-bold hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-md shadow-orange-500/25"
+                    >
+                      Say Hello
+                    </button>
+                  </>
                 ) : (
                   <button
                     type="button"
@@ -1239,6 +1286,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         </div>
 
         {/* Map privacy selector — OTHERS SEE ME: who can see my pins */}
+        {!isMapFullscreen && (
         <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-slate-50/60 dark:bg-slate-900">
           <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
@@ -1265,10 +1313,21 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             ))}
           </div>
         </div>
+        )}
       </div>
 
-      {/* City Buzz — Nomad-Table-style "who's travelling where" leaderboard */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+      {/* Traveller profile popup — tap "View Profile" on any map pin */}
+      {profileTravelerId && (
+        <TravelerProfilePopup
+          traveler={getTravelerById(profileTravelerId)}
+          currentUserId={currentUser.id}
+          itineraries={itineraries}
+          onClose={() => setProfileTravelerId(null)}
+          onOpenChat={(t) => onOpenChatWithTraveler(t)}
+        />
+      )}
+
+      {/* City Buzz — Nomad-Table-style "who's travelling where" leaderboard */}<div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">

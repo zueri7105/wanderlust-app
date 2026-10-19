@@ -908,24 +908,8 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             )}
           </div>
 
-          {/* Quick jump chips for months that actually have trips */}
-          {availableMonths.length > 1 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {availableMonths.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setSelectedMonth(m)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                    selectedMonth === m
-                      ? 'bg-rose-600 text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                  }`}
-                >
-                  {formatMonthTitle(m)}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Trips spanning several months simply appear under every month they touch —
+              the month button above (calendar picker) is the single control for that. */}
         </div>
 
         {/* Per-Month Trip Display */}
@@ -979,6 +963,15 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold px-2 py-0.5 bg-slate-200/60 dark:bg-slate-700 rounded">
                         {trip.source === 'itinerary' ? 'From Itinerary' : 'Posted Trip'}
                       </span>
+                      {(() => {
+                        const spanKeys = monthKeysForTrip(trip);
+                        if (spanKeys.length <= 1) return null;
+                        return (
+                          <span className="text-[10px] font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 px-2 py-0.5 rounded">
+                            Runs {formatMonthTitle(spanKeys[0])} – {formatMonthTitle(spanKeys[spanKeys.length - 1])}
+                          </span>
+                        );
+                      })()}
                       {getAppSettings().anonymousMode ? (
                         <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-semibold">
                           • Private Mode: dates hidden until mutual match

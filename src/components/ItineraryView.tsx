@@ -397,14 +397,15 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDel
         onPointerLeave={endDrag}
       >
         <div className="p-4 sm:p-5 flex gap-4">
-          {/* Timeline rail */}
-          <div className="flex flex-col items-center shrink-0">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-display font-extrabold text-sm shadow-md shadow-orange-500/30">
+          {/* Timeline rail — the coloured line runs continuously through every day circle
+              (incl. days added later), and simply stops after the final day */}
+          <div className="relative flex flex-col items-center shrink-0 w-10">
+            {!isLast && (
+              <div className="absolute top-10 -bottom-5 sm:-bottom-5 w-0.5 bg-gradient-to-b from-rose-400 via-orange-300 to-rose-300 dark:from-rose-700 dark:via-orange-800 dark:to-rose-800" />
+            )}
+            <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-display font-extrabold text-sm shadow-md shadow-orange-500/30">
               {day.dayNumber}
             </div>
-            {!isLast && (
-              <div className="flex-1 w-px mt-2 bg-gradient-to-b from-rose-300/80 via-orange-200/60 to-transparent dark:from-rose-800/60 dark:via-slate-800" />
-            )}
           </div>
 
           {/* Day body */}
