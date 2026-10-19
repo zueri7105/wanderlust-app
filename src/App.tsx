@@ -623,6 +623,8 @@ export default function App() {
             travelers={travelers}
             currentUser={currentUser}
             selectedDestination={selectedDestination}
+            itineraries={itineraries}
+            trips={trips}
             onAddSoloExpense={handleAddSoloExpense}
             onAddSharedExpense={handleAddSharedExpense}
             onDeleteSoloExpense={handleDeleteSoloExpense}

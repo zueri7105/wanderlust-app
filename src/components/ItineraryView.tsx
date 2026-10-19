@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TravelItinerary, SoloTraveler, ItineraryDay, TravelGuideInfo, TripScope } from '../types/travel';
 import {
   Calendar,
@@ -28,7 +28,11 @@ import {
   Smartphone,
   AlertTriangle,
   Globe,
-  Stamp
+  Stamp,
+  Sunrise,
+  Sun,
+  MoonStar,
+  Pencil
 } from 'lucide-react';
 import { generateDestinationTravelGuide } from '../services/geminiService';
 import { formatTemperature } from '../utils/units';
@@ -251,6 +255,161 @@ export function resolveDestinationCurrency(itinerary: TravelItinerary) {
   };
 }
 
+const DAY_TIME_ROWS: Array<{
+  key: 'morningActivity' | 'afternoonActivity' | 'eveningActivity';
+  label: string;
+  Icon: typeof Sun;
+  chip: string;
+  dot: string;
+}> = [
+  {
+    key: 'morningActivity',
+    label: 'Morning',
+    Icon: Sunrise,
+    chip: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200/70 dark:border-amber-900/60',
+    dot: 'bg-amber-400'
+  },
+  {
+    key: 'afternoonActivity',
+    label: 'Afternoon',
+    Icon: Sun,
+    chip: 'bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 border-orange-200/70 dark:border-orange-900/60',
+    dot: 'bg-orange-400'
+  },
+  {
+    key: 'eveningActivity',
+    label: 'Evening',
+    Icon: MoonStar,
+    chip: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border-indigo-200/70 dark:border-indigo-900/60',
+    dot: 'bg-indigo-400'
+  }
+];
+
+const SWIPE_DELETE_WIDTH = 88;
+
+interface SwipeableDayCardProps {
+  day: ItineraryDay;
+  isLast: boolean;
+  canDelete: boolean;
+  onDelete: () => void;
+}
+
+// Timeline day card with swipe-left-to-delete (pointer-driven, works on touch + mouse)
+const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDelete, onDelete }) => {
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!canDelete) return;
+    drag.current = { startX: e.clientX, startOffset: offset, moved: false };
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    const dx = e.clientX - drag.current.startX;
+    if (!drag.current.moved && Math.abs(dx) < 6) return;
+    drag.current.moved = true;
+    setDragging(true);
+    setOffset(Math.min(0, Math.max(-SWIPE_DELETE_WIDTH, drag.current.startOffset + dx)));
+  };
+
+  const endDrag = () => {
+    if (!drag.current) return;
+    drag.current = null;
+    setDragging(false);
+    setOffset((cur) => (cur < -SWIPE_DELETE_WIDTH / 2 ? -SWIPE_DELETE_WIDTH : 0));
+  };
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden group/day">
+      {/* Red delete zone revealed behind the card when swiping left */}
+      {canDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="absolute inset-y-0 right-0 w-[88px] bg-gradient-to-br from-red-500 to-rose-600 flex flex-col items-center justify-center gap-1 text-white cursor-pointer"
+          title="Delete this day"
+        >
+          <Trash2 className="w-4.5 h-4.5" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">Delete</span>
+        </button>
+      )}
+
+      {/* Sliding card content */}
+      <div
+        style={{ transform: `translateX(${offset}px)` }}
+        className={`relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 touch-pan-y select-none ${dragging ? '' : 'transition-all'}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onPointerLeave={endDrag}
+      >
+        <div className="p-4 sm:p-5 flex gap-4">
+          {/* Timeline rail */}
+          <div className="flex flex-col items-center shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-display font-extrabold text-sm shadow-md shadow-orange-500/30">
+              {day.dayNumber}
+            </div>
+            {!isLast && (
+              <div className="flex-1 w-px mt-2 bg-gradient-to-b from-rose-300/80 via-orange-200/60 to-transparent dark:from-rose-800/60 dark:via-slate-800" />
+            )}
+          </div>
+
+          {/* Day body */}
+          <div className="flex-1 min-w-0 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h4 className="font-display font-bold text-sm sm:text-base text-slate-950 dark:text-slate-50 leading-snug truncate">
+                  {day.title}
+                </h4>
+                {day.date && (
+                  <span className="font-mono text-[11px] text-slate-400 tabular-nums">{day.date}</span>
+                )}
+              </div>
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="sm:opacity-0 sm:group-hover/day:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-all cursor-pointer shrink-0"
+                  title="Delete this day (or swipe left)"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              {DAY_TIME_ROWS.map(({ key, label, Icon, chip, dot }) => (
+                <div key={key} className="flex items-start gap-2.5">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide shrink-0 mt-0.5 ${chip}`}>
+                    <Icon className="w-3 h-3" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </span>
+                  <span className="relative text-xs leading-relaxed text-slate-600 dark:text-slate-300 pl-2.5">
+                    <span className={`absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full ${dot}`} />
+                    {day[key]}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {day.companionGoal && (
+              <div className="flex items-start gap-2 text-[11px] bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 rounded-xl px-3 py-2">
+                <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <span className="text-emerald-900 dark:text-emerald-200">
+                  <strong className="font-semibold">Companionship goal:</strong> {day.companionGoal}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const ItineraryView: React.FC<ItineraryViewProps> = ({
   itineraries,
   currentUser,
@@ -297,47 +456,62 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     return saved ? JSON.parse(saved) : {};
   });
 
-  // Day Editing State
-  const [editingDayKey, setEditingDayKey] = useState<string | null>(null); // e.g. `${itin.id}_${day.dayNumber}`
-  const [editTitle, setEditTitle] = useState('');
-  const [editMorning, setEditMorning] = useState('');
-  const [editAfternoon, setEditAfternoon] = useState('');
-  const [editEvening, setEditEvening] = useState('');
-  const [editGoal, setEditGoal] = useState('');
+  // Edit Trip modal state — edit ALL days at once, delete trip lives inside this editor
+  const [editingTripId, setEditingTripId] = useState<string | null>(null);
+  const [editTripDays, setEditTripDays] = useState<ItineraryDay[]>([]);
+  const [editTripNotes, setEditTripNotes] = useState('');
 
-  const handleStartEditDay = (itinId: string, day: ItineraryDay) => {
-    setEditingDayKey(`${itinId}_${day.dayNumber}`);
-    setEditTitle(day.title);
-    setEditMorning(day.morningActivity);
-    setEditAfternoon(day.afternoonActivity);
-    setEditEvening(day.eveningActivity);
-    setEditGoal(day.companionGoal || '');
+  const handleOpenEditTrip = (itin: TravelItinerary) => {
+    setEditingTripId(itin.id);
+    setEditTripDays(itin.days.map((d) => ({ ...d })));
+    setEditTripNotes(itin.notes || '');
   };
 
-  const handleSaveDayEdit = (itin: TravelItinerary, dayNumber: number) => {
-    const updatedDays = itin.days.map((d) => {
-      if (d.dayNumber === dayNumber) {
-        return {
-          ...d,
-          title: editTitle,
-          morningActivity: editMorning,
-          afternoonActivity: editAfternoon,
-          eveningActivity: editEvening,
-          companionGoal: editGoal
-        };
-      }
-      return d;
-    });
+  const handleSaveTripEdit = (itin: TravelItinerary) => {
+    const renumbered = editTripDays.map((d, i) => ({ ...d, dayNumber: i + 1 }));
+    onUpdateItinerary?.({ ...itin, days: renumbered, notes: editTripNotes });
+    setEditingTripId(null);
+  };
 
-    const updatedItin: TravelItinerary = {
-      ...itin,
-      days: updatedDays
-    };
-
-    if (onUpdateItinerary) {
-      onUpdateItinerary(updatedItin);
+  const handleDeleteTripFromEdit = (itin: TravelItinerary) => {
+    if (!onDeleteItinerary) return;
+    if (window.confirm(`Delete the itinerary for ${itin.destination}? This cannot be undone.`)) {
+      onDeleteItinerary(itin.id);
+      setEditingTripId(null);
     }
-    setEditingDayKey(null);
+  };
+
+  const handleUpdateEditDay = (index: number, field: keyof ItineraryDay, val: string) => {
+    setEditTripDays((prev) => prev.map((d, i) => (i === index ? { ...d, [field]: val } : d)));
+  };
+
+  const handleAddEditDay = () => {
+    const nextNum = editTripDays.length + 1;
+    setEditTripDays((prev) => [
+      ...prev,
+      {
+        dayNumber: nextNum,
+        title: `Day ${nextNum} Exploration`,
+        morningActivity: 'Morning activity and local neighborhood walk.',
+        afternoonActivity: 'Visit cultural sight, scenic viewpoint, or local market.',
+        eveningActivity: 'Dinner at an authentic local restaurant.',
+        companionGoal: ''
+      }
+    ]);
+  };
+
+  const handleRemoveEditDay = (index: number) => {
+    if (editTripDays.length <= 1) return;
+    setEditTripDays((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Swipe-left / tap-trash day deletion on the schedule timeline (renumbers days)
+  const handleDeleteDayFromSchedule = (itin: TravelItinerary, dayNumber: number) => {
+    if (itin.days.length <= 1) return;
+    const updatedDays = itin.days
+      .filter((d) => d.dayNumber !== dayNumber)
+      .map((d, i) => ({ ...d, dayNumber: i + 1 }));
+    onUpdateItinerary?.({ ...itin, days: updatedDays });
   };
 
   const handleAddNewDayToSchedule = (itin: TravelItinerary) => {
@@ -359,9 +533,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     if (onUpdateItinerary) {
       onUpdateItinerary(updatedItin);
     }
-
-    // Automatically open edit for the new day
-    handleStartEditDay(itin.id, newDay);
   };
 
   const handleAddChecklistItem = (itinId: string, defaultItems: string[]) => {
@@ -850,21 +1021,18 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
-                    {onDeleteItinerary && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`Delete the itinerary for ${itinerary.destination}? This cannot be undone.`)) {
-                            onDeleteItinerary(itinerary.id);
-                          }
-                        }}
-                        className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center justify-center text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors cursor-pointer"
-                        title="Delete this itinerary"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditTrip(itinerary);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors cursor-pointer"
+                      title="Edit this trip — all days at once, or delete the trip"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Edit Trip</span>
+                    </button>
                     <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                       {isExpanded ? 'Hide Details' : 'Tap to View Detailed Solo Journey & Guide'}
                     </span>
@@ -906,186 +1074,48 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Detailed Day-by-Day Schedule Grid with Edit Day functionality */}
+                    {/* Detailed Day-by-Day Journey Timeline — swipe a day card left to delete it */}
                     <div className="space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>
                           <div className="text-sm font-display font-bold text-slate-900 dark:text-slate-100">
-                            Detailed Solo Journey ({itinerary.days.length} Days Planned):
+                            Your Journey Timeline · {itinerary.days.length} Day{itinerary.days.length === 1 ? '' : 's'} Planned
                           </div>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Tap "Edit Day" on any day to customize times, activities, and companionship goals.
+                            Swipe a day card left to delete it. Open <strong className="text-slate-700 dark:text-slate-300">Edit Trip</strong> to rework every day at once.
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleAddNewDayToSchedule(itinerary)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors self-start sm:self-auto"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>+ Add Next Day (Day {itinerary.days.length + 1})</span>
-                        </button>
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                          <button
+                            type="button"
+                            onClick={() => handleAddNewDayToSchedule(itinerary)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add Day {itinerary.days.length + 1}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditTrip(itinerary)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span>Edit Trip</span>
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {itinerary.days.map((day) => {
-                          const isEditingThisDay = editingDayKey === `${itinerary.id}_${day.dayNumber}`;
-
-                          if (isEditingThisDay) {
-                            return (
-                              <div
-                                key={day.dayNumber}
-                                className="bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-100 rounded-xl p-4 space-y-3 text-xs shadow-md"
-                              >
-                                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                                  <span className="font-bold text-slate-950 dark:text-slate-50 text-sm flex items-center gap-1.5">
-                                    <Edit2 className="w-3.5 h-3.5 text-slate-600" />
-                                    <span>Editing Day {day.dayNumber} Schedule</span>
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingDayKey(null)}
-                                    className="text-slate-400 hover:text-slate-700"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-
-                                <div>
-                                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Day Title / Highlight
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={editTitle}
-                                    onChange={(e) => setEditTitle(e.target.value)}
-                                    className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Morning Activity
-                                  </label>
-                                  <textarea
-                                    rows={2}
-                                    value={editMorning}
-                                    onChange={(e) => setEditMorning(e.target.value)}
-                                    className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Afternoon Activity
-                                  </label>
-                                  <textarea
-                                    rows={2}
-                                    value={editAfternoon}
-                                    onChange={(e) => setEditAfternoon(e.target.value)}
-                                    className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Evening Activity
-                                  </label>
-                                  <textarea
-                                    rows={2}
-                                    value={editEvening}
-                                    onChange={(e) => setEditEvening(e.target.value)}
-                                    className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                    Companionship Goal
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={editGoal}
-                                    onChange={(e) => setEditGoal(e.target.value)}
-                                    placeholder="e.g. Companion for dinner crawl or splitting cab"
-                                    className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                                  />
-                                </div>
-
-                                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingDayKey(null)}
-                                    className="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-md hover:bg-slate-200"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSaveDayEdit(itinerary, day.dayNumber)}
-                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-md hover:brightness-105 flex items-center gap-1 shadow-xs"
-                                  >
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span>Save Day {day.dayNumber}</span>
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <div
-                              key={day.dayNumber}
-                              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-2.5 text-xs shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between"
-                            >
-                              <div>
-                                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                                  <span className="font-bold text-slate-950 dark:text-slate-50 text-sm">
-                                    Day {day.dayNumber}: {day.title}
-                                  </span>
-                                  <div className="flex items-center gap-2">
-                                    {day.date && (
-                                      <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                                        {day.date}
-                                      </span>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleStartEditDay(itinerary.id, day)}
-                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 cursor-pointer"
-                                    >
-                                      <Edit2 className="w-3 h-3" />
-                                      <span>Edit</span>
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-2 text-slate-700 dark:text-slate-300 pt-1">
-                                  <div>
-                                    <strong className="text-slate-900 dark:text-slate-100">Morning:</strong> {day.morningActivity}
-                                  </div>
-                                  <div>
-                                    <strong className="text-slate-900 dark:text-slate-100">Afternoon:</strong> {day.afternoonActivity}
-                                  </div>
-                                  <div>
-                                    <strong className="text-slate-900 dark:text-slate-100">Evening:</strong> {day.eveningActivity}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {day.companionGoal && (
-                                <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-[11px] flex items-start gap-1.5 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg">
-                                  <Users className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
-                                  <div>
-                                    <strong className="text-emerald-900 dark:text-emerald-300">Companionship Goal:</strong>{' '}
-                                    {day.companionGoal}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                      <div className="space-y-3">
+                        {itinerary.days.map((day, dayIdx) => (
+                          <SwipeableDayCard
+                            key={`${itinerary.id}_${day.dayNumber}_${itinerary.days.length}`}
+                            day={day}
+                            isLast={dayIdx === itinerary.days.length - 1}
+                            canDelete={itinerary.days.length > 1}
+                            onDelete={() => handleDeleteDayFromSchedule(itinerary, day.dayNumber)}
+                          />
+                        ))}
                       </div>
                     </div>
 
@@ -1832,6 +1862,153 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Edit Trip Modal — edit every day at once; delete trip lives here */}
+      {editingTripId && (() => {
+        const itin = itineraries.find((x) => x.id === editingTripId);
+        if (!itin) return null;
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setEditingTripId(null)}>
+            <div
+              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-2xl w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setEditingTripId(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
+              >
+                ✕
+              </button>
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-r from-rose-500 to-orange-500 text-white flex items-center justify-center">
+                  <Pencil className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-xl text-slate-950 dark:text-slate-50">
+                    Edit Trip · {itin.destination}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {itin.startDate} – {itin.endDate} · Update every day of the schedule in one place.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-3 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    Day-by-Day Schedule ({editTripDays.length} Days)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAddEditDay}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Another Day</span>
+                  </button>
+                </div>
+
+                {editTripDays.map((d, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 dark:text-slate-100">Day {idx + 1}</span>
+                      {editTripDays.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEditDay(idx)}
+                          className="text-slate-400 hover:text-red-600 cursor-pointer"
+                          title="Remove this day"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={d.title}
+                      onChange={(e) => handleUpdateEditDay(idx, 'title', e.target.value)}
+                      placeholder="Day title / highlight"
+                      className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold"
+                    />
+
+                    <div className="space-y-1.5">
+                      {DAY_TIME_ROWS.map(({ key, label, Icon }) => (
+                        <div key={key} className="flex items-start gap-2">
+                          <span className="inline-flex items-center gap-1 w-24 shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-2">
+                            <Icon className="w-3 h-3" />
+                            {label}
+                          </span>
+                          <textarea
+                            rows={2}
+                            value={d[key]}
+                            onChange={(e) => handleUpdateEditDay(idx, key, e.target.value)}
+                            className="flex-1 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 resize-y"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={d.companionGoal || ''}
+                      onChange={(e) => handleUpdateEditDay(idx, 'companionGoal', e.target.value)}
+                      placeholder="Companionship goal for this day (optional)"
+                      className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px]"
+                    />
+                  </div>
+                ))}
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Trip Overview & Notes
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editTripNotes}
+                    onChange={(e) => setEditTripNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                {/* Danger zone: deleting the trip lives inside the editor */}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTripFromEdit(itin)}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-red-500 to-rose-600 rounded-lg hover:brightness-105 transition-colors shadow-xs cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete This Trip</span>
+                </button>
+
+                <div className="flex items-center gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTripId(null)}
+                    className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveTripEdit(itin)}
+                    className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save All Changes</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

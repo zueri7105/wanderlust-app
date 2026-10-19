@@ -860,14 +860,18 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
           </div>
         </div>
 
-        {/* Interactive Photo Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {meetupStories.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => setSelectedMeetup(item)}
-              className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer flex flex-col justify-between"
-            >
+        {/* Interactive Photo Cards — horizontal swipe/scroll carousel */}
+        <div className="relative">
+          <div
+            className="flex gap-5 overflow-x-auto snap-x snap-mandatory pb-3 -mx-1 px-1 scroll-smooth"
+            style={{ scrollbarWidth: 'thin' }}
+          >
+            {meetupStories.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => setSelectedMeetup(item)}
+                className="group snap-start shrink-0 w-[82vw] sm:w-[330px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer flex flex-col justify-between"
+              >
               <div>
                 <div className="relative h-60 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                   <img
@@ -929,8 +933,12 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                 <span>View Full Meetup Details</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
-            </div>
-          ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Edge fade hint that more stories are scrollable */}
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-14 bg-gradient-to-l from-white/90 dark:from-slate-950/90 to-transparent hidden sm:block" />
         </div>
       </section>
 

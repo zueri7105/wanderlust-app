@@ -37,15 +37,6 @@ interface CompanionMatcherProps {
   onAddReview?: (travelerId: string, review: CompanionReview) => void;
 }
 
-const DESTINATION_OPTIONS = [
-  'All Destinations',
-  'Kyoto, Japan',
-  'Oaxaca, Mexico',
-  'Amalfi Coast, Italy',
-  'Barcelona, Spain',
-  'Lisbon, Portugal'
-];
-
 const SCOPE_OPTIONS = [
   'All Trips',
   'Full Trip',
@@ -299,47 +290,73 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
     }
   };
 
-  // Succinct companion card design (NO PHOTO)
+  const AVATAR_GRADIENTS = [
+    'from-rose-500 to-orange-400',
+    'from-violet-500 to-fuchsia-400',
+    'from-sky-500 to-cyan-400',
+    'from-emerald-500 to-teal-400',
+    'from-amber-500 to-yellow-400',
+    'from-indigo-500 to-blue-400'
+  ];
+
+  const scoreColor = (score: number) =>
+    score >= 92
+      ? 'from-emerald-500 to-teal-400'
+      : score >= 85
+        ? 'from-rose-500 to-orange-400'
+        : 'from-slate-500 to-slate-400';
+
+  // Companion card — avatar-led, match-score badge, brand-gradient actions
   const renderSuccinctTripCard = (trip: TravelTrip) => {
     const traveler = getTraveler(trip.travelerId);
-    const { overlapText, matchScore } = getOverlapDetails(trip);
+    const { overlapText, matchScore, sharedInterests } = getOverlapDetails(trip);
     const isStarred = !!traveler.isStarred;
+    const gradient = AVATAR_GRADIENTS[traveler.name.charCodeAt(0) % AVATAR_GRADIENTS.length];
 
     return (
       <div
         key={trip.id}
-        className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between hover:border-slate-300 transition-all shadow-xs"
+        className="group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden flex flex-col justify-between hover:shadow-xl hover:shadow-rose-500/5 hover:-translate-y-0.5 hover:border-rose-200 dark:hover:border-rose-900/60 transition-all duration-200 shadow-xs"
       >
-        <div>
-          {/* Card Top: Traveler Monogram Initials, Name, Nationality & Star (No photo) */}
-          <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 text-white font-bold flex items-center justify-center text-sm shrink-0 shadow-xs">
-                {traveler.name.charAt(0)}
-              </div>
+        {/* Top brand accent line */}
+        <div className={`h-1 w-full bg-gradient-to-r ${gradient}`} />
+
+        <div className="p-5 flex-1">
+          {/* Card Top: Avatar, Name, Match Score & Star */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {traveler.avatar ? (
+                <img
+                  src={traveler.avatar}
+                  alt={traveler.name}
+                  referrerPolicy="no-referrer"
+                  className="w-12 h-12 rounded-full object-cover ring-2 ring-white dark:ring-slate-800 shadow-md shrink-0"
+                />
+              ) : (
+                <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${gradient} text-white font-bold flex items-center justify-center text-base shrink-0 shadow-md`}>
+                  {traveler.name.charAt(0)}
+                </div>
+              )}
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-bold text-sm text-slate-900 truncate">
+                  <span className="font-bold text-sm text-slate-950 dark:text-slate-50 truncate">
                     {traveler.name}
                   </span>
-                  <span className="text-xs text-slate-500">
-                    ({traveler.country})
-                  </span>
                   {traveler.gender === 'female' && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-700 bg-rose-50 border border-rose-200/80 px-1.5 py-0.2 rounded-md">
-                      <ShieldCheck className="w-3 h-3 text-rose-600" />
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-900/60 px-1.5 py-0.5 rounded-full">
+                      <ShieldCheck className="w-3 h-3 text-rose-600 dark:text-rose-400" />
                       <span>Female Solo</span>
                     </span>
                   )}
                   {femaleSafetyPriority && traveler.gender === 'female' && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 px-1.5 py-0.2 rounded-md shadow-xs">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 px-1.5 py-0.5 rounded-full shadow-xs">
                       <ShieldCheck className="w-3 h-3" />
-                      <span>Priority Match</span>
+                      <span>Priority</span>
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-slate-500 mt-0.5">
-                  From {traveler.homeCity} · {traveler.soloTripsCount} solo trips
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  {traveler.homeCity}, {traveler.country} · {traveler.soloTripsCount} solo trips
                 </div>
               </div>
             </div>
@@ -348,10 +365,10 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             <button
               type="button"
               onClick={() => onToggleStarTraveler(traveler.id)}
-              className={`p-2 rounded-lg border transition-colors cursor-pointer shrink-0 ${
+              className={`p-2 rounded-full border transition-all cursor-pointer shrink-0 hover:scale-110 ${
                 isStarred
-                  ? 'bg-amber-50 text-amber-600 border-amber-300'
-                  : 'bg-slate-50 text-slate-400 border-slate-200 hover:text-amber-500'
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-500 border-amber-300 dark:border-amber-800'
+                  : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 hover:text-amber-500'
               }`}
               title={isStarred ? 'Unstar companion' : 'Star companion'}
             >
@@ -359,66 +376,78 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             </button>
           </div>
 
-          {/* Trip Metadata (Destination, Scope, Dates, Overlap) */}
-          <div className="mt-3.5 space-y-2 text-xs">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 font-bold text-slate-950 text-sm">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>{trip.destination}</span>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                Scope: {trip.tripScope}
-              </span>
+          {/* Destination + Match score */}
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 font-bold text-slate-950 dark:text-slate-50 text-sm min-w-0">
+              <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              <span className="truncate">{trip.destination}</span>
             </div>
-
-            <div className="flex items-center justify-between gap-2 text-slate-600 flex-wrap">
-              <div className="flex items-center gap-1.5 font-mono text-[11px] tabular-nums">
-                <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>{trip.startDate} – {trip.endDate}</span>
-              </div>
-              <div className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                {matchScore}% Match · {overlapText}
-              </div>
-            </div>
-
-            {/* Headline Quote */}
-            <p className="mt-2 text-xs text-slate-700 italic leading-relaxed line-clamp-2">
-              "{trip.headline}"
-            </p>
-
-            {/* Shared Interests Badges */}
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {trip.interests.slice(0, 4).map((int) => {
-                const isShared = currentUser.interests.includes(int);
-                return (
-                  <span
-                    key={int}
-                    className={`px-2 py-0.5 text-[11px] font-medium rounded ${
-                      isShared
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {int}
-                  </span>
-                );
-              })}
-            </div>
-
-            {/* Traveler Pace & Trust stats */}
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Pace: {traveler.travelPace}</span>
-              <span className="font-mono tabular-nums">Budget: {traveler.budgetTier}</span>
-              <span className="font-semibold text-slate-700">★ {traveler.safetyRating} rating</span>
-            </div>
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold text-white bg-gradient-to-r ${scoreColor(matchScore)} shadow-sm shrink-0`}>
+              <Sparkles className="w-3 h-3" />
+              {matchScore}% Match
+            </span>
           </div>
+
+          {/* Dates, scope, overlap chips */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono tabular-nums">
+              <Calendar className="w-3 h-3 text-slate-400" />
+              {trip.startDate} – {trip.endDate}
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 font-semibold border border-violet-100 dark:border-violet-900/60">
+              {trip.tripScope}
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-100 dark:border-emerald-900/60">
+              {overlapText}
+            </span>
+          </div>
+
+          {/* Headline Quote */}
+          <p className="mt-3 text-xs text-slate-600 dark:text-slate-300 italic leading-relaxed line-clamp-2 border-l-2 border-rose-300 dark:border-rose-800 pl-2.5">
+            "{trip.headline}"
+          </p>
+
+          {/* Shared Interests Badges */}
+          <div className="flex flex-wrap gap-1.5 pt-3">
+            {trip.interests.slice(0, 4).map((int) => {
+              const isShared = currentUser.interests.includes(int);
+              return (
+                <span
+                  key={int}
+                  className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${
+                    isShared
+                      ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {isShared && '✓ '}{int}
+                </span>
+              );
+            })}
+          </div>
+
+          {/* Traveler Pace & Trust stats */}
+          <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+            <span>Pace: <strong className="text-slate-700 dark:text-slate-200 font-semibold">{traveler.travelPace}</strong></span>
+            <span className="font-mono tabular-nums">{traveler.budgetTier}</span>
+            <span className="inline-flex items-center gap-0.5 font-semibold text-slate-700 dark:text-slate-200">
+              <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
+              {traveler.safetyRating}
+            </span>
+          </div>
+
+          {sharedInterests.length > 0 && (
+            <div className="mt-2 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+              ♥ {sharedInterests.length} shared interest{sharedInterests.length === 1 ? '' : 's'} with you
+            </div>
+          )}
         </div>
 
         {/* Card Action Footer */}
-        <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="px-5 pb-5 flex items-center justify-between gap-2">
           <button
             onClick={() => setActiveTravelerModal(traveler)}
-            className="text-xs font-medium text-slate-600 hover:text-slate-950 transition-colors cursor-pointer py-1"
+            className="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer py-1 underline-offset-2 hover:underline"
           >
             Bio & Trust
           </button>
@@ -426,15 +455,15 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => onOpenChatWithTraveler(traveler, trip.destination)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-xs"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-slate-600" />
+              <MessageSquare className="w-3.5 h-3.5" />
               <span>Message</span>
             </button>
 
             <button
               onClick={() => handleOpenConnect(trip, traveler)}
-              className="inline-flex items-center gap-1 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1 px-3.5 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 hover:shadow-md transition-all cursor-pointer shadow-xs"
             >
               <span>Connect</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -448,27 +477,47 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
   return (
     <div className="space-y-10">
       {/* 1. Cohesive Search Panel (Matching Explore Page) */}
-      <section className="bg-white border border-slate-200 rounded-xl p-6 sm:p-7 shadow-xs space-y-5">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-md mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Companion Search & Filter</span>
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+        {/* Gradient hero band */}
+        <div className="relative bg-gradient-to-br from-rose-500 via-orange-500 to-amber-400 p-6 sm:p-8 text-white overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -bottom-14 -left-8 w-52 h-52 rounded-full bg-white/10 blur-2xl" />
+          <div className="relative">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-white/15 backdrop-blur-sm border border-white/25 rounded-full mb-3">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Companion Search & Filter</span>
+            </div>
+            <h2 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight">
+              {getTranslation('matcherTitle')}
+            </h2>
+            <p className="text-sm text-white/85 mt-1.5 max-w-2xl leading-relaxed">
+              {getTranslation('matcherSub')}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-semibold">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20">
+                <Users className="w-3 h-3" />
+                {baseFilteredTrips.length} travelers available
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20">
+                <Star className="w-3 h-3 fill-amber-300 text-amber-300" />
+                {starredCount} saved by you
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20">
+                <ShieldCheck className="w-3 h-3" />
+                Verified & vouched community
+              </span>
+            </div>
           </div>
-          <h2 className="font-display text-2xl font-bold text-slate-950 tracking-tight">
-            {getTranslation('matcherTitle')}
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5 max-w-2xl">
-            {getTranslation('matcherSub')}
-          </p>
         </div>
 
+        <div className="p-6 sm:p-7 space-y-5">
         {/* Search Panel Form */}
-        <form onSubmit={handleSearchSubmit} className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5">
+        <form onSubmit={handleSearchSubmit} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-5">
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
             {/* Destination Selector (Categorized into Continents with Search Bar on top) */}
             <div className="sm:col-span-4">
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-rose-500" />
                 <span>Destination (By Continent)</span>
               </label>
               <DestinationSelector
@@ -482,14 +531,14 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
 
             {/* Travel Scope Selector */}
             <div className="sm:col-span-3">
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                <Compass className="w-3.5 h-3.5 text-slate-400" />
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
+                <Compass className="w-3.5 h-3.5 text-rose-500" />
                 <span>Travel Scope</span>
               </label>
               <select
                 value={inputScope}
                 onChange={(e) => setInputScope(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium h-[38px]"
+                className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium h-[38px]"
               >
                 {SCOPE_OPTIONS.map((s) => (
                   <option key={s} value={s}>
@@ -501,14 +550,14 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
 
             {/* Shared Interest Selector */}
             <div className="sm:col-span-3">
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                <Users className="w-3.5 h-3.5 text-slate-400" />
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
+                <Users className="w-3.5 h-3.5 text-rose-500" />
                 <span>Shared Interest</span>
               </label>
               <select
                 value={inputInterest}
                 onChange={(e) => setInputInterest(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium h-[38px]"
+                className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium h-[38px]"
               >
                 {INTEREST_OPTIONS.map((i) => (
                   <option key={i} value={i}>
@@ -522,7 +571,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             <div className="sm:col-span-2">
               <button
                 type="submit"
-                className="w-full py-2 px-3 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1.5 h-[38px]"
+                className="w-full py-2 px-3 text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-lg hover:brightness-105 hover:shadow-md transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5 h-[38px]"
               >
                 <Search className="w-4 h-4" />
                 <span>Search</span>
@@ -531,8 +580,8 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
           </div>
 
           {/* Female Companions Only Filter Switch (For Protecting Females Travelling & Meeting Abroad) */}
-          <div className="mt-3.5 pt-3 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <label className="inline-flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs hover:border-rose-300 transition-colors">
+          <div className="mt-3.5 pt-3 border-t border-slate-200/60 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <label className="inline-flex items-center gap-2 cursor-pointer bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs hover:border-rose-300 transition-colors">
               <input
                 type="checkbox"
                 checked={femaleOnly}
@@ -541,10 +590,10 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
               />
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-rose-600" />
-                <span className="font-semibold text-slate-900">
+                <span className="font-semibold text-slate-900 dark:text-slate-100">
                   Female Companions Only Filter
                 </span>
-                <span className="text-[10px] text-rose-700 bg-rose-50 px-2 py-0.2 rounded-full font-medium">
+                <span className="text-[10px] text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded-full font-medium">
                   Women Safety Protection
                 </span>
               </div>
@@ -552,7 +601,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
 
             {/* Quick Destination Pill Tags */}
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-slate-500 font-medium text-[11px]">Quick:</span>
+              <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Quick:</span>
               {['All Destinations', 'Kyoto, Japan', 'Dubrovnik, Croatia', 'Amalfi Coast, Italy'].map((dest) => (
                 <button
                   key={dest}
@@ -565,10 +614,10 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                       resultsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }, 50);
                   }}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
                     selectedDestination === dest
-                      ? 'bg-slate-900 text-white font-bold'
-                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                      ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white font-bold shadow-2xs'
+                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-rose-300 dark:hover:border-rose-800'
                   }`}
                 >
                   {dest}
@@ -580,11 +629,11 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
 
         {/* Segmented View Switcher: All vs Saved Site */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs">
             <button
               onClick={() => setViewSavedOnly(false)}
               className={`px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                !viewSavedOnly ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-950'
+                !viewSavedOnly ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-slate-50 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-100'
               }`}
             >
               All Companions ({baseFilteredTrips.length})
@@ -592,7 +641,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             <button
               onClick={() => setViewSavedOnly(true)}
               className={`px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-                viewSavedOnly ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-950'
+                viewSavedOnly ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-slate-50 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-100'
               }`}
             >
               <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
@@ -600,13 +649,14 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             </button>
           </div>
 
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             {selectedDestination !== 'All Destinations' ? (
               <span>Filtering for: <strong>{selectedDestination}</strong></span>
             ) : (
               <span>Showing all destinations</span>
             )}
           </div>
+        </div>
         </div>
       </section>
 
@@ -615,8 +665,8 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
         {/* VIEW 1: Starred / Saved Companions View */}
         {viewSavedOnly ? (
           <div className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
                 <span>Your Saved Travel Companions ({starredCount})</span>
               </div>
@@ -629,10 +679,10 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             </div>
 
             {baseFilteredTrips.length === 0 ? (
-              <div className="p-12 text-center bg-white border border-slate-200 rounded-xl">
+              <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
                 <Star className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <h3 className="text-base font-semibold text-slate-900">No starred companions found</h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">No starred companions found</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
                   {selectedDestination !== 'All Destinations'
                     ? `You haven't starred any companions for ${selectedDestination} yet.`
                     : 'Tap the star icon on any travel companion card to save them here for quick access.'}
@@ -649,17 +699,17 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             {/* CATEGORY 1: Companions Matching Your Itinerary & Upcoming Trips */}
             {itineraryMatchedTrips.length > 0 && (
               <section className="space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
                   <div>
-                    <h3 className="font-display font-bold text-lg text-slate-950 flex items-center gap-2">
+                    <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50 flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-emerald-600" />
                       <span>Companions Matching Your Itinerary & Upcoming Trips</span>
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       Travelers heading to the exact destinations and dates you have planned in your schedule.
                     </p>
                   </div>
-                  <span className="text-xs font-mono tabular-nums text-slate-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md font-semibold">
+                  <span className="text-xs font-mono tabular-nums text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60 px-2.5 py-1 rounded-full font-semibold">
                     {sortedItineraryMatches.length} Direct Matches
                   </span>
                 </div>
@@ -672,24 +722,24 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
 
             {/* CATEGORY 2: Potential Travel Companions */}
             <section className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
                 <div>
-                  <h3 className="font-display font-bold text-lg text-slate-950">
+                  <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
                     {selectedDestination !== 'All Destinations'
                       ? `Potential Travel Companions in ${selectedDestination}`
                       : 'All Potential Solo Travel Companions'}
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     Browse verified solo travelers ready to coordinate activities, share transit, or travel together.
                   </p>
                 </div>
-                <span className="text-xs font-mono tabular-nums text-slate-600">
+                <span className="text-xs font-mono tabular-nums text-slate-600 dark:text-slate-400">
                   {sortedOtherTrips.length} Available
                 </span>
               </div>
 
               {otherPotentialTrips.length === 0 ? (
-                <div className="p-8 text-center bg-white border border-slate-200 rounded-xl text-xs text-slate-500">
+                <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-500 dark:text-slate-400">
                   {itineraryMatchedTrips.length > 0
                     ? 'All matching travelers for this destination are listed in the itinerary match section above.'
                     : 'No companions currently found for this filter. Try selecting "All Destinations" or post your own trip.'}
@@ -707,7 +757,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
       {/* Traveler Detail Modal */}
       {activeTravelerModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-slate-200 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setActiveTravelerModal(null)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
@@ -724,7 +774,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-display font-bold text-lg text-slate-950">
+                  <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
                     {activeTravelerModal.name}
                   </h3>
                   <button
@@ -734,7 +784,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                     <Star className={`w-4 h-4 ${activeTravelerModal.isStarred ? 'fill-current' : ''}`} />
                   </button>
                 </div>
-                <div className="text-xs text-slate-500 mt-0.5">
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   <span>{activeTravelerModal.age} years old</span>
                   <span className="mx-1.5">·</span>
                   <span>{activeTravelerModal.homeCity}, {activeTravelerModal.country}</span>
@@ -747,17 +797,17 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                 <div className="text-[11px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">
                   Solo Travel Philosophy
                 </div>
-                <p className="text-slate-700 leading-relaxed text-sm">
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-sm">
                   {activeTravelerModal.bio}
                 </p>
               </div>
 
               {/* Trust & Safety Attributes */}
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-                <div className="text-[11px] font-semibold text-slate-700">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg space-y-2">
+                <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
                   Trust & Safety Profile
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-slate-600">
+                <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-slate-300">
                   <div>• {activeTravelerModal.soloTripsCount} verified solo journeys</div>
                   <div>• {activeTravelerModal.vouchedByCount} companion vouches</div>
                   <div>• Emergency contact on file</div>
@@ -769,7 +819,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                 <div className="text-[11px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">
                   Languages
                 </div>
-                <div className="text-slate-700 font-medium">
+                <div className="text-slate-700 dark:text-slate-300 font-medium">
                   {activeTravelerModal.languages.join(' · ')}
                 </div>
               </div>
@@ -778,16 +828,16 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                 <div className="text-[11px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">
                   Interests
                 </div>
-                <div className="text-slate-700 font-medium">
+                <div className="text-slate-700 dark:text-slate-300 font-medium">
                   {activeTravelerModal.interests.join(' · ')}
                 </div>
               </div>
 
               {/* Reviews & Ratings Section */}
-              <div className="pt-4 border-t border-slate-200 space-y-3">
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-display font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                    <h4 className="font-display font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                       <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
                       <span>Companion Reviews & Rating</span>
                       <span className="text-xs font-mono font-semibold text-slate-700">
@@ -806,7 +856,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                     activeTravelerModal.reviews.map((rev) => (
                       <div
                         key={rev.id}
-                        className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5"
+                        className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-1.5"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
@@ -815,7 +865,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                               alt={rev.reviewerName}
                               className="w-6 h-6 rounded-full object-cover border border-slate-300"
                             />
-                            <span className="font-semibold text-slate-900 text-xs">
+                            <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs">
                               {rev.reviewerName}
                             </span>
                             <span className="text-[10px] text-slate-400">
@@ -833,7 +883,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                           </div>
                         </div>
 
-                        <p className="text-slate-700 leading-relaxed text-[11px]">
+                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-[11px]">
                           "{rev.comment}"
                         </p>
                         <div className="text-[10px] text-slate-400 font-mono">
@@ -842,15 +892,15 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                       </div>
                     ))
                   ) : (
-                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-center text-[11px] text-slate-500">
+                    <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-center text-[11px] text-slate-500 dark:text-slate-400">
                       No reviews yet for {activeTravelerModal.name.split(' ')[0]}. Be the first to leave a 5-star review!
                     </div>
                   )}
                 </div>
 
                 {/* Rate & Leave Review Form */}
-                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2.5 mt-3">
-                  <div className="font-semibold text-xs text-slate-900 flex items-center justify-between">
+                <div className="p-3.5 bg-slate-50/80 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5 mt-3">
+                  <div className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center justify-between">
                     <span>Rate {activeTravelerModal.name.split(' ')[0]} & Leave a Review:</span>
                     {reviewSuccess && (
                       <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded flex items-center gap-1">
@@ -862,7 +912,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
 
                   {/* 5-Star Clickable Selector */}
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-600">Your Rating:</span>
+                    <span className="text-[11px] text-slate-600 dark:text-slate-400">Your Rating:</span>
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
@@ -877,7 +927,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                         </button>
                       ))}
                     </div>
-                    <span className="font-mono text-xs font-bold text-slate-700">
+                    <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
                       {reviewRating}.0 / 5.0
                     </span>
                   </div>
@@ -887,7 +937,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                     placeholder="Destination traveled together (e.g. Kyoto, Japan)..."
                     value={reviewDest}
                     onChange={(e) => setReviewDest(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md text-slate-900"
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-slate-900 dark:text-slate-100"
                   />
 
                   <textarea
@@ -895,7 +945,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                     placeholder={`How was your experience traveling with ${activeTravelerModal.name.split(' ')[0]}? Was the companion punctual, respectful, fun to travel with?`}
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-md text-slate-900 leading-relaxed resize-none"
+                    className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-slate-900 dark:text-slate-100 leading-relaxed resize-none"
                   />
 
                   <button
@@ -937,7 +987,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                       setTimeout(() => setReviewSuccess(false), 3000);
                     }}
                     disabled={!reviewComment.trim()}
-                    className="w-full py-1.5 px-3 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    className="w-full py-1.5 px-3 bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-lg text-xs font-semibold hover:brightness-105 disabled:opacity-40 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>Submit 5-Star Review</span>
@@ -946,10 +996,10 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-200 flex justify-end gap-3">
+            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
               <button
                 onClick={() => setActiveTravelerModal(null)}
-                className="px-4 py-2 text-xs font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               >
                 Close
               </button>
@@ -961,7 +1011,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
       {/* Connect Modal & AI Icebreaker Assistant */}
       {connectModalData && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-slate-200 max-w-xl w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-xl w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => {
                 setConnectModalData(null);
@@ -972,14 +1022,14 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
               ✕
             </button>
 
-            <div className="border-b border-slate-200 pb-4">
-              <div className="text-xs text-slate-500 font-medium">
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                 Trip to {connectModalData.trip.destination} · Scope: {connectModalData.trip.tripScope}
               </div>
-              <h3 className="font-display font-bold text-lg text-slate-950 mt-1">
+              <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50 mt-1">
                 Reach out to {connectModalData.traveler.name}
               </h3>
-              <p className="text-xs text-slate-600 mt-1">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 Propose traveling together for the same trip or exploring key activities together to split costs.
               </p>
             </div>
@@ -987,17 +1037,17 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
             {/* AI Generated Icebreaker Starters */}
             <div className="mt-5 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-slate-900" />
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-rose-500" />
                   Suggested Message Starters:
                 </span>
-                <span className="text-[11px] text-slate-500">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
                   Select to use in chat
                 </span>
               </div>
 
               {connectModalData.loadingIcebreakers ? (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 animate-pulse">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-500 dark:text-slate-400 animate-pulse">
                   Synthesizing conversation starters based on destination and shared interests...
                 </div>
               ) : (
@@ -1005,7 +1055,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                   {connectModalData.icebreakers.map((starter, idx) => (
                     <div
                       key={idx}
-                      className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 hover:border-slate-400 transition-colors flex items-start justify-between gap-3"
+                      className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 hover:border-rose-300 dark:hover:border-rose-800 transition-colors flex items-start justify-between gap-3"
                     >
                       <p className="leading-relaxed italic">"{starter}"</p>
                       <button
@@ -1016,7 +1066,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                           );
                           setConnectModalData(null);
                         }}
-                        className="px-2.5 py-1 text-[11px] font-medium text-slate-900 bg-white border border-slate-300 rounded hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
+                        className="px-2.5 py-1 text-[11px] font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded hover:brightness-105 transition-all shrink-0 cursor-pointer"
                       >
                         Send in Chat
                       </button>
@@ -1026,13 +1076,13 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
               )}
 
               {/* AI Shared Trip Plan Preview */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-900">
+                    <h4 className="text-xs font-semibold text-slate-900 dark:text-slate-100">
                       Preview Suggested Joint Itinerary
                     </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                       Explore activities you can experience together.
                     </p>
                   </div>
@@ -1044,7 +1094,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                       )
                     }
                     disabled={aiItinerary.loading}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-md hover:bg-slate-800 disabled:opacity-50 transition-colors cursor-pointer shrink-0"
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-md hover:brightness-105 disabled:opacity-50 transition-all cursor-pointer shrink-0"
                   >
                     {aiItinerary.loading ? 'Planning...' : 'Generate Plan'}
                   </button>
@@ -1052,20 +1102,20 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
 
                 {/* Render Itinerary Results */}
                 {aiItinerary.data && (
-                  <div className="mt-4 pt-3 border-t border-slate-200 space-y-3">
-                    <div className="text-xs font-bold text-slate-900">
+                  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
                       {aiItinerary.data.title}
                     </div>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
                       {aiItinerary.data.summary}
                     </p>
                     <div className="space-y-2 mt-2">
                       {aiItinerary.data.days.map((d: any, i: number) => (
-                        <div key={i} className="p-2.5 bg-white border border-slate-200 rounded text-xs space-y-1">
-                          <div className="font-semibold text-slate-900">{d.day}</div>
-                          <div className="text-slate-600"><strong>Morning:</strong> {d.morning}</div>
-                          <div className="text-slate-500"><strong>Afternoon:</strong> {d.afternoon}</div>
-                          <div className="text-slate-600"><strong>Evening:</strong> {d.evening}</div>
+                        <div key={i} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs space-y-1">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">{d.day}</div>
+                          <div className="text-slate-600 dark:text-slate-300"><strong>Morning:</strong> {d.morning}</div>
+                          <div className="text-slate-500 dark:text-slate-400"><strong>Afternoon:</strong> {d.afternoon}</div>
+                          <div className="text-slate-600 dark:text-slate-300"><strong>Evening:</strong> {d.evening}</div>
                           <div className="text-emerald-700 font-mono text-[11px]">{d.sharedCostEstimate}</div>
                         </div>
                       ))}
@@ -1075,13 +1125,13 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between">
+            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
               <button
                 onClick={() => {
                   onViewActivitiesForDestination(connectModalData.trip.destination);
                   setConnectModalData(null);
                 }}
-                className="text-xs font-medium text-slate-600 hover:text-slate-950 underline cursor-pointer"
+                className="text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-100 underline cursor-pointer"
               >
                 Browse shared activities in {connectModalData.trip.destination.split(',')[0]}
               </button>
@@ -1093,7 +1143,7 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                   );
                   setConnectModalData(null);
                 }}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-md hover:bg-slate-800 transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-md hover:brightness-105 transition-all cursor-pointer"
               >
                 Open Direct Chat
               </button>

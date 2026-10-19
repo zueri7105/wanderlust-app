@@ -4,15 +4,13 @@ import {
   MessageSquare,
   Send,
   Star,
-  Users,
-  Calendar,
   MapPin,
   Sparkles,
   Search,
-  CheckCheck,
-  Plus,
   Check,
-  HeartHandshake
+  HeartHandshake,
+  ShieldCheck,
+  Smile
 } from 'lucide-react';
 import { playAudioAlert, getTranslation } from '../utils/i18n';
 import { getAppSettings } from '../utils/settings';
@@ -36,6 +34,17 @@ const QUICK_STARTERS = [
   'What days are you planning to be in town?',
   'Looking for a dinner companion to try local specialties!'
 ];
+
+const AVATAR_GRADIENTS = [
+  'from-rose-500 to-orange-400',
+  'from-violet-500 to-fuchsia-400',
+  'from-sky-500 to-cyan-400',
+  'from-emerald-500 to-teal-400',
+  'from-amber-500 to-yellow-400',
+  'from-indigo-500 to-blue-400'
+];
+
+const avatarGradient = (name: string) => AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
 
 export const MessagesView: React.FC<MessagesViewProps> = ({
   chats,
@@ -111,7 +120,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
     if (!selectedTraveler) return;
     const dest = selectedTraveler.currentDestination?.split(',')[0] || 'our trip';
     const proposalText = `🤝 Companion Buddy Confirmation Proposal: Let's officially confirm as travel companion buddies for ${dest}! This links our shared split-cost expenses and confirmed itinerary.`;
-    
+
     onSendMessage(selectedTraveler.id, proposalText);
 
     // Companion automatically accepts within 1.5 seconds to complete two-sided confirmation!
@@ -152,56 +161,74 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
     ? trips.find((tr) => tr.travelerId === selectedTraveler.id)
     : undefined;
 
+  const activeChatCount = Object.keys(chats).filter((k) => (chats[k] || []).length > 0).length;
+
   return (
     <div className="space-y-6">
-      {/* Header Overview */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <div>
-          <h2 className="font-display text-2xl font-bold text-slate-900 tracking-tight">
-            {getTranslation('messagesTitle')}
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {getTranslation('messagesSub')}
-          </p>
-        </div>
+      {/* Header Hero */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 via-orange-500 to-amber-400 text-white p-6 sm:p-8 shadow-sm">
+        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute -bottom-16 -left-10 w-56 h-56 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-white/15 backdrop-blur-sm border border-white/25 rounded-full mb-3">
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Direct Companion Messaging</span>
+            </div>
+            <h2 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight">
+              {getTranslation('messagesTitle')}
+            </h2>
+            <p className="text-sm text-white/85 mt-1.5 max-w-2xl leading-relaxed">
+              {getTranslation('messagesSub')}
+            </p>
+            <div className="mt-3.5 flex flex-wrap gap-2 text-[11px] font-semibold">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                {activeChatCount} active conversation{activeChatCount === 1 ? '' : 's'}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20">
+                <ShieldCheck className="w-3 h-3" />
+                Verified solo travelers
+              </span>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2 text-xs">
           <button
             onClick={() => setFilterStarredOnly(!filterStarredOnly)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-medium transition-colors cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-xs font-bold transition-all cursor-pointer self-start sm:self-auto ${
               filterStarredOnly
-                ? 'bg-amber-50 text-amber-900 border-amber-300'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                ? 'bg-white text-amber-600 border-white shadow-md'
+                : 'bg-white/15 backdrop-blur-sm text-white border-white/25 hover:bg-white/25'
             }`}
           >
-            <Star className={`w-3.5 h-3.5 ${filterStarredOnly ? 'fill-amber-400 text-amber-500' : 'text-slate-400'}`} />
+            <Star className={`w-3.5 h-3.5 ${filterStarredOnly ? 'fill-amber-400 text-amber-500' : ''}`} />
             <span>Starred Only</span>
           </button>
         </div>
       </div>
 
       {/* Main Chat Container: 2-column layout */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs grid grid-cols-1 md:grid-cols-12 min-h-[640px]">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-12 min-h-[640px]">
         {/* Left Column: Companion Conversations List */}
-        <div className="md:col-span-5 lg:col-span-4 border-r border-slate-200 flex flex-col bg-slate-50/50">
+        <div className="md:col-span-5 lg:col-span-4 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/60 dark:bg-slate-950/40">
           {/* Search bar inside left column */}
-          <div className="p-3.5 border-b border-slate-200 bg-white space-y-2">
+          <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search companions or destination..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-md bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 text-slate-900"
+                className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 dark:border-slate-700 rounded-full bg-slate-100 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-900 dark:text-slate-100 transition-colors"
               />
             </div>
           </div>
 
           {/* Conversations Scrollable List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {filteredTravelers.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500">
+              <div className="p-8 text-center text-xs text-slate-500 dark:text-slate-400">
                 No companions found matching your criteria.
               </div>
             ) : (
@@ -214,25 +241,26 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                   <div
                     key={traveler.id}
                     onClick={() => onSelectTraveler(traveler.id)}
-                    className={`p-3.5 flex items-start gap-3 cursor-pointer transition-colors relative ${
+                    className={`p-3 flex items-start gap-3 cursor-pointer rounded-xl transition-all ${
                       isSelected
-                        ? 'bg-white border-l-3 border-l-slate-900 shadow-xs'
-                        : 'hover:bg-slate-100/70'
+                        ? 'bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-950/40 dark:to-orange-950/30 border border-rose-200 dark:border-rose-900/60 shadow-xs'
+                        : 'hover:bg-white dark:hover:bg-slate-800/60 border border-transparent'
                     }`}
                   >
                     <div className="relative shrink-0">
                       <img
                         src={traveler.avatar}
                         alt={traveler.name}
-                        className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                        referrerPolicy="no-referrer"
+                        className={`w-11 h-11 rounded-full object-cover ring-2 ${isSelected ? 'ring-rose-300 dark:ring-rose-800' : 'ring-white dark:ring-slate-800'} shadow-sm`}
                       />
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5 truncate">
-                          <span className="text-xs font-semibold text-slate-900 truncate">
+                          <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
                             {traveler.name}
                           </span>
                           {traveler.isStarred && (
@@ -246,11 +274,12 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                         )}
                       </div>
 
-                      <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                      <div className="text-[11px] text-rose-600 dark:text-rose-400 font-medium truncate mt-0.5 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 shrink-0" />
                         {traveler.currentDestination}
                       </div>
 
-                      <p className="text-[11px] text-slate-600 truncate mt-1">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-1">
                         {lastMsg ? lastMsg.text : 'No messages yet. Tap to start chatting!'}
                       </p>
                     </div>
@@ -263,27 +292,31 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
 
         {/* Right Column: Active Conversation Pane */}
         {selectedTraveler ? (
-          <div className="md:col-span-7 lg:col-span-8 flex flex-col h-[640px] bg-white">
+          <div className="md:col-span-7 lg:col-span-8 flex flex-col h-[640px] bg-slate-50/40 dark:bg-slate-950/20">
             {/* Companion Header Bar */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between gap-4 bg-slate-50/70">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 bg-white dark:bg-slate-900">
               <div className="flex items-center gap-3 min-w-0">
-                <img
-                  src={selectedTraveler.avatar}
-                  alt={selectedTraveler.name}
-                  className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
-                />
+                <div className="relative shrink-0">
+                  <img
+                    src={selectedTraveler.avatar}
+                    alt={selectedTraveler.name}
+                    referrerPolicy="no-referrer"
+                    className={`w-11 h-11 rounded-full object-cover ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 ring-rose-300 dark:ring-rose-800`}
+                  />
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
+                </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm text-slate-900 truncate">
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
                       {selectedTraveler.name}
                     </h3>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
                       ({selectedTraveler.country})
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-slate-600 truncate">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 truncate">
+                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     <span className="truncate">{selectedTraveler.currentDestination}</span>
                     {selectedTrip && (
                       <>
@@ -300,28 +333,28 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
               {/* Actions */}
               <div className="flex items-center gap-2 shrink-0">
                 {selectedTraveler.isConfirmedBuddy ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-lg shadow-2xs">
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Confirmed Buddy 🤝</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60 rounded-full shadow-2xs">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Buddy 🤝</span>
                   </span>
                 ) : (
                   <button
                     type="button"
                     onClick={handleProposeBuddy}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-full hover:brightness-105 hover:shadow-md transition-all shadow-2xs cursor-pointer"
                     title="Send a mutual companion buddy confirmation"
                   >
-                    <HeartHandshake className="w-3.5 h-3.5 text-amber-400" />
+                    <HeartHandshake className="w-3.5 h-3.5" />
                     <span>Confirm Buddy</span>
                   </button>
                 )}
 
                 <button
                   onClick={() => onToggleStarTraveler(selectedTraveler.id)}
-                  className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+                  className={`p-2 rounded-full border transition-all cursor-pointer hover:scale-110 ${
                     selectedTraveler.isStarred
-                      ? 'bg-amber-50 text-amber-600 border-amber-300'
-                      : 'bg-white text-slate-400 border-slate-200 hover:text-amber-500'
+                      ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-500 border-amber-300 dark:border-amber-800'
+                      : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 hover:text-amber-500'
                   }`}
                   title={selectedTraveler.isStarred ? 'Unstar companion' : 'Star companion'}
                 >
@@ -331,7 +364,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                 {selectedTrip && (
                   <button
                     onClick={() => onGoToItinerary(selectedTrip.destination)}
-                    className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                    className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full hover:border-rose-300 dark:hover:border-rose-800 transition-colors cursor-pointer"
                   >
                     <span>Trip Itinerary</span>
                   </button>
@@ -340,26 +373,26 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             </div>
 
             {/* Safety & Meeting Advice Banner */}
-            <div className="px-4 py-2 bg-slate-100/70 border-b border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
+            <div className="px-4 py-2 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border-b border-amber-100 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-300 flex items-center justify-between">
               <span>
                 💡 Public daylight meetups recommended. Coordinate excursions and cost-splits safely.
               </span>
-              <span className="font-mono text-emerald-800 font-semibold">
+              <span className="font-mono font-semibold hidden sm:inline">
                 {selectedTraveler.isConfirmedBuddy ? 'Official Companion Buddy' : 'Verified Solo Traveler'}
               </span>
             </div>
 
             {/* Chat Messages Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/20">
+            <div className="flex-1 overflow-y-auto p-4 space-y-1">
               {currentMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
-                    <MessageSquare className="w-6 h-6" />
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center text-white mb-3 shadow-lg shadow-rose-500/30">
+                    <Smile className="w-7 h-7" />
                   </div>
-                  <h4 className="text-sm font-semibold text-slate-900">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                     Start a conversation with {selectedTraveler.name}
                   </h4>
-                  <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
                     Say hello, compare dates for {selectedTraveler.currentDestination}, or suggest splitting an activity.
                   </p>
                 </div>
@@ -371,16 +404,16 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
 
                   if (isProposal) {
                     return (
-                      <div key={msg.id} className="w-full my-2 flex justify-center">
-                        <div className="max-w-md w-full bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 p-3.5 rounded-xl shadow-xs text-xs space-y-2">
-                          <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
-                            <HeartHandshake className="w-4 h-4 text-amber-600" />
+                      <div key={msg.id} className="w-full my-3 flex justify-center">
+                        <div className="max-w-md w-full bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30 border border-amber-200/80 dark:border-amber-900/60 p-4 rounded-2xl shadow-xs text-xs space-y-2">
+                          <div className="flex items-center gap-2 text-amber-900 dark:text-amber-300 font-bold text-xs">
+                            <HeartHandshake className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                             <span>Two-Sided Companion Buddy Proposal</span>
                           </div>
-                          <p className="text-slate-700 leading-relaxed text-[11px]">
+                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-[11px]">
                             {msg.text}
                           </p>
-                          <div className="text-[10px] text-amber-700 font-medium">
+                          <div className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
                             • Once accepted, {selectedTraveler.name} is added to your confirmed split expense payer names.
                           </div>
                         </div>
@@ -390,16 +423,16 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
 
                   if (isAccepted) {
                     return (
-                      <div key={msg.id} className="w-full my-2 flex justify-center">
-                        <div className="max-w-md w-full bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl shadow-xs text-xs space-y-1.5">
-                          <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
-                            <Check className="w-4 h-4 text-emerald-600" />
+                      <div key={msg.id} className="w-full my-3 flex justify-center">
+                        <div className="max-w-md w-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 p-4 rounded-2xl shadow-xs text-xs space-y-1.5">
+                          <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300 font-bold text-xs">
+                            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             <span>Official Companion Buddy Confirmed!</span>
                           </div>
-                          <p className="text-emerald-800 leading-relaxed text-[11px]">
+                          <p className="text-emerald-800 dark:text-emerald-200 leading-relaxed text-[11px]">
                             {msg.text}
                           </p>
-                          <div className="text-[10px] text-emerald-600 font-mono font-medium">
+                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium">
                             ✓ Synced to Trip Cost Split Ledger & Payer dropdown
                           </div>
                         </div>
@@ -410,25 +443,29 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                   return (
                     <div
                       key={msg.id}
-                      className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                      className={`flex items-end gap-2 mb-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
                     >
-                      <div className="flex items-center gap-1.5 mb-1 px-1">
-                        <span className="text-[10px] text-slate-500 font-medium">
-                          {isMe ? 'You' : selectedTraveler.name}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
+                      {!isMe && (
+                        <img
+                          src={selectedTraveler.avatar}
+                          alt={selectedTraveler.name}
+                          referrerPolicy="no-referrer"
+                          className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 shrink-0 mb-4"
+                        />
+                      )}
+                      <div className={`flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
+                        <div
+                          className={`px-4 py-2.5 text-xs leading-relaxed shadow-xs ${
+                            isMe
+                              ? 'bg-gradient-to-br from-rose-500 to-orange-500 text-white rounded-2xl rounded-br-md'
+                              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-2xl rounded-bl-md'
+                          }`}
+                        >
+                          {msg.text}
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono mt-1 px-1">
                           {msg.timestamp}
                         </span>
-                      </div>
-
-                      <div
-                        className={`max-w-md px-3.5 py-2.5 rounded-xl text-xs leading-relaxed shadow-xs ${
-                          isMe
-                            ? 'bg-slate-900 text-white rounded-br-xs'
-                            : 'bg-white border border-slate-200 text-slate-900 rounded-bl-xs'
-                        }`}
-                      >
-                        {msg.text}
                       </div>
                     </div>
                   );
@@ -437,13 +474,20 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
 
               {/* Typing indicator */}
               {isTyping && (
-                <div className="flex items-center gap-2 text-xs text-slate-400 italic">
-                  <div className="flex space-x-1">
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]" />
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+                <div className="flex items-end gap-2 mb-3">
+                  <img
+                    src={selectedTraveler.avatar}
+                    alt={selectedTraveler.name}
+                    referrerPolicy="no-referrer"
+                    className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 shrink-0"
+                  />
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-bl-md px-4 py-3 shadow-xs">
+                    <div className="flex space-x-1">
+                      <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
+                      <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                      <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+                    </div>
                   </div>
-                  <span>{selectedTraveler.name} is typing...</span>
                 </div>
               )}
 
@@ -451,8 +495,8 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             </div>
 
             {/* Quick Starters / Suggested Prompts */}
-            <div className="px-4 py-2 border-t border-slate-100 bg-white overflow-x-auto flex items-center gap-1.5 scrollbar-none">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+            <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-x-auto flex items-center gap-1.5 scrollbar-none">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-amber-500" />
                 Quick:
               </span>
@@ -461,7 +505,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                   key={idx}
                   type="button"
                   onClick={() => handleSend(prompt)}
-                  className="px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full whitespace-nowrap transition-colors cursor-pointer shrink-0"
+                  className="px-3 py-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 border border-transparent hover:border-rose-200 dark:hover:border-rose-900/60 rounded-full whitespace-nowrap transition-all cursor-pointer shrink-0"
                 >
                   {prompt}
                 </button>
@@ -469,7 +513,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
             </div>
 
             {/* Text Input Bar */}
-            <div className="p-3.5 border-t border-slate-200 bg-white">
+            <div className="p-3.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -477,25 +521,27 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="flex-1 px-3.5 py-2.5 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="flex-1 px-4 py-2.5 text-xs border border-slate-300 dark:border-slate-700 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white dark:focus:bg-slate-800 transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => handleSend()}
                   disabled={!inputText.trim()}
-                  className="px-4 py-2.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
+                  className="w-10 h-10 rounded-full text-white bg-gradient-to-br from-rose-500 to-orange-500 hover:brightness-105 hover:shadow-lg hover:shadow-rose-500/30 disabled:opacity-40 disabled:hover:shadow-none transition-all cursor-pointer shrink-0 flex items-center justify-center"
+                  title="Send message"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send</span>
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
             </div>
           </div>
         ) : (
-          <div className="md:col-span-7 lg:col-span-8 flex flex-col items-center justify-center text-center p-12 bg-white">
-            <MessageSquare className="w-10 h-10 text-slate-300 mb-3" />
-            <h3 className="text-base font-semibold text-slate-900">No companion selected</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm">
+          <div className="md:col-span-7 lg:col-span-8 flex flex-col items-center justify-center text-center p-12 bg-white dark:bg-slate-900">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center text-white mb-3 shadow-lg shadow-rose-500/30">
+              <MessageSquare className="w-7 h-7" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">No companion selected</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
               Select a traveler from the left to view messages or start a new conversation.
             </p>
           </div>

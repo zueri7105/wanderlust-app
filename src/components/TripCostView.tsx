@@ -227,17 +227,19 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
   // Search input for world currencies in Add Currency Modal
   const [currencySearch, setCurrencySearch] = useState('');
 
-  // Destination synchronization: derived from user's itineraries + explore trip posts + expenses!
-  const availableDestinations = Array.from(
+  // Destination choices follow the itineraries the user created (plus their own
+  // trip posts & recorded expenses). Sample destinations only appear as a
+  // fallback before the user has planned anything.
+  const userDestinations = Array.from(
     new Set([
       ...itineraries.map((it) => it.destination),
       ...trips.filter((tr) => tr.travelerId === currentUser.id).map((tr) => tr.destination),
       ...soloExpenses.map((e) => e.destination),
-      ...sharedExpenses.map((e) => e.destination),
-      'Kyoto, Japan',
-      'Dubrovnik, Croatia'
+      ...sharedExpenses.map((e) => e.destination)
     ].filter(Boolean))
   );
+  const availableDestinations =
+    userDestinations.length > 0 ? userDestinations : ['Kyoto, Japan', 'Dubrovnik, Croatia'];
 
   const defaultDest = availableDestinations[0] || (selectedDestination !== 'All Destinations' ? selectedDestination : 'Kyoto, Japan');
 
@@ -377,9 +379,9 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             </p>
           </div>
 
-          {/* Destination Filter Dropdown (Synced with Itinerary & Explore trips) */}
+          {/* Destination Filter Dropdown — choices follow the user's created itineraries */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">Destination:</span>
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Destination (from your itineraries):</span>
             <select
               value={filterDestination}
               onChange={(e) => setFilterDestination(e.target.value)}
@@ -1210,18 +1212,18 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Destination
+                    Destination (from your itineraries)
                   </label>
                   <select
                     value={soloDest}
                     onChange={(e) => setSoloDest(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
                   >
-                    <option value="Kyoto, Japan">Kyoto, Japan</option>
-                    <option value="Dubrovnik, Croatia">Dubrovnik, Croatia</option>
-                    <option value="Oaxaca, Mexico">Oaxaca, Mexico</option>
-                    <option value="Amalfi Coast, Italy">Amalfi Coast, Italy</option>
-                    <option value="Madrid & Seville, Spain">Madrid & Seville, Spain</option>
+                    {availableDestinations.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1359,6 +1361,23 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     <option value="Tickets & Passes">Tickets & Passes</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Destination (from your itineraries)
+                </label>
+                <select
+                  value={sharedDest}
+                  onChange={(e) => setSharedDest(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                >
+                  {availableDestinations.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
