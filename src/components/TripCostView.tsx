@@ -225,6 +225,9 @@ interface TripCostViewProps {
   selectedDestination: string;
   itineraries?: TravelItinerary[];
   trips?: TravelTrip[];
+  /** Pin the whole view to one trip's destination (trip detail page): hides the
+      destination filter and locks the expense forms to this destination */
+  lockedDestination?: string;
   onAddSoloExpense: (expense: Omit<SoloPersonalExpense, 'id'>) => void;
   onAddSharedExpense: (expense: Omit<ExpenseItem, 'id' | 'settled'>) => void;
   onToggleSharedSettled: (id: string) => void;
@@ -240,15 +243,16 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
   selectedDestination,
   itineraries = [],
   trips = [],
+  lockedDestination,
   onAddSoloExpense,
   onAddSharedExpense,
   onToggleSharedSettled,
   onDeleteSoloExpense,
   onDeleteSharedExpense
 }) => {
-  // Destination filter
+  // Destination filter — locked to the trip's destination on the trip detail page
   const [filterDestination, setFilterDestination] = useState(
-    selectedDestination !== 'All Destinations' ? selectedDestination : 'All'
+    lockedDestination || (selectedDestination !== 'All Destinations' ? selectedDestination : 'All')
   );
 
   // User-added custom currencies in Row 2 (max 6) — starts empty so first-time
@@ -400,7 +404,10 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
   const availableDestinations =
     userDestinations.length > 0 ? userDestinations : ['Kyoto, Japan', 'Dubrovnik, Croatia'];
 
-  const defaultDest = availableDestinations[0] || (selectedDestination !== 'All Destinations' ? selectedDestination : 'Kyoto, Japan');
+  const defaultDest =
+    lockedDestination ||
+    availableDestinations[0] ||
+    (selectedDestination !== 'All Destinations' ? selectedDestination : 'Kyoto, Japan');
 
   // Confirmed companion buddies
   const confirmedBuddies = travelers.filter((t) => t.isConfirmedBuddy && t.id !== currentUser.id);
@@ -429,20 +436,17 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
   const getTraveler = (id: string) => travelers.find((t) => t.id === id) || travelers[0];
 
-  // Filtered lists
-  const filteredSolo = soloExpenses.filter((exp) => {
-    if (filterDestination !== 'All' && exp.destination !== filterDestination) {
-      return false;
-    }
-    return true;
-  });
-
-  const filteredShared = sharedExpenses.filter((exp) => {
-    if (filterDestination !== 'All' && exp.destination !== filterDestination) {
-      return false;
-    }
-    return true;
-  });
+  // Filtered lists — in locked (trip detail) mode, match by destination prefix so
+  // expenses recorded as "Kyoto, Japan" or "Kyoto" both land on the Kyoto trip
+  const destMatch = (expDest: string): boolean => {
+    if (filterDestination === 'All') return true;
+    if (!lockedDestination) return expDest === filterDestination;
+    const a = (expDest || '').toLowerCase().split(',')[0].trim();
+    const b = (filterDestination || '').toLowerCase().split(',')[0].trim();
+    return !!a && !!b && (a === b || a.includes(b) || b.includes(a));
+  };
+  const filteredSolo = soloExpenses.filter((exp) => destMatch(exp.destination));
+  const filteredShared = sharedExpenses.filter((exp) => destMatch(exp.destination));
 
   // Sort shared receipts: UNSETTLED items at top, SETTLED items at bottom as requested!
   const sortedShared = [...filteredShared].sort((a, b) => {
@@ -531,21 +535,29 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
             <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
-              {getTranslation('costsTitle')}
+              {lockedDestination ? getTranslation('tripCostsTitle') : getTranslation('costsTitle')}
             </h2>
+            {lockedDestination && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 inline-flex items-center gap-1">
+                <MapPin className="w-3 h-3" />
+                {lockedDestination}
+              </p>
+            )}
           </div>
 
-          {/* Destination Filter — itinerary destinations + search any place in the world */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">Destination:</span>
-            <DestinationCombobox
-              value={filterDestination}
-              onChange={setFilterDestination}
-              suggestions={availableDestinations}
-              allowAll
-              compact
-            />
-          </div>
+          {/* Destination Filter — hidden when the view is locked to one trip */}
+          {!lockedDestination && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Destination:</span>
+              <DestinationCombobox
+                value={filterDestination}
+                onChange={setFilterDestination}
+                suggestions={availableDestinations}
+                allowAll
+                compact
+              />
+            </div>
+          )}
         </div>
 
         {/* Currency Basket Box: 2 rows of 6 currencies as requested */}
@@ -1312,11 +1324,18 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Destination
                   </label>
-                  <DestinationCombobox
-                    value={soloDest}
-                    onChange={setSoloDest}
-                    suggestions={availableDestinations}
-                  />
+                  {lockedDestination ? (
+                    <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm inline-flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                      {lockedDestination}
+                    </div>
+                  ) : (
+                    <DestinationCombobox
+                      value={soloDest}
+                      onChange={setSoloDest}
+                      suggestions={availableDestinations}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -1459,11 +1478,18 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Destination
                 </label>
-                <DestinationCombobox
-                  value={sharedDest}
-                  onChange={setSharedDest}
-                  suggestions={availableDestinations}
-                />
+                {lockedDestination ? (
+                  <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm inline-flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                    {lockedDestination}
+                  </div>
+                ) : (
+                  <DestinationCombobox
+                    value={sharedDest}
+                    onChange={setSharedDest}
+                    suggestions={availableDestinations}
+                  />
+                )}
               </div>
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">

@@ -70,6 +70,10 @@ interface ItineraryViewProps {
   onGoToExploreTrips?: (destination: string) => void;
   onGoToActivities?: (destination: string) => void;
   onOpenChatWithCompanion?: (travelerId: string) => void;
+  /** Trip detail mode: render just this trip, fully expanded (its own page) */
+  detailTripId?: string;
+  /** Card tap behaviour override — used on the Trips list to open the trip page */
+  onOpenTripDetail?: (itinerary: TravelItinerary) => void;
 }
 
 const COMMON_PURPOSES = [
@@ -467,14 +471,14 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onD
           {/* Timeline rail — a full-height gradient line under every day circle,
               fading as it descends. Every day gets one, including the last. */}
           <div className="relative flex flex-col items-center shrink-0 w-10 self-stretch">
-            <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-display font-extrabold text-sm shadow-md shadow-orange-500/30 shrink-0">
+            <div className="relative z-10 w-10 h-10 rounded-full bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 flex items-center justify-center font-display font-extrabold text-sm shadow-md shrink-0">
               {day.dayNumber}
             </div>
             <div
               className="flex-1 w-[3px] rounded-full mt-1"
               style={{
                 background:
-                  'linear-gradient(to bottom, rgba(251,113,133,0.95), rgba(251,146,60,0.55), rgba(254,205,170,0.12))'
+                  'linear-gradient(to bottom, rgba(28,25,23,0.85), rgba(120,113,108,0.4), rgba(214,211,209,0.12))'
               }}
             />
           </div>
@@ -654,12 +658,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   onDeleteItinerary,
   onGoToCompanions,
   onGoToExploreTrips,
-  onGoToActivities
+  onGoToActivities,
+  detailTripId,
+  onOpenTripDetail
 }) => {
   // Sort itineraries top to bottom by earlier start date
-  const sortedItineraries = [...itineraries].sort(
-    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-  );
+  const sortedItineraries = (detailTripId
+    ? itineraries.filter((it) => it.id === detailTripId)
+    : [...itineraries]
+  ).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   // ── Trip costs — fold the old Trip Costs data into each trip card ──────
   // An expense belongs to a trip when its destination's first segment matches.
@@ -687,8 +694,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     itineraries.map((it) => (it.country || it.destination.split(',').pop() || '').trim().toLowerCase()).filter(Boolean)
   ).size;
 
-  // Do not automatically expand any trip box on open; only expand when tapped as requested
-  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+  // Do not automatically expand any trip box on open; only expand when tapped as
+  // requested — except in trip detail mode, where the one trip is always expanded
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>(
+    detailTripId ? { [detailTripId]: true } : {}
+  );
+  useEffect(() => {
+    if (detailTripId) setExpandedIds((prev) => ({ ...prev, [detailTripId]: true }));
+  }, [detailTripId]);
 
   // Track checked packing items per itinerary
   const [checkedPackingItems, setCheckedPackingItems] = useState<Record<string, boolean>>(() => {
@@ -1452,7 +1465,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
   return (
     <div className="space-y-10">
-      {/* ── Studio header: editorial greeting + command-bar creation ────── */}
+      {/* ── Studio header: editorial greeting + command-bar creation (list view only) ── */}
+      {!detailTripId && (
       <div className="space-y-7">
         <div className="max-w-2xl">
           <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-lime-600 dark:text-lime-400 mb-2.5">
@@ -1578,7 +1592,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         </div>
       </div>
 
+      )}
+
       {/* My trips */}
+      {!detailTripId && (
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
           {getTranslation('myTripsTitle')}
@@ -1587,6 +1604,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           {sortedItineraries.length}
         </span>
       </div>
+      )}
 
       {/* Itinerary Boxes Stacked Top to Bottom Sorted by Earlier Start Date */}
       {sortedItineraries.length === 0 ? (
@@ -1598,7 +1616,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           </p>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="mt-4 inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg cursor-pointer"
+            className="mt-4 inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{getTranslation('createItineraryBox')}</span>
@@ -1643,16 +1661,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
               >
                 {/* Trip Itinerary Box Header (Clickable to Expand / Collapse) */}
                 <div
-                  onClick={() =>
+                  onClick={() => {
+                    if (!detailTripId && onOpenTripDetail) {
+                      onOpenTripDetail(itinerary);
+                      return;
+                    }
                     setExpandedIds((prev) => ({
                       ...prev,
                       [itinerary.id]: !prev[itinerary.id]
-                    }))
-                  }
+                    }));
+                  }}
                   className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer bg-gradient-to-r from-stone-100/80 via-stone-50/50 to-transparent dark:from-stone-800/40 dark:via-stone-800/20 dark:to-transparent hover:from-stone-100 dark:hover:from-stone-800/60 transition-colors border-b border-slate-100 dark:border-slate-800"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex flex-col items-center justify-center shrink-0 shadow-xs shadow-emerald-500/30">
+                    <div className="w-11 h-11 rounded-xl bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 flex flex-col items-center justify-center shrink-0 shadow-xs">
                       <span className="text-[10px] font-bold uppercase font-mono tracking-wider">
                         {itinerary.days.length}
                       </span>
@@ -1800,7 +1822,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     {/* Want-to-go pool (圆周旅迹 待规划地点): stash places now, assign to a day slot later */}
                     <div className="bg-gradient-to-br from-emerald-50/80 to-teal-50/60 dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-200/70 dark:border-emerald-900/50 rounded-xl p-4 sm:p-5 space-y-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <div className="w-7 h-7 rounded-lg bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 flex items-center justify-center shrink-0 shadow-xs">
                           <BookmarkPlus className="w-3.5 h-3.5" />
                         </div>
                         <div>
@@ -1832,7 +1854,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         <button
                           type="button"
                           onClick={() => handleAddWishlistPlace(itinerary)}
-                          className="inline-flex items-center gap-1 px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:brightness-105 cursor-pointer shadow-xs shrink-0"
+                          className="inline-flex items-center gap-1 px-3.5 py-2 text-xs font-bold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:scale-[1.03] cursor-pointer shadow-xs shrink-0 transition-all"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>{getTranslation('addBtn')}</span>
@@ -1915,7 +1937,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             }
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg cursor-pointer shadow-xs transition-colors ${
                               routeMapOpenFor === itinerary.id
-                                ? 'text-white bg-emerald-600 hover:brightness-105'
+                                ? 'bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 hover:scale-[1.03] transition-all'
                                 : 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
                             }`}
                             title={getTranslation('routeMapTitle')}
@@ -1926,7 +1948,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           <button
                             type="button"
                             onClick={() => handleOpenEditTrip(itinerary)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-rose-600 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:scale-[1.03] cursor-pointer shadow-xs transition-all"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             <span>{getTranslation('editTrip')}</span>
@@ -1960,7 +1982,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 sm:p-7 space-y-6 shadow-xs">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center font-bold text-xs">
+                            <div className="w-8 h-8 rounded-lg bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 flex items-center justify-center font-bold text-xs">
                               <BookOpen className="w-4 h-4" />
                             </div>
                             <div>
@@ -2191,7 +2213,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                     <button
                                       type="button"
                                       onClick={() => handleAddChecklistItem(itinerary.id, defaultItems)}
-                                      className="px-2.5 py-1.5 text-xs font-semibold text-white bg-rose-600 rounded-md hover:brightness-105 transition-colors cursor-pointer shrink-0"
+                                      className="px-2.5 py-1.5 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-xl hover:scale-[1.03] transition-all cursor-pointer shrink-0"
                                     >
                                       {getTranslation('addBtn')}
                                     </button>

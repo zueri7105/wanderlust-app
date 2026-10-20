@@ -865,16 +865,16 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
       {/* Header */}
       {!embedded && (
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-200 dark:border-stone-800">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-gradient-to-r from-rose-100 to-orange-100 dark:from-rose-950/50 dark:to-orange-950/50 text-rose-700 dark:text-rose-300 rounded-full mb-2 border border-rose-200/60 dark:border-rose-800/40">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-lime-100 dark:bg-lime-950/50 text-lime-800 dark:text-lime-300 rounded-full mb-2 border border-lime-300/70 dark:border-lime-800/40">
             <Globe className="w-3.5 h-3.5" />
             <span>Nomad Radar & Scratchpad</span>
           </div>
-          <h2 className="font-display text-2xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
+          <h2 className="font-display text-2xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
             {getTranslation('mapTitle')}
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-stone-500 dark:text-stone-400 mt-0.5">
             {getTranslation('mapSub')}
           </p>
         </div>
@@ -883,7 +883,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           <button
             type="button"
             onClick={handleShareLocation}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl transition-colors cursor-pointer shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-stone-800 dark:text-stone-200 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 rounded-2xl transition-colors cursor-pointer shadow-xs"
           >
             <Share2 className="w-3.5 h-3.5 text-rose-500" />
             <span>{shareCopied ? 'Location Copied!' : getTranslation('shareLocation')}</span>
@@ -901,7 +901,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               setSelectedItineraryId('');
               setIsAddMemoryModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 rounded-xl hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-lg shadow-orange-500/25"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg"
           >
             <Plus className="w-4 h-4" />
             <span>{getTranslation('recordMemory')}</span>
@@ -911,23 +911,23 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
       )}
 
       {/* Map Card — wraps inline; in full-screen mode the map overlays escape the card */}
-      <div className={isMapFullscreen ? 'contents' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm'}>
+      <div className={isMapFullscreen ? 'contents' : 'bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl overflow-hidden shadow-sm'}>
         {/* Map Top Bar: live counter + layer toggles (hidden in full-screen — controls float on the map) */}
         {!isMapFullscreen && (
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-rose-50/70 via-orange-50/50 to-amber-50/70 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+        <div className="p-4 border-b border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
             </span>
-            <span className="font-semibold text-slate-900 dark:text-slate-100">
+            <span className="font-semibold text-stone-900 dark:text-stone-100">
               {getTranslation('liveRadar')}: {visibleTravelerPins.length} of {MAP_TRAVELER_PINS.length} Travellers Shown
             </span>
           </div>
 
           {/* My View — filter which traveler pins I see */}
           <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-semibold">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-0.5">My view:</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mr-0.5">My view:</span>
             {([
               ['all', 'All travelers'],
               ['nearby', `People nearby (≤${NEARBY_RADIUS_KM.toLocaleString()} km)`],
@@ -940,7 +940,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 className={`px-2 py-1 rounded-full border transition-all cursor-pointer ${
                   travelerView === val
                     ? 'bg-rose-600 border-rose-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-rose-300'
+                    : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:border-rose-300'
                 }`}
                 title={`Filter traveler pins: ${label}`}
               >
@@ -953,7 +953,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-semibold">
             {([
               ['travelers', 'bg-rose-500', 'Travellers'],
-              ['hotspots', 'bg-slate-900', 'City Buzz'],
+              ['hotspots', 'bg-stone-900', 'City Buzz'],
               ['current', 'bg-emerald-500', 'Current'],
               ['visited', 'bg-sky-600', 'Visited'],
               ['dream', 'bg-amber-500', 'Dream Next']
@@ -963,14 +963,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 onClick={() => setPinLayers((p) => ({ ...p, [key]: !p[key] }))}
                 className={`flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all cursor-pointer ${
                   pinLayers[key]
-                    ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-400 line-through'
+                    ? 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 shadow-xs'
+                    : 'bg-stone-100 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-stone-400 line-through'
                 }`}
                 title={`Show / hide ${label} pins`}
               >
                 <span className={`w-2 h-2 rounded-full ${dotClass} ${pinLayers[key] ? '' : 'opacity-30'}`} />
                 {label}
-                {pinLayers[key] ? <Eye className="w-3 h-3 text-slate-400" /> : <EyeOff className="w-3 h-3 text-slate-400" />}
+                {pinLayers[key] ? <Eye className="w-3 h-3 text-stone-400" /> : <EyeOff className="w-3 h-3 text-stone-400" />}
               </button>
             ))}
             {/* Journal droplet pins toggle */}
@@ -979,14 +979,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               onClick={() => setMemoryDropletsOn((v) => !v)}
               className={`flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all cursor-pointer ${
                 memoryDropletsOn
-                  ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-400 line-through'
+                  ? 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 shadow-xs'
+                  : 'bg-stone-100 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-stone-400 line-through'
               }`}
               title="Show journal memories as water-droplet photo pins on the map"
             >
               <MapPin className={`w-3 h-3 ${memoryDropletsOn ? 'text-rose-500' : 'opacity-30'}`} />
               Droplets
-              {memoryDropletsOn ? <Eye className="w-3 h-3 text-slate-400" /> : <EyeOff className="w-3 h-3 text-slate-400" />}
+              {memoryDropletsOn ? <Eye className="w-3 h-3 text-stone-400" /> : <EyeOff className="w-3 h-3 text-stone-400" />}
             </button>
           </div>
         </div>
@@ -1135,10 +1135,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
           {/* Full-screen controls row — compact layer toggles floating on the map */}
           {isMapFullscreen && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-xl text-[10px] font-semibold max-w-[calc(100vw-7rem)] overflow-x-auto">
+            <div className="absolute top-3 left-1/2 -transtone-x-1/2 z-[600] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-xl text-[10px] font-semibold max-w-[calc(100vw-7rem)] overflow-x-auto">
               {([
                 ['travelers', 'bg-rose-500', 'Travellers'],
-                ['hotspots', 'bg-slate-900', 'City Buzz'],
+                ['hotspots', 'bg-stone-900', 'City Buzz'],
                 ['current', 'bg-emerald-500', 'Current'],
                 ['visited', 'bg-sky-600', 'Visited'],
                 ['dream', 'bg-amber-500', 'Dream']
@@ -1148,7 +1148,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   type="button"
                   onClick={() => setPinLayers((p) => ({ ...p, [key]: !p[key] }))}
                   className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full whitespace-nowrap transition-all cursor-pointer ${
-                    pinLayers[key] ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 line-through'
+                    pinLayers[key] ? 'text-stone-700 dark:text-stone-200' : 'text-stone-400 line-through'
                   }`}
                   title={`Show / hide ${label} pins`}
                 >
@@ -1160,7 +1160,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 type="button"
                 onClick={() => setMemoryDropletsOn((v) => !v)}
                 className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full whitespace-nowrap transition-all cursor-pointer ${
-                  memoryDropletsOn ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 line-through'
+                  memoryDropletsOn ? 'text-stone-700 dark:text-stone-200' : 'text-stone-400 line-through'
                 }`}
                 title="Show journal memories as water-droplet photo pins on the map"
               >
@@ -1172,7 +1172,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
           {/* Zoom hint / level pill */}
           <div className="absolute top-3 left-3 z-[500] pointer-events-none">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/70 text-white text-[10px] font-bold backdrop-blur shadow-md">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-900/70 text-white text-[10px] font-bold backdrop-blur shadow-md">
               <LocateFixed className="w-3 h-3 text-emerald-300" />
               {mapZoom > 3
                 ? mapZoom > 3.5 && pinLayers.hotspots
@@ -1186,7 +1186,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           <button
             type="button"
             onClick={() => setIsMapFullscreen((v) => !v)}
-            className="absolute top-3 right-3 z-[600] w-8 h-8 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer transition-colors"
+            className="absolute top-3 right-3 z-[600] w-8 h-8 rounded-full bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-lg flex items-center justify-center text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer transition-colors"
             title={isMapFullscreen ? 'Exit full-screen map' : 'Open full-screen map'}
           >
             {isMapFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -1198,19 +1198,19 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setLegendCollapsed(false)}
-                className="w-8 h-8 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-lg flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer transition-colors"
+                className="w-8 h-8 rounded-full bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-lg flex items-center justify-center text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer transition-colors"
                 title="Show map legend"
               >
                 <Info className="w-4 h-4" />
               </button>
             ) : (
-              <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 shadow-lg space-y-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300 pointer-events-auto">
+              <div className="bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 rounded-2xl px-3 py-2 shadow-lg space-y-1 text-[10px] font-semibold text-stone-600 dark:text-stone-300 pointer-events-auto">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Map legend</div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-stone-400">Map legend</div>
                   <button
                     type="button"
                     onClick={() => setLegendCollapsed(true)}
-                    className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer -mr-0.5 p-0.5"
+                    className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer -mr-0.5 p-0.5"
                     title="Minimise legend"
                   >
                     <Minus className="w-3 h-3" />
@@ -1234,7 +1234,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 <span className="w-2 h-2 rounded-full ml-2" style={{ background: '#f59e0b', outline: '1.5px solid #0f172a' }} />
                 Dream city
               </div>
-              <div className="flex items-center gap-1.5 pt-0.5 border-t border-slate-200/70 dark:border-slate-700/70">
+              <div className="flex items-center gap-1.5 pt-0.5 border-t border-stone-200/70 dark:border-stone-700/70">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
                 Traveller pins
               </div>
@@ -1247,7 +1247,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             <button
               type="button"
               onClick={() => setIsJournalOpen(true)}
-              className="absolute bottom-28 sm:bottom-4 right-3 z-[600] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-slate-900/85 dark:bg-slate-800/95 backdrop-blur-md text-white text-[11px] font-bold shadow-xl border border-white/20 hover:bg-slate-900 active:scale-95 transition-all cursor-pointer"
+              className="absolute bottom-28 sm:bottom-4 right-3 z-[600] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-stone-900/85 dark:bg-stone-800/95 backdrop-blur-md text-white text-[11px] font-bold shadow-xl border border-white/20 hover:bg-stone-900 active:scale-95 transition-all cursor-pointer"
               title="Open your Memories Journal on the map"
             >
               <BookOpen className="w-3.5 h-3.5 text-amber-300" />
@@ -1258,14 +1258,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           {/* On-map Memories Journal — your saved places, right on the map.
               Tap any entry to fly to its city dot. Everything stays saved in your journal below. */}
           {isJournalOpen && (
-            <div className="absolute z-[600] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-2xl flex flex-col max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[55%] max-sm:rounded-t-2xl sm:top-3 sm:bottom-3 sm:right-3 sm:w-80 sm:rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <div className="absolute z-[600] bg-white/95 dark:bg-stone-900/95 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-2xl flex flex-col max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[55%] max-sm:rounded-t-2xl sm:top-3 sm:bottom-3 sm:right-3 sm:w-80 sm:rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-stone-100 dark:border-stone-800 shrink-0">
                 <div className="flex items-center gap-1.5">
                   <BookOpen className="w-4 h-4 text-rose-500" />
-                  <span className="font-display font-bold text-sm text-slate-900 dark:text-slate-100">
+                  <span className="font-display font-bold text-sm text-stone-900 dark:text-stone-100">
                     Memories Journal
                   </span>
-                  <span className="text-[10px] font-bold text-slate-400 font-mono">
+                  <span className="text-[10px] font-bold text-stone-400 font-mono">
                     {filteredMemories.length}/{memories.length}
                   </span>
                 </div>
@@ -1276,7 +1276,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
                       memoryDropletsOn
                         ? 'bg-rose-600 text-white shadow-xs'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                        : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400'
                     }`}
                     title="Show journal memories as water-droplet photo pins on the map"
                   >
@@ -1286,7 +1286,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsJournalOpen(false)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    className="p-1 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer"
                     title="Close journal"
                   >
                     <X className="w-4 h-4" />
@@ -1295,7 +1295,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               </div>
 
               {/* Status filter pills */}
-              <div className="flex items-center gap-1 px-3 py-2 border-b border-slate-100 dark:border-slate-800 overflow-x-auto shrink-0">
+              <div className="flex items-center gap-1 px-3 py-2 border-b border-stone-100 dark:border-stone-800 overflow-x-auto shrink-0">
                 {(['all', 'Visited', 'Current Location', 'Dream Next'] as const).map((filter) => (
                   <button
                     key={filter}
@@ -1304,7 +1304,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     className={`px-2 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer ${
                       activeFilter === filter
                         ? 'bg-rose-600 text-white shadow-xs'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200'
                     }`}
                   >
                     {filter === 'all' ? `All (${memories.length})` : filter.replace('Current Location', 'Current')}
@@ -1314,7 +1314,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
               <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
                 {filteredMemories.length === 0 ? (
-                  <div className="p-6 text-center text-[11px] text-slate-400">
+                  <div className="p-6 text-center text-[11px] text-stone-400">
                     No memories under this filter yet.
                   </div>
                 ) : (
@@ -1323,7 +1323,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     return (
                       <div
                         key={`j-${mem.id}`}
-                        className="group/j flex items-start gap-2.5 p-2 rounded-xl border border-slate-200/80 dark:border-slate-700/80 hover:border-rose-300 dark:hover:border-rose-700 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
+                        className="group/j flex items-start gap-2.5 p-2 rounded-2xl border border-stone-200/80 dark:border-stone-700/80 hover:border-rose-300 dark:hover:border-rose-700 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
                         onClick={() => flyToMemory(mem)}
                         title="Fly to this memory on the map"
                       >
@@ -1331,7 +1331,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                           src={thumb}
                           alt={mem.destination}
                           onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                          className="w-12 h-12 rounded-lg object-cover shrink-0 bg-slate-100 dark:bg-slate-800"
+                          className="w-12 h-12 rounded-lg object-cover shrink-0 bg-stone-100 dark:bg-stone-800"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
@@ -1339,12 +1339,12 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                               className="w-2 h-2 rounded-full shrink-0"
                               style={{ background: STATUS_STYLES[mem.status].dot }}
                             />
-                            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                            <span className="text-xs font-bold text-stone-900 dark:text-stone-100 truncate">
                               {mem.destination}, {mem.country}
                             </span>
                           </div>
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">{mem.date}</div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 leading-snug">
+                          <div className="text-[10px] text-stone-400 font-mono mt-0.5">{mem.date}</div>
+                          <p className="text-[11px] text-stone-500 dark:text-stone-400 line-clamp-2 mt-0.5 leading-snug">
                             {mem.memoryNote}
                           </p>
                         </div>
@@ -1354,7 +1354,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                             e.stopPropagation();
                             handleEditMemory(mem);
                           }}
-                          className="p-1 rounded-lg text-slate-300 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover/j:opacity-100 transition-opacity cursor-pointer shrink-0"
+                          className="p-1 rounded-lg text-stone-300 hover:text-stone-600 dark:hover:text-stone-300 opacity-0 group-hover/j:opacity-100 transition-opacity cursor-pointer shrink-0"
                           title="Edit this memory"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -1377,7 +1377,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   setSelectedItineraryId('');
                   setIsAddMemoryModalOpen(true);
                 }}
-                className="m-2.5 mt-0 shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold text-white bg-rose-600 rounded-xl hover:brightness-105 cursor-pointer"
+                className="m-2.5 mt-0 shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold text-white bg-rose-600 rounded-2xl hover:brightness-105 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Record a New Memory</span>
@@ -1386,18 +1386,18 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           )}
 
           {/* Active Pin Overlay Card (stays fixed, not zoomed) */}
-          <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-white/60 dark:border-slate-700 rounded-2xl p-3.5 shadow-2xl z-[500]">
+          <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-white/60 dark:border-stone-700 rounded-2xl p-3.5 shadow-2xl z-[500]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <img
                   src={activePinTraveler.avatar}
                   alt={activePinTraveler.name}
-                  className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900"
+                  className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-stone-900"
                   style={{ ['--tw-ring-color' as any]: activePinInfo.color }}
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 truncate">
-                    <span className="font-bold text-xs text-slate-900 dark:text-slate-50 truncate">
+                    <span className="font-bold text-xs text-stone-900 dark:text-stone-50 truncate">
                       {activePinInfo.isMe ? `You (${currentUser.name.split(' ')[0]})` : activePinTraveler.name}
                     </span>
                     {activePinInfo.isMe && (
@@ -1410,14 +1410,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                         className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
                           isActiveConfirmed
                             ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                            : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400'
                         }`}
                       >
                         {isActiveConfirmed ? 'Confirmed companion' : 'Current position only'}
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
+                  <div className="text-[11px] text-stone-500 dark:text-stone-400 flex items-center gap-1 mt-0.5 truncate">
                     <MapPin className="w-3 h-3 shrink-0" style={{ color: activePinInfo.color }} />
                     <span className="truncate">{activePinInfo.destination}</span>
                   </div>
@@ -1430,14 +1430,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setProfileTravelerId(activePinTraveler.id)}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                      className="px-3 py-1.5 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 rounded-2xl text-xs font-bold hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                     >
                       View Profile
                     </button>
                     <button
                       type="button"
                       onClick={() => onOpenChatWithTraveler(activePinTraveler, activePinInfo.destination)}
-                      className="px-3 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-md shadow-orange-500/25"
+                      className="px-3 py-1.5 bg-rose-600 text-white rounded-2xl text-xs font-bold hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-md shadow-orange-500/25"
                     >
                       Say Hello
                     </button>
@@ -1446,7 +1446,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onGoToItinerary(MY_DESTINATION)}
-                    className="px-3 py-1.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-xs font-bold hover:bg-slate-700 transition-colors cursor-pointer"
+                    className="px-3 py-1.5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl text-xs font-bold hover:bg-stone-700 transition-colors cursor-pointer"
                   >
                     My Itinerary
                   </button>
@@ -1456,7 +1456,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
             {/* Distance from you + privacy note */}
             {!activePinInfo.isMe && distanceKm !== null && (
-              <div className="mt-2.5 pt-2.5 border-t border-slate-200/70 dark:border-slate-700/70 flex items-center gap-2 flex-wrap">
+              <div className="mt-2.5 pt-2.5 border-t border-stone-200/70 dark:border-stone-700/70 flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 text-[10px] font-bold">
                   <Plane className="w-3 h-3" />
                   {formatDistance(distanceKm)} away from you
@@ -1465,7 +1465,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   {estimateFlightTime(distanceKm)}
                 </span>
                 {!isActiveConfirmed && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-semibold">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 text-[10px] font-semibold">
                     <ShieldCheck className="w-3 h-3" />
                     Visited & dream pins unlock after mutual confirmation
                   </span>
@@ -1477,8 +1477,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
         {/* Map privacy selector — OTHERS SEE ME: who can see my pins */}
         {!isMapFullscreen && (
-        <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-slate-50/60 dark:bg-slate-900">
-          <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
+        <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-stone-50/60 dark:bg-stone-900">
+          <span className="flex items-center gap-1.5 font-semibold text-stone-700 dark:text-stone-300">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             Others see me — who can see my Visited & Dream pins:
           </span>
@@ -1494,8 +1494,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 onClick={() => setMapPrivacy(val)}
                 className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
                   mapPrivacy === val
-                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 border-slate-900 dark:border-slate-100'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                    ? 'bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 border-stone-900 dark:border-stone-100'
+                    : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-stone-400'
                 }`}
               >
                 {label}
@@ -1517,17 +1517,17 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         />
       )}
 
-      {/* City Buzz — Nomad-Table-style "who's travelling where" leaderboard */}<div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+      {/* City Buzz — Nomad-Table-style "who's travelling where" leaderboard */}<div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-stone-500 uppercase tracking-wider mb-1">
               <Users className="w-3.5 h-3.5 text-rose-500" />
               <span>City Buzz · Live</span>
             </div>
-            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+            <h3 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
               Where Solo Travellers Are Right Now
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
               Tap a city to fly there on the map and see who's around.
             </p>
           </div>
@@ -1557,12 +1557,12 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 }}
                 className={`snap-start shrink-0 w-52 text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-gradient-to-br from-slate-900 to-slate-800 text-white border-slate-700 shadow-lg'
-                    : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-rose-300 dark:hover:border-rose-700'
+                    ? 'bg-gradient-to-br from-stone-900 to-stone-800 text-white border-stone-700 shadow-lg'
+                    : 'bg-stone-50 dark:bg-stone-800/60 border-stone-200 dark:border-stone-700 hover:border-rose-300 dark:hover:border-rose-700'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-amber-300' : 'text-slate-400'}`}>
+                  <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-amber-300' : 'text-stone-400'}`}>
                     #{rank + 1}
                   </span>
                   <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
@@ -1572,10 +1572,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     {h.count}
                   </span>
                 </div>
-                <div className={`mt-1.5 font-bold text-sm leading-tight truncate ${isActive ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
+                <div className={`mt-1.5 font-bold text-sm leading-tight truncate ${isActive ? 'text-white' : 'text-stone-900 dark:text-stone-100'}`}>
                   {h.label.split(',')[0]}
                 </div>
-                <div className={`text-[10px] truncate ${isActive ? 'text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                <div className={`text-[10px] truncate ${isActive ? 'text-stone-300' : 'text-stone-500 dark:text-stone-400'}`}>
                   {h.label.split(',').slice(1).join(',').trim()}
                 </div>
                 <div className={`mt-1.5 text-[10px] italic truncate ${isActive ? 'text-amber-200/90' : 'text-rose-500 dark:text-rose-400'}`}>
@@ -1590,11 +1590,11 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                           key={p.id}
                           src={t.avatar}
                           alt={t.name}
-                          className="w-5 h-5 rounded-full object-cover border-2 border-white dark:border-slate-800"
+                          className="w-5 h-5 rounded-full object-cover border-2 border-white dark:border-stone-800"
                         />
                       );
                     })}
-                    <span className={`pl-2.5 text-[9px] font-semibold ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                    <span className={`pl-2.5 text-[9px] font-semibold ${isActive ? 'text-stone-300' : 'text-stone-400'}`}>
                       on WanderLust
                     </span>
                   </div>
@@ -1609,16 +1609,16 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="font-display text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+            <h3 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
               {getTranslation('placesGone')}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
               {getTranslation('placesGoneSub')}
             </p>
           </div>
 
           {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs overflow-x-auto">
+          <div className="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-800 p-1 rounded-2xl text-xs overflow-x-auto">
             {(['all', 'Visited', 'Current Location', 'Dream Next'] as const).map((filter) => (
               <button
                 key={filter}
@@ -1627,7 +1627,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
                   activeFilter === filter
                     ? 'bg-rose-600 text-white shadow-md shadow-orange-500/25'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-100'
+                    : 'text-stone-600 dark:text-stone-400 hover:text-stone-950 dark:hover:text-stone-100'
                 }`}
               >
                 {filter === 'all' ? `All (${memories.length})` : filter}
@@ -1645,11 +1645,11 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             return (
               <div
                 key={mem.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col justify-between group"
+                className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-xl hover:-transtone-y-1 transition-all flex flex-col justify-between group"
               >
                 <div>
                   {/* Photo carousel — tap to open lightbox */}
-                  <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-orange-100 via-rose-100 to-amber-100 dark:from-slate-800 dark:to-slate-800">
+                  <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-orange-100 via-rose-100 to-amber-100 dark:from-stone-800 dark:to-stone-800">
                     <img
                       key={photos[idx]}
                       src={photos[idx]}
@@ -1666,7 +1666,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                           type="button"
                           aria-label="Previous photo"
                           onClick={() => stepPhoto(mem.id, photos.length, -1)}
-                          className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+                          className="absolute left-2 top-1/2 -transtone-y-1/2 w-7 h-7 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </button>
@@ -1674,13 +1674,13 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                           type="button"
                           aria-label="Next photo"
                           onClick={() => stepPhoto(mem.id, photos.length, 1)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+                          className="absolute right-2 top-1/2 -transtone-y-1/2 w-7 h-7 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
                         >
                           <ChevronRight className="w-4 h-4" />
                         </button>
 
                         {/* Dots */}
-                        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
+                        <div className="absolute bottom-2.5 left-1/2 -transtone-x-1/2 flex items-center gap-1 z-10">
                           {photos.map((_, i) => (
                             <button
                               key={i}
@@ -1696,7 +1696,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                       </>
                     )}
 
-                    <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                    <div className="absolute top-3 left-3 bg-stone-900/80 backdrop-blur-xs text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-rose-400" />
                       <span>{mem.destination}, {mem.country}</span>
                     </div>
@@ -1729,13 +1729,13 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                           rows={3}
                           value={editNoteText}
                           onChange={(e) => setEditNoteText(e.target.value)}
-                          className="w-full px-2.5 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 resize-y"
+                          className="w-full px-2.5 py-2 text-xs border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 resize-y"
                         />
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => setEditingNoteId(null)}
-                            className="px-2.5 py-1 text-[11px] text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-md cursor-pointer"
+                            className="px-2.5 py-1 text-[11px] text-stone-500 bg-stone-100 dark:bg-stone-800 rounded-md cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -1751,7 +1751,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                       </div>
                     ) : (
                       <div className="relative group/note">
-                        <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic pr-6">
+                        <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed italic pr-6">
                           "{mem.memoryNote}"
                         </p>
                         <button
@@ -1760,7 +1760,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                             setEditingNoteId(mem.id);
                             setEditNoteText(mem.memoryNote);
                           }}
-                          className="absolute top-0 right-0 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 opacity-0 group-hover/note:opacity-100 transition-opacity cursor-pointer"
+                          className="absolute top-0 right-0 p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 opacity-0 group-hover/note:opacity-100 transition-opacity cursor-pointer"
                           title="Edit this memory note"
                         >
                           <Pencil className="w-3 h-3" />
@@ -1770,9 +1770,9 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
                     {/* Companions Tagged (optional — each chip can be removed) */}
                     {mem.companionsTagged.length > 0 && (
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                          <Users className="w-3 h-3 text-slate-500" />
+                      <div className="pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider flex items-center gap-1">
+                          <Users className="w-3 h-3 text-stone-500" />
                           With:
                         </span>
                         {mem.companionsTagged.map((c) => (
@@ -1797,7 +1797,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 </div>
 
                 {/* Bottom Actions */}
-                <div className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                <div className="px-5 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-xs text-stone-500">
                   <button
                     type="button"
                     onClick={() => onGoToItinerary(`${mem.destination}, ${mem.country}`)}
@@ -1810,7 +1810,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     <button
                       type="button"
                       onClick={() => handleEditMemory(mem)}
-                      className="text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 p-1 transition-colors cursor-pointer"
+                      className="text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 p-1 transition-colors cursor-pointer"
                       title="Edit this memory (photos, companions, note...)"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -1818,7 +1818,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     <button
                       type="button"
                       onClick={() => handleShareMemory(mem)}
-                      className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
+                      className="text-stone-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
                       title="Share this memory"
                     >
                       <Share2 className="w-3.5 h-3.5" />
@@ -1826,7 +1826,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     <button
                       type="button"
                       onClick={() => handleDeleteMemory(mem.id)}
-                      className="text-slate-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                      className="text-stone-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
                       title="Remove memory"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -1842,7 +1842,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
       {/* Photo Lightbox — tap photo to pop up, zoom in/out, click outside to close */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-[1000] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[1000] bg-stone-950/90 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setLightbox(null)}
         >
           {/* Top bar */}
@@ -1886,7 +1886,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 type="button"
                 aria-label="Previous"
                 onClick={(e) => { e.stopPropagation(); lbStep(-1); }}
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
+                className="absolute left-3 top-1/2 -transtone-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -1894,7 +1894,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 type="button"
                 aria-label="Next"
                 onClick={(e) => { e.stopPropagation(); lbStep(1); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
+                className="absolute right-3 top-1/2 -transtone-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -1938,7 +1938,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             />
           </div>
 
-          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/60 text-[11px] pointer-events-none">
+          <p className="absolute bottom-4 left-1/2 -transtone-x-1/2 text-white/60 text-[11px] pointer-events-none">
             Scroll or double-tap to zoom · drag to pan · tap outside to close
           </p>
         </div>
@@ -1946,22 +1946,22 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
       {/* Record New Travel Memory Modal */}
       {isAddMemoryModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => {
                 setIsAddMemoryModalOpen(false);
                 setEditingMemoryId(null);
               }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 cursor-pointer"
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
+            <h3 className="font-display font-bold text-lg text-stone-950 dark:text-stone-50">
               {editingMemoryId ? 'Edit Travel Memory' : 'Record a Travel Memory'}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
               {editingMemoryId
                 ? 'Update the destination, photos, companions you traveled with, and your journal passage.'
                 : 'Add a place you have gone to, your companion buddies, photos, and personal memory notes.'}
@@ -1970,14 +1970,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             <form onSubmit={handleCreateMemory} className="mt-4 space-y-3.5 text-xs">
               {/* Generate journal from one of my itineraries */}
               {itineraries.length > 0 && !editingMemoryId && (
-                <div className="p-3 rounded-xl bg-gradient-to-r from-rose-50 to-orange-50 dark:from-rose-950/30 dark:to-orange-950/30 border border-rose-200/70 dark:border-rose-900/50">
+                <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700">
                   <label className="block font-semibold text-rose-800 dark:text-rose-300 mb-1.5">
                     Generate from my itinerary (optional)
                   </label>
                   <select
                     value={selectedItineraryId}
                     onChange={(e) => generateFromItinerary(e.target.value)}
-                    className="w-full px-3 py-2 border border-rose-200 dark:border-rose-900 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 border border-rose-200 dark:border-rose-900 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                   >
                     <option value="">— Fill in manually instead —</option>
                     {itineraries.map((it) => (
@@ -1995,7 +1995,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     City / Destination
                   </label>
                   <input
@@ -2004,12 +2004,12 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     placeholder="e.g. Kyoto or Dubrovnik"
                     value={newCity}
                     onChange={(e) => setNewCity(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Country
                   </label>
                   <input
@@ -2018,20 +2018,20 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     placeholder="e.g. Japan or Croatia"
                     value={newCountry}
                     onChange={(e) => setNewCountry(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Status
                   </label>
                   <select
                     value={newStatus}
                     onChange={(e) => setNewStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                   >
                     <option value="Visited">Visited</option>
                     <option value="Current Location">Current Location</option>
@@ -2040,7 +2040,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Date / Season
                   </label>
                   <input
@@ -2048,13 +2048,13 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                     placeholder="e.g. October 2026 or Summer 2026"
                     value={newDate}
                     onChange={(e) => setNewDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Companion(s) Tagged (optional)
                 </label>
                 {/* Removable chips for already-tagged companions */}
@@ -2083,19 +2083,19 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   placeholder="e.g. Kenji Sato, Sofia Morales — or leave blank if you traveled solo"
                   value={newTaggedCompanion}
                   onChange={(e) => setNewTaggedCompanion(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                 />
               </div>
 
               {/* Multi-photo inputs (up to 9) */}
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Photos (add up to 9)
                 </label>
                 <div className="space-y-2">
                   {newPhotos.map((url, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200 dark:border-slate-700">
+                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-800 shrink-0 border border-stone-200 dark:border-stone-700">
                         {url.trim() && (
                           <img
                             src={url}
@@ -2112,13 +2112,13 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                         onChange={(e) =>
                           setNewPhotos((prev) => prev.map((p, j) => (j === i ? e.target.value : p)))
                         }
-                        className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                        className="flex-1 px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                       />
                       <button
                         type="button"
                         disabled={newPhotos.length === 1}
                         onClick={() => setNewPhotos((prev) => prev.filter((_, j) => j !== i))}
-                        className="p-2 text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                        className="p-2 text-stone-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
                         title="Remove photo"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -2139,7 +2139,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Personal Travel Story & Memories
                 </label>
                 <textarea
@@ -2148,15 +2148,15 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   placeholder="What was the most memorable moment? The food, trails, cafes, or meeting fellow solo wanderers..."
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 resize-none"
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 resize-none"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2.5">
+              <div className="pt-3 border-t border-stone-200 dark:border-stone-700 flex justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setIsAddMemoryModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200"
+                  className="px-4 py-2 text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-lg hover:bg-stone-200"
                 >
                   Cancel
                 </button>

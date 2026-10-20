@@ -184,19 +184,19 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-200 dark:border-stone-800">
         <div>
-          <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
+          <h2 className="font-display text-2xl font-bold text-stone-900 dark:text-stone-50 tracking-tight">
             {getTranslation('activitiesTitle')}
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-stone-500 dark:text-stone-400 mt-0.5">
             {getTranslation('activitiesSub')}
           </p>
         </div>
 
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:brightness-105 transition-colors cursor-pointer shrink-0 self-start sm:self-auto shadow-xs"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:brightness-105 transition-colors cursor-pointer shrink-0 self-start sm:self-auto shadow-xs"
         >
           <Plus className="w-4 h-4" />
           <span>Propose Activity</span>
@@ -215,8 +215,8 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   onClick={() => setSelectedCategory('Hidden')}
                   className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
                     selectedCategory === 'Hidden'
-                      ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white font-semibold shadow-xs'
-                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                      ? 'bg-gradient-to-r from-stone-600 to-stone-800 text-white font-semibold shadow-xs'
+                      : 'bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300'
                   }`}
                   title="Activities you hid from your feed"
                 >
@@ -229,8 +229,8 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
                   selectedCategory === cat
-                    ? 'bg-rose-600 text-white font-semibold shadow-xs'
-                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    ? 'bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 font-semibold shadow-xs'
+                    : 'bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
                 }`}
               >
                 {cat}
@@ -258,12 +258,12 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
 
       {/* Activities Grid */}
       {filteredActivities.length === 0 ? (
-        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
-          <Users className="w-8 h-8 text-slate-400 mx-auto" />
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        <div className="p-12 text-center bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl space-y-3">
+          <Users className="w-8 h-8 text-stone-400 mx-auto" />
+          <h3 className="text-base font-semibold text-stone-900 dark:text-stone-100">
             {freeOnlyFilter ? 'No free activities currently found' : 'No shared activities found'}
           </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+          <p className="text-sm text-stone-500 dark:text-stone-400 max-w-md mx-auto">
             {freeOnlyFilter
               ? 'Try turning off the "Free Activities Only" filter or propose a free sunrise meetup yourself!'
               : 'Be the first solo traveller to propose an activity or road trip in this destination!'}
@@ -272,14 +272,14 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
             {freeOnlyFilter && (
               <button
                 onClick={() => setFreeOnlyFilter(false)}
-                className="px-3.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 cursor-pointer"
+                className="px-3.5 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-lg hover:bg-stone-200 cursor-pointer"
               >
                 Clear Free Filter
               </button>
             )}
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:brightness-105 cursor-pointer"
+              className="inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:brightness-105 cursor-pointer"
             >
               Propose First Activity
             </button>
@@ -300,13 +300,13 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
             return (
               <div
                 key={act.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between shadow-xs"
+                className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-5 hover:border-stone-300 dark:hover:border-stone-700 transition-all flex flex-col justify-between shadow-xs"
               >
                 <div>
                   {/* Top unboxed metadata line */}
-                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
+                  <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400 mb-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-semibold text-slate-900 dark:text-slate-100">{act.destination}</span>
+                      <span className="font-semibold text-stone-900 dark:text-stone-100">{act.destination}</span>
                       <span aria-hidden="true">·</span>
                       <span>{act.category}</span>
                     </div>
@@ -317,12 +317,12 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                           FREE
                         </span>
                       )}
-                      <span className="text-slate-700 dark:text-slate-300">{act.participantIds.length}/{act.maxCapacity} spots</span>
+                      <span className="text-stone-700 dark:text-stone-300">{act.participantIds.length}/{act.maxCapacity} spots</span>
                     </div>
                   </div>
 
                   {/* Title & Description */}
-                  <h3 className="font-display font-bold text-base text-slate-950 dark:text-slate-50 leading-snug">
+                  <h3 className="font-display font-bold text-base text-stone-950 dark:text-stone-50 leading-snug">
                     {act.title}
                   </h3>
 
@@ -332,44 +332,44 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                       <MapPin className="w-3 h-3 text-sky-500 shrink-0" />
                       {act.cities.map((city, i) => (
                         <React.Fragment key={city}>
-                          {i > 0 && <ArrowRight className="w-2.5 h-2.5 text-slate-400" />}
+                          {i > 0 && <ArrowRight className="w-2.5 h-2.5 text-stone-400" />}
                           <span className="text-[10px] font-semibold bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 px-1.5 py-0.5 rounded">
                             {city}
                           </span>
                         </React.Fragment>
                       ))}
-                      <span className="text-[10px] text-slate-400 italic">multi-city meetup</span>
+                      <span className="text-[10px] text-stone-400 italic">multi-city meetup</span>
                     </div>
                   )}
 
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+                  <p className="text-xs text-stone-600 dark:text-stone-400 mt-2 leading-relaxed">
                     {act.description}
                   </p>
 
                   {/* Logistics: Time & Safe Public Meetup */}
-                  <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 rounded-lg space-y-2 text-xs">
-                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <div className="mt-4 p-3 bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700 rounded-lg space-y-2 text-xs">
+                    <div className="flex items-center gap-2 text-stone-700 dark:text-stone-300">
+                      <Clock className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                       <span className="font-mono tabular-nums">
                         {act.date}
                         {act.endDate && act.endDate !== act.date && (
                           <>
-                            <span className="text-slate-400"> → </span>
+                            <span className="text-stone-400"> → </span>
                             {act.endDate}
                             <span className="ml-1 text-[10px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-1.5 py-0.5 rounded">
                               multi-day
                             </span>
                           </>
                         )}
-                        <span className="text-slate-400"> at </span>
+                        <span className="text-stone-400"> at </span>
                         {act.time}
                       </span>
                     </div>
-                    <div className="flex items-start gap-2 text-slate-700 dark:text-slate-300">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2 text-stone-700 dark:text-stone-300">
+                      <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
                       <div>
-                        <div className="font-medium text-slate-900 dark:text-slate-100">{act.locationName}</div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        <div className="font-medium text-stone-900 dark:text-stone-100">{act.locationName}</div>
+                        <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
                           Public Meeting Spot: {act.meetPointPublic}
                         </div>
                       </div>
@@ -377,11 +377,11 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   </div>
 
                   {/* Cost Split Details */}
-                  <div className="mt-3 flex items-center justify-between text-xs border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <div className="text-slate-500 dark:text-slate-400">
+                  <div className="mt-3 flex items-center justify-between text-xs border-t border-stone-100 dark:border-stone-800 pt-3">
+                    <div className="text-stone-500 dark:text-stone-400">
                       {act.estimatedCostTotal > 0 ? (
                         <span>
-                          Total: <strong className="font-mono tabular-nums text-slate-800 dark:text-slate-200">{act.currency} {act.estimatedCostTotal}</strong> (~{act.currency} {costPerPerson}/person)
+                          Total: <strong className="font-mono tabular-nums text-stone-800 dark:text-stone-200">{act.currency} {act.estimatedCostTotal}</strong> (~{act.currency} {costPerPerson}/person)
                         </span>
                       ) : (
                         <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Free to join / Individual self-pay for food</span>
@@ -389,7 +389,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                     </div>
                     <button
                       onClick={() => handleOpenSafetyGuide(act)}
-                      className="text-[11px] text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 underline cursor-pointer"
+                      className="text-[11px] text-stone-600 dark:text-stone-400 hover:text-stone-950 dark:hover:text-stone-200 underline cursor-pointer"
                     >
                       Safe Meetup Guide
                     </button>
@@ -410,7 +410,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                           />
                         ))}
                       </div>
-                      <span className="text-[11px] text-slate-500">
+                      <span className="text-[11px] text-stone-500">
                         Organised by {host.name.split(' ')[0]}
                       </span>
                     </div>
@@ -437,7 +437,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                         <button
                           type="button"
                           onClick={() => handleHideActivity(act.id)}
-                          className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-md transition-colors cursor-pointer"
                           title="Hide this post (find it again under the Hidden tab)"
                         >
                           <EyeOff className="w-3.5 h-3.5" />
@@ -451,7 +451,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                               onDeleteActivity(act.id);
                             }
                           }}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors cursor-pointer"
+                          className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors cursor-pointer"
                           title="Delete your activity post"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -462,12 +462,12 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                 </div>
 
                 {/* Action Row */}
-                <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                <div className="mt-5 pt-3 border-t border-stone-100 flex items-center justify-between gap-3">
                   <button
                     onClick={() => onOpenActivityChat(act.id)}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 hover:text-slate-950 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-700 hover:text-stone-950 cursor-pointer"
                   >
-                    <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                    <MessageSquare className="w-3.5 h-3.5 text-stone-500" />
                     <span>Activity Discussion</span>
                   </button>
 
@@ -475,7 +475,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                     {isJoined ? (
                       <button
                         onClick={() => onLeaveActivity(act.id)}
-                        className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors cursor-pointer"
+                        className="px-3 py-1.5 text-xs font-medium text-stone-600 bg-stone-100 rounded-md hover:bg-stone-200 transition-colors cursor-pointer"
                       >
                         Leave Activity
                       </button>
@@ -485,8 +485,8 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                         disabled={isFull}
                         className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
                           isFull
-                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                            : 'bg-slate-900 text-white hover:brightness-105'
+                            ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
+                            : 'bg-stone-900 text-white hover:brightness-105'
                         }`}
                       >
                         {isFull ? 'Activity Full' : 'Join Activity'}
@@ -502,52 +502,52 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
 
       {/* Safety Meetup Guide Modal */}
       {safetyModalData && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 shadow-xl relative">
+        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-stone-200 max-w-md w-full p-6 shadow-xl relative">
             <button
               onClick={() => setSafetyModalData(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer"
             >
               ✕
             </button>
 
-            <div className="flex items-center gap-2 mb-2 text-slate-900">
+            <div className="flex items-center gap-2 mb-2 text-stone-900">
               <ShieldAlert className="w-5 h-5 text-emerald-600" />
               <h3 className="font-display font-bold text-base">
                 Safe Public Rendezvous Protocol
               </h3>
             </div>
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-stone-600">
               For solo travelers meeting for "{safetyModalData.activity.title}" in {safetyModalData.activity.destination}:
             </p>
 
             {safetyModalData.loading ? (
-              <div className="my-6 p-4 bg-slate-50 border border-slate-200 rounded text-xs text-slate-500 animate-pulse">
+              <div className="my-6 p-4 bg-stone-50 border border-stone-200 rounded text-xs text-stone-500 animate-pulse">
                 Loading verified public rendezvous points and safety guidelines...
               </div>
             ) : (
               <div className="mt-4 space-y-3 text-xs">
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                  <div className="font-semibold text-slate-900">Recommended Public Point:</div>
-                  <div className="text-slate-700 mt-0.5">{safetyModalData.safePublicSpot}</div>
+                <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg">
+                  <div className="font-semibold text-stone-900">Recommended Public Point:</div>
+                  <div className="text-stone-700 mt-0.5">{safetyModalData.safePublicSpot}</div>
                 </div>
 
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                  <div className="font-semibold text-slate-900">Transit & Arrival Tip:</div>
-                  <div className="text-slate-700 mt-0.5">{safetyModalData.transitTip}</div>
+                <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg">
+                  <div className="font-semibold text-stone-900">Transit & Arrival Tip:</div>
+                  <div className="text-stone-700 mt-0.5">{safetyModalData.transitTip}</div>
                 </div>
 
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                  <div className="font-semibold text-slate-900">Solo Explorer Safety Rule:</div>
-                  <div className="text-slate-700 mt-0.5">{safetyModalData.soloTravelerPledge}</div>
+                <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg">
+                  <div className="font-semibold text-stone-900">Solo Explorer Safety Rule:</div>
+                  <div className="text-stone-700 mt-0.5">{safetyModalData.soloTravelerPledge}</div>
                 </div>
               </div>
             )}
 
-            <div className="mt-5 pt-3 border-t border-slate-200 flex justify-end">
+            <div className="mt-5 pt-3 border-t border-stone-200 flex justify-end">
               <button
                 onClick={() => setSafetyModalData(null)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-md hover:brightness-105 cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-white bg-stone-900 rounded-md hover:brightness-105 cursor-pointer"
               >
                 Understood
               </button>
@@ -558,25 +558,25 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
 
       {/* Propose Activity Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-slate-200 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-stone-200 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsCreateModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer"
             >
               ✕
             </button>
 
-            <h3 className="font-display font-bold text-lg text-slate-950">
+            <h3 className="font-display font-bold text-lg text-stone-950">
               Propose a Shared Activity
             </h3>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-stone-500 mt-1">
               Invite other solo travelers in your destination to join a hike, boat trip, road trip, or food tasting.
             </p>
 
             <form onSubmit={handleFormSubmit} className="mt-5 space-y-4 text-xs">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
+                <label className="block font-medium text-stone-700 mb-1">
                   Destination (multiple cities welcome)
                 </label>
                 <input
@@ -585,15 +585,15 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   placeholder="e.g. Kyoto, Osaka, Japan — list cities separated by commas, country last"
                   value={formDest}
                   onChange={(e) => setFormDest(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
+                <p className="text-[10px] text-stone-400 mt-1">
                   Single city is fine too (e.g. "Lisbon, Portugal"). Multi-city routes show as connected chips on the card.
                 </p>
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
+                <label className="block font-medium text-stone-700 mb-1">
                   Activity Title
                 </label>
                 <input
@@ -602,19 +602,19 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   placeholder="e.g. Sunrise Boat Rental to Capri Grottos"
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
+                  <label className="block font-medium text-stone-700 mb-1">
                     Category
                   </label>
                   <select
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900"
                   >
                     {ACTIVITY_CATEGORY_OPTIONS.map((cat) => (
                       <option key={cat} value={cat}>
@@ -625,7 +625,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
+                  <label className="block font-medium text-stone-700 mb-1">
                     Max Solo Participants
                   </label>
                   <input
@@ -634,14 +634,14 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                     max="8"
                     value={formMax}
                     onChange={(e) => setFormMax(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
+                  <label className="block font-medium text-stone-700 mb-1">
                     Start Date
                   </label>
                   <input
@@ -649,33 +649,33 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                     required
                     value={formDate}
                     onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
-                    End Date <span className="text-slate-400 font-normal">(optional — multi-day)</span>
+                  <label className="block font-medium text-stone-700 mb-1">
+                    End Date <span className="text-stone-400 font-normal">(optional — multi-day)</span>
                   </label>
                   <input
                     type="date"
                     min={formDate}
                     value={formEndDate}
                     onChange={(e) => setFormEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
+                <label className="block font-medium text-stone-700 mb-1">
                   Meetup Time — scroll to choose
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <select
                     value={formHour}
                     onChange={(e) => setFormHour(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
                   >
                     {HOUR_OPTIONS.map((h) => (
                       <option key={h} value={h}>
@@ -686,7 +686,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   <select
                     value={formMinute}
                     onChange={(e) => setFormMinute(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
                   >
                     {MINUTE_OPTIONS.map((m) => (
                       <option key={m} value={m}>
@@ -697,7 +697,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   <select
                     value={formAmPm}
                     onChange={(e) => setFormAmPm(e.target.value as 'AM' | 'PM')}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
                   >
                     <option value="AM">AM</option>
                     <option value="PM">PM</option>
@@ -706,7 +706,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
+                <label className="block font-medium text-stone-700 mb-1">
                   Location Name
                 </label>
                 <input
@@ -715,12 +715,12 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   placeholder="e.g. Marina Grande Pier 3"
                   value={formLoc}
                   onChange={(e) => setFormLoc(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
+                <label className="block font-medium text-stone-700 mb-1">
                   Public Rendezvous Spot (Safe Meetup)
                 </label>
                 <input
@@ -728,13 +728,13 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   placeholder="e.g. Outside Port Ticket Office in broad daylight"
                   value={formMeet}
                   onChange={(e) => setFormMeet(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
+                  <label className="block font-medium text-stone-700 mb-1">
                     Total Estimated Cost
                   </label>
                   <input
@@ -743,18 +743,18 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                     placeholder="Leave blank if free"
                     value={formCost}
                     onChange={(e) => setFormCost(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
+                  <label className="block font-medium text-stone-700 mb-1">
                     Currency
                   </label>
                   <select
                     value={formCurrency}
                     onChange={(e) => setFormCurrency(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900"
                   >
                     {WORLD_CURRENCIES.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -766,7 +766,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">
+                <label className="block font-medium text-stone-700 mb-1">
                   Activity Details & Vibe
                 </label>
                 <textarea
@@ -775,21 +775,21 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   placeholder="Describe the plan, what to bring, and why doing it together is great..."
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-3">
+              <div className="pt-3 border-t border-stone-200 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 cursor-pointer"
+                  className="px-4 py-2 text-xs font-medium text-stone-700 bg-stone-100 rounded-md hover:bg-stone-200 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-md hover:brightness-105 cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-stone-900 rounded-md hover:brightness-105 cursor-pointer"
                 >
                   Publish Activity
                 </button>

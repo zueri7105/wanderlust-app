@@ -309,12 +309,12 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
     <div className="space-y-8">
       {/* Pi-Travel-style hero (逛一逛) */}
       {!hideHero && (
-      <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 sm:-mt-10 px-4 sm:px-6 lg:px-8 pt-14 sm:pt-20 pb-10 bg-gradient-to-b from-sky-100/90 via-sky-50/60 to-transparent dark:from-sky-950/50 dark:via-slate-950/20">
+      <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 sm:-mt-10 px-4 sm:px-6 lg:px-8 pt-14 sm:pt-20 pb-10 bg-gradient-to-b from-stone-200/60 via-stone-100/40 to-transparent dark:from-stone-900/60 dark:via-stone-950/20">
         <div className="max-w-3xl mx-auto text-center space-y-3">
-          <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-slate-50">
+          <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50">
             {getTranslation('inspirationHeroTitle')}
           </h1>
-          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400">
+          <p className="text-sm sm:text-base text-stone-500 dark:text-stone-400">
             {getTranslation('inspirationHeroSub')}
           </p>
         </div>
@@ -327,7 +327,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
               type="button"
               onClick={() => onGoToDestination && onGoToDestination(d.name)}
               className={`group relative overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all text-left cursor-pointer ${
-                idx % 2 === 1 ? 'lg:translate-y-5' : ''
+                idx % 2 === 1 ? 'lg:transtone-y-5' : ''
               }`}
             >
               <img
@@ -335,7 +335,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 alt={d.name}
                 className="w-full h-40 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/10 to-transparent" />
               <div className="absolute bottom-0 inset-x-0 p-3">
                 <div className="text-[13px] font-bold text-white leading-snug drop-shadow">
                   {d.name}
@@ -352,16 +352,16 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
       )}
 
       {/* Header — minimal */}
-      <div className="pb-6 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="pb-6 border-b border-stone-200/80 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 mb-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-lime-600 dark:text-lime-400 flex items-center gap-1.5 mb-2">
             <BookOpen className="w-3.5 h-3.5" />
             Field Notes
           </p>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
             {getTranslation('storiesTitle')}
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-2xl">
+          <p className="text-sm text-stone-500 dark:text-stone-400 mt-1.5 max-w-2xl">
             {getTranslation('storiesSub')}
           </p>
         </div>
@@ -369,7 +369,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
         <button
           type="button"
           onClick={() => setIsWriteModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-lg hover:brightness-105 transition-colors shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-stone-900 dark:bg-stone-100 dark:text-stone-900 rounded-lg hover:brightness-105 transition-colors shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>{getTranslation('writeStory')}</span>
@@ -377,21 +377,21 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
       </div>
 
       {/* Search & Category Filter Bar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-xs space-y-3">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-4 shadow-xs space-y-3">
         {/* Search Input on Top as requested */}
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -transtone-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={getTranslation('searchArticles')}
-            className="w-full pl-9 pr-8 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="w-full pl-9 pr-8 py-2 text-xs border border-stone-300 dark:border-stone-700 rounded-lg bg-stone-50/50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-900"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+              className="absolute right-3 top-1/2 -transtone-y-1/2 text-stone-400 hover:text-stone-600 p-0.5 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -409,8 +409,8 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                   onClick={() => setSelectedCategory('Hidden Posts')}
                   className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer font-medium inline-flex items-center gap-1.5 ${
                     selectedCategory === 'Hidden Posts'
-                      ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white font-semibold shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200'
+                      ? 'bg-gradient-to-r from-stone-600 to-stone-800 text-white font-semibold shadow-xs'
+                      : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:bg-stone-200'
                   }`}
                   title="Posts you hid from your feed"
                 >
@@ -424,8 +424,8 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer font-medium ${
                   selectedCategory === cat
-                    ? 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white font-semibold shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                    ? 'bg-stone-900 dark:bg-stone-100 dark:text-stone-900 text-white font-semibold shadow-xs'
+                    : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200'
                 }`}
               >
                 {cat}
@@ -437,10 +437,10 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
 
       {/* Articles Grid */}
       {filteredArticles.length === 0 ? (
-        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
-          <BookOpen className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-          <h3 className="font-semibold text-slate-800 dark:text-slate-200">No matching articles found</h3>
-          <p className="text-xs text-slate-500 mt-1">Try another search keyword or clear the category filter.</p>
+        <div className="p-12 text-center bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl">
+          <BookOpen className="w-10 h-10 text-stone-400 mx-auto mb-2" />
+          <h3 className="font-semibold text-stone-800 dark:text-stone-200">No matching articles found</h3>
+          <p className="text-xs text-stone-500 mt-1">Try another search keyword or clear the category filter.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -449,16 +449,16 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
             return (
               <div
                 key={art.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
               >
                 <div className="space-y-3">
                   {/* Category & Destination Badges */}
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-lime-100 dark:bg-lime-950/40 text-lime-800 dark:text-lime-300 border border-lime-300/60 dark:border-lime-800">
                       {art.category}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                      <MapPin className="w-3 h-3 text-slate-400" />
+                    <span className="inline-flex items-center gap-1 text-[11px] font-mono text-stone-500 dark:text-stone-400">
+                      <MapPin className="w-3 h-3 text-stone-400" />
                       <span>{art.destination}</span>
                     </span>
                   </div>
@@ -466,13 +466,13 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                   {/* Title */}
                   <h3
                     onClick={() => setActiveArticle(art)}
-                    className="font-display font-bold text-base text-slate-950 dark:text-slate-50 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors leading-snug"
+                    className="font-display font-bold text-base text-stone-950 dark:text-stone-50 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors leading-snug"
                   >
                     {art.title}
                   </h3>
 
                   {/* Summary */}
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3">
+                  <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed line-clamp-3">
                     {art.summary}
                   </p>
 
@@ -481,7 +481,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                     {art.tags.slice(0, 3).map((t) => (
                       <span
                         key={t}
-                        className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded"
+                        className="text-[10px] bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 px-2 py-0.5 rounded"
                       >
                         #{t}
                       </span>
@@ -490,7 +490,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 </div>
 
                 {/* Author Info & Actions */}
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 min-w-0">
                     <img
                       src={art.authorAvatar}
@@ -498,10 +498,10 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                       className="w-6 h-6 rounded-full object-cover shrink-0"
                     />
                     <div className="truncate">
-                      <span className="font-semibold text-slate-800 dark:text-slate-200 block text-[11px] truncate">
+                      <span className="font-semibold text-stone-800 dark:text-stone-200 block text-[11px] truncate">
                         {art.authorName}
                       </span>
-                      <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                      <span className="text-[10px] text-stone-400 flex items-center gap-1">
                         <Clock className="w-2.5 h-2.5" />
                         <span>{art.readTime}</span>
                       </span>
@@ -515,7 +515,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                       className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
                         isLiked
                           ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 font-semibold'
-                          : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                          : 'text-stone-500 hover:text-stone-900 dark:hover:text-stone-200'
                       }`}
                     >
                       <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-rose-500 text-rose-500' : ''}`} />
@@ -525,7 +525,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveArticle(art)}
-                      className="px-2.5 py-1 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-md cursor-pointer"
+                      className="px-2.5 py-1 text-xs font-semibold text-stone-900 dark:text-stone-100 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 rounded-md cursor-pointer"
                     >
                       {getTranslation('readArticle')}
                     </button>
@@ -545,7 +545,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                       <button
                         type="button"
                         onClick={() => handleHideArticle(art.id)}
-                        className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                        className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-md transition-colors cursor-pointer"
                         title="Hide this post (find it again under the Hidden tab)"
                       >
                         <EyeOff className="w-3.5 h-3.5" />
@@ -561,7 +561,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                             handleDeleteArticle(art.id);
                           }
                         }}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors cursor-pointer"
+                        className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors cursor-pointer"
                         title="Delete your post"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -577,33 +577,33 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
 
       {/* Article Detail Reading Modal */}
       {activeArticle && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-2xl w-full p-6 sm:p-7 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-5 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 max-w-2xl w-full p-6 sm:p-7 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-5 animate-in fade-in zoom-in-95">
             <button
               onClick={() => setActiveArticle(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-lg cursor-pointer"
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 p-1.5 rounded-lg cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Badges */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-lime-100 dark:bg-lime-950/50 text-lime-800 dark:text-lime-300 border border-lime-300/60">
                 {activeArticle.category}
               </span>
-              <span className="text-xs text-slate-500 flex items-center gap-1 font-mono">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-xs text-stone-500 flex items-center gap-1 font-mono">
+                <MapPin className="w-3.5 h-3.5 text-stone-400" />
                 <span>{activeArticle.destination}</span>
               </span>
             </div>
 
             {/* Title */}
-            <h2 className="font-display font-bold text-2xl text-slate-950 dark:text-slate-50 leading-tight">
+            <h2 className="font-display font-bold text-2xl text-stone-950 dark:text-stone-50 leading-tight">
               {activeArticle.title}
             </h2>
 
             {/* Author bar */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 text-xs">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-100 dark:border-stone-800 text-xs">
               <div className="flex items-center gap-3">
                 <img
                   src={activeArticle.authorAvatar}
@@ -611,23 +611,23 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                   className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500/20"
                 />
                 <div>
-                  <div className="font-bold text-slate-900 dark:text-slate-100">
+                  <div className="font-bold text-stone-900 dark:text-stone-100">
                     {activeArticle.authorName}
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-stone-500">
                     {activeArticle.authorCity} · {activeArticle.date}
                   </div>
                 </div>
               </div>
 
-              <span className="font-mono text-slate-400 text-xs">
+              <span className="font-mono text-stone-400 text-xs">
                 {activeArticle.readTime}
               </span>
             </div>
 
             {/* Article Content */}
-            <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-              <p className="font-medium text-slate-900 dark:text-slate-100 italic bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="space-y-4 text-sm text-stone-700 dark:text-stone-300 leading-relaxed">
+              <p className="font-medium text-stone-900 dark:text-stone-100 italic bg-stone-50 dark:bg-stone-800/60 p-3.5 rounded-2xl border border-stone-200 dark:border-stone-700">
                 {activeArticle.summary}
               </p>
 
@@ -637,9 +637,9 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                   return (
                     <h3
                       key={idx}
-                      className="font-display text-base font-bold text-slate-950 dark:text-slate-50 pt-3 flex items-center gap-2"
+                      className="font-display text-base font-bold text-stone-950 dark:text-stone-50 pt-3 flex items-center gap-2"
                     >
-                      <span className="w-1 h-4 rounded-full bg-gradient-to-b from-rose-500 to-orange-500 shrink-0" />
+                      <span className="w-1 h-4 rounded-full bg-stone-950 dark:bg-lime-400 shrink-0" />
                       {para.slice(3)}
                     </h3>
                   );
@@ -649,8 +649,8 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 if (lead && !lead[1].includes('.') && !lead[1].includes('!')) {
                   return (
                     <div key={idx}>
-                      <h3 className="font-display text-base font-bold text-slate-950 dark:text-slate-50 flex items-center gap-2 mb-1">
-                        <span className="w-1 h-4 rounded-full bg-gradient-to-b from-indigo-500 to-sky-500 shrink-0" />
+                      <h3 className="font-display text-base font-bold text-stone-950 dark:text-stone-50 flex items-center gap-2 mb-1">
+                        <span className="w-1 h-4 rounded-full bg-stone-950 dark:bg-lime-400 shrink-0" />
                         {lead[1]}
                       </h3>
                       <p>{lead[2]}</p>
@@ -662,11 +662,11 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
             </div>
 
             {/* Tags */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-1.5">
+            <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex flex-wrap gap-1.5">
               {activeArticle.tags.map((t) => (
                 <span
                   key={t}
-                  className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-md"
+                  className="text-xs bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 px-2.5 py-1 rounded-md"
                 >
                   #{t}
                 </span>
@@ -681,7 +681,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                   likedArticles[activeArticle.id]
                     ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                    : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200'
                 }`}
               >
                 <Heart className={`w-4 h-4 ${likedArticles[activeArticle.id] ? 'fill-rose-500 text-rose-500' : ''}`} />
@@ -691,7 +691,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveArticle(null)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-lg hover:brightness-105 cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-white bg-stone-900 dark:bg-stone-100 dark:text-stone-900 rounded-lg hover:brightness-105 cursor-pointer"
               >
                 Close Article
               </button>
@@ -702,25 +702,25 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
 
       {/* Write New Story / Tip Modal */}
       {isWriteModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-xl w-full p-6 sm:p-7 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 max-w-xl w-full p-6 sm:p-7 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsWriteModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-lg cursor-pointer"
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 p-1.5 rounded-lg cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="font-display font-bold text-xl text-slate-950 dark:text-slate-50">
+            <h3 className="font-display font-bold text-xl text-stone-950 dark:text-stone-50">
               Publish a Travel Story or Cultural Tip
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
               Share local etiquette, dining recommendations, digital survival tips, or safety advice with fellow solo travelers.
             </p>
 
             <form onSubmit={handlePublishArticle} className="mt-5 space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Article Title
                 </label>
                 <input
@@ -729,19 +729,19 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                   placeholder="e.g. Navigating Paris Metro or Best Night Markets in Taipei"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Category
                   </label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900"
                   >
                     {STORY_CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>
@@ -752,7 +752,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Destination / Country
                   </label>
                   <input
@@ -761,13 +761,13 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                     placeholder="e.g. Japan, Italy, China, Mexico"
                     value={newDestination}
                     onChange={(e) => setNewDestination(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Summary / Key Takeaway (2-3 sentences)
                 </label>
                 <textarea
@@ -776,23 +776,23 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                   placeholder="Summarize the core lesson, rule, or recommendation..."
                   value={newSummary}
                   onChange={(e) => setNewSummary(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 />
               </div>
 
               {/* Block editor: unlimited paragraphs & subheadings */}
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1.5">
                   Story Content — add as many paragraphs & subheadings as you like
                 </label>
                 <div className="space-y-2.5">
                   {newBlocks.map((block, idx) => (
                     <div
                       key={idx}
-                      className={`rounded-xl border p-2.5 space-y-2 ${
+                      className={`rounded-2xl border p-2.5 space-y-2 ${
                         block.type === 'h2'
                           ? 'border-orange-200 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-950/20'
-                          : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40'
+                          : 'border-stone-200 dark:border-stone-700 bg-stone-50/50 dark:bg-stone-800/40'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -800,7 +800,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                           className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${
                             block.type === 'h2'
                               ? 'text-orange-600 dark:text-orange-400'
-                              : 'text-slate-500 dark:text-slate-400'
+                              : 'text-stone-500 dark:text-stone-400'
                           }`}
                         >
                           {block.type === 'h2' ? (
@@ -814,7 +814,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                           type="button"
                           onClick={() => removeBlock(idx)}
                           disabled={newBlocks.length === 1}
-                          className="p-1 text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          className="p-1 text-stone-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                           title="Remove block"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -826,7 +826,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                           placeholder="Subheading, e.g. Where to Eat Like a Local"
                           value={block.text}
                           onChange={(e) => updateBlock(idx, e.target.value)}
-                          className="w-full px-3 py-2 border border-orange-200 dark:border-orange-900 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400"
+                          className="w-full px-3 py-2 border border-orange-200 dark:border-orange-900 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400"
                         />
                       ) : (
                         <textarea
@@ -834,7 +834,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                           placeholder="Share the context, what happened, and step-by-step guidance..."
                           value={block.text}
                           onChange={(e) => updateBlock(idx, e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900 resize-y"
+                          className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900 resize-y"
                         />
                       )}
                     </div>
@@ -845,7 +845,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                   <button
                     type="button"
                     onClick={() => addBlock('p')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-stone-700 dark:text-stone-200 bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-200 transition-colors cursor-pointer"
                   >
                     <Pilcrow className="w-3.5 h-3.5" />
                     Add paragraph
@@ -862,7 +862,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Tags (Comma separated)
                 </label>
                 <input
@@ -870,21 +870,21 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                   placeholder="e.g. Budget, Cafes, Offline Maps, Safety"
                   value={newTags}
                   onChange={(e) => setNewTags(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+              <div className="pt-3 border-t border-stone-200 dark:border-stone-700 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsWriteModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 cursor-pointer"
+                  className="px-4 py-2 text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-lg hover:bg-stone-200 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-stone-900 dark:bg-stone-100 dark:text-stone-900 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
                 >
                   Publish Article
                 </button>

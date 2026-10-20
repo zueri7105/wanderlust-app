@@ -31,12 +31,15 @@ import { SettingsView } from './components/SettingsView';
 import { TravelMapMemoriesView } from './components/TravelMapMemoriesView';
 import { PassportView } from './components/PassportView';
 import { ExploreView } from './components/ExploreView';
+import { TripDetailView } from './components/TripDetailView';
 import { playAudioAlert, getTranslation } from './utils/i18n';
 import { getAppSettings } from './utils/settings';
 import { BellRing, X } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('itinerary');
+  // Trip detail page — set when a trip card is tapped; cleared by "Back to trips"
+  const [detailTripId, setDetailTripId] = useState<string | null>(null);
   const [selectedDestination, setSelectedDestination] = useState<string>('All Destinations');
   const [selectedInterest, setSelectedInterest] = useState<string>('All Interests');
   const [selectedScope, setSelectedScope] = useState<string>('All Trips');
@@ -466,7 +469,10 @@ export default function App() {
       {/* Navigation */}
       <Navigation
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={(tab) => {
+          setDetailTripId(null);
+          setActiveTab(tab);
+        }}
         onOpenCreateTrip={() => setIsCreateTripOpen(true)}
         onOpenSOS={() => setIsSOSModalOpen(true)}
         openActivitiesCount={openActivitiesCount}
@@ -479,17 +485,43 @@ export default function App() {
 
       {/* Main Content Viewport */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-28 md:pb-10">
-        {activeTab === 'itinerary' && (
-          <ItineraryView
-            itineraries={itineraries}
-            currentUser={currentUser}
-            soloExpenses={soloExpenses}
-            sharedExpenses={sharedExpenses}
-            onAddItinerary={handleAddItinerary}
-            onUpdateItinerary={handleUpdateItinerary}
-            onDeleteItinerary={handleDeleteItinerary}
-          />
-        )}
+        {activeTab === 'itinerary' &&
+          (() => {
+            const detailTrip = detailTripId
+              ? itineraries.find((it) => it.id === detailTripId)
+              : undefined;
+            return detailTrip ? (
+              <TripDetailView
+                itinerary={detailTrip}
+                currentUser={currentUser}
+                travelers={travelers}
+                soloExpenses={soloExpenses}
+                sharedExpenses={sharedExpenses}
+                trips={trips}
+                itineraries={itineraries}
+                onBack={() => setDetailTripId(null)}
+                onAddItinerary={handleAddItinerary}
+                onUpdateItinerary={handleUpdateItinerary}
+                onDeleteItinerary={handleDeleteItinerary}
+                onAddSoloExpense={handleAddSoloExpense}
+                onAddSharedExpense={handleAddSharedExpense}
+                onToggleSharedSettled={handleToggleSharedSettled}
+                onDeleteSoloExpense={handleDeleteSoloExpense}
+                onDeleteSharedExpense={handleDeleteSharedExpense}
+              />
+            ) : (
+              <ItineraryView
+                itineraries={itineraries}
+                currentUser={currentUser}
+                soloExpenses={soloExpenses}
+                sharedExpenses={sharedExpenses}
+                onAddItinerary={handleAddItinerary}
+                onUpdateItinerary={handleUpdateItinerary}
+                onDeleteItinerary={handleDeleteItinerary}
+                onOpenTripDetail={(it) => setDetailTripId(it.id)}
+              />
+            );
+          })()}
 
         {/* Explore — shared activities + travel tips */}
         {activeTab === 'stories' && (
