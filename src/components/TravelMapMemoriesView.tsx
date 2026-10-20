@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getTranslation } from '../utils/i18n';
-import { haversineKm, formatDistance, estimateFlightTime } from '../utils/units';
 import { SoloTraveler, TravelItinerary, TravelMemory } from '../types/travel';
-import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, GeoJSON, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, CircleMarker, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import COUNTRIES_GEO from '../data/countriesGeo';
-import { TravelerProfilePopup } from './TravelerProfilePopup';
 import {
   MapPin,
   Share2,
@@ -27,7 +25,6 @@ import {
   Check,
   Eye,
   EyeOff,
-  ShieldCheck,
   LocateFixed,
   Info,
   Minus,
@@ -76,7 +73,6 @@ const CITY_GEO: Record<string, { lat: number; lng: number }> = {
 
 const geoFor = (city: string) => CITY_GEO[city.trim().toLowerCase()];
 
-const MY_GEO = CITY_GEO.kyoto;
 const MY_DESTINATION = 'Kyoto, Japan';
 
 interface TravelerPin {
@@ -103,26 +99,9 @@ const mkPin = (
 
 const MAP_TRAVELER_PINS: TravelerPin[] = [
   mkPin('user_current', 'You (Elena)', 'kyoto', MY_DESTINATION, true, '#f43f5e'),
-  mkPin('user_kenji', 'Kenji', 'tokyo', 'Tokyo, Japan', false, '#f97316'),
-  mkPin('user_sofia', 'Sofia', 'dubrovnik', 'Dubrovnik, Croatia', false, '#0ea5e9'),
-  mkPin('user_lucas', 'Lucas', 'barcelona', 'Barcelona, Spain', false, '#8b5cf6'),
-  mkPin('user_maya', 'Maya', 'oaxaca', 'Oaxaca, Mexico', false, '#f59e0b'),
-  mkPin('user_liam', 'Liam', 'amalfi', 'Amalfi Coast, Italy', false, '#10b981'),
-  mkPin('user_sarah', 'Sarah', 'melbourne', 'Melbourne, Australia', false, '#ec4899'),
-  mkPin('user_alex', 'Alex', 'reykjavik', 'Reykjavik, Iceland', false, '#06b6d4')
 ];
 
-// Demo trail dots — shown for confirmed companions only (they chose to share)
-const COMPANION_TRAILS: Record<string, { lat: number; lng: number; label: string; status: 'Visited' | 'Dream Next' }[]> = {
-  user_kenji: [
-    { lat: 34.6937, lng: 135.5023, label: 'Osaka, Japan', status: 'Visited' },
-    { lat: -8.3405, lng: 115.092, label: 'Bali, Indonesia', status: 'Dream Next' }
-  ],
-  user_maya: [
-    { lat: 49.2827, lng: -123.1207, label: 'Vancouver, Canada', status: 'Visited' },
-    { lat: 20.6597, lng: -103.3496, label: 'Guadalajara, Mexico', status: 'Visited' }
-  ]
-};
+
 
 const U = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
 const DEFAULT_MEMORY_PHOTO = U('photo-1507525428034-b723cf961d3e');
@@ -309,11 +288,7 @@ const countriesAreNeighbours = (a: CountryGeoMeta, b: CountryGeoMeta) => {
   return false;
 };
 
-type TravelerViewMode = 'all' | 'nearby' | 'buddies';
-/** "People nearby" radius for the My View traveler filter */
-const NEARBY_RADIUS_KM = 1500;
 
-type MapPrivacy = 'everyone' | 'companions' | 'current';
 
 /** Migrate legacy memories: single-photo shape → multi-photo, % coords → lat/lng. */
 const migrateMemories = (raw: unknown): TravelMemory[] => {
@@ -359,50 +334,9 @@ const MapFlyer: React.FC<{ target: { lat: number; lng: number } | null }> = ({ t
   return null;
 };
 
-/** Zooms out and flies to any explicit target (e.g. hotspot city cards under the map). */
-const FreeFlyer: React.FC<{ target: { lat: number; lng: number; seq: number } | null }> = ({ target }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (target) map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 5), { duration: 0.9 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target?.seq]);
-  return null;
-};
 
-// ─── Nomad-Table-style city hotspots ─────────────────────────────────────────
-// Live "who's travelling where" counts per city right now (community-wide).
-const CITY_HOTSPOTS: { city: string; label: string; count: number; vibe: string }[] = [
-  { city: 'bangkok', label: 'Bangkok, Thailand', count: 246, vibe: 'Street food & rooftop nights' },
-  { city: 'tokyo', label: 'Tokyo, Japan', count: 214, vibe: 'Neon izakayas & hidden shrines' },
-  { city: 'london', label: 'London, United Kingdom', count: 203, vibe: 'Markets, museums & pubs' },
-  { city: 'barcelona', label: 'Barcelona, Spain', count: 189, vibe: 'Tapas crawls & beach sunsets' },
-  { city: 'bali', label: 'Bali, Indonesia', count: 178, vibe: 'Surf cafés & jungle scooters' },
-  { city: 'paris', label: 'Paris, France', count: 167, vibe: 'Croissants & gallery afternoons' },
-  { city: 'lisbon', label: 'Lisbon, Portugal', count: 158, vibe: 'Tram rides & miradouro views' },
-  { city: 'melbourne', label: 'Melbourne, Australia', count: 132, vibe: 'Coffee lanes & live music' },
-  { city: 'mexico city', label: 'Mexico City, Mexico', count: 121, vibe: 'Taco tours & Frida Fridays' },
-  { city: 'kyoto', label: 'Kyoto, Japan', count: 86, vibe: 'Torii gates & tea houses' },
-  { city: 'oaxaca', label: 'Oaxaca, Mexico', count: 64, vibe: 'Mole feasts & mezcal tastings' },
-  { city: 'dubrovnik', label: 'Dubrovnik, Croatia', count: 57, vibe: 'Fortress walls & island hops' },
-  { city: 'amalfi', label: 'Amalfi Coast, Italy', count: 43, vibe: 'Cliff hikes & lemon groves' },
-  { city: 'reykjavik', label: 'Reykjavik, Iceland', count: 38, vibe: 'Hot springs & northern lights' }
-];
 
-/** Count bubble pin (Nomad-Table style) — number of solo travellers in a city right now. */
-const hotspotIcon = (count: number, isActive: boolean) =>
-  L.divIcon({
-    className: 'wl-hotspot',
-    iconSize: [46, 46],
-    iconAnchor: [23, 23],
-    html: `<div style="
-      width:${isActive ? 46 : 38}px;height:${isActive ? 46 : 38}px;border-radius:9999px;
-      background:linear-gradient(135deg,#0f172a,#334155);color:#fff;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      border:2px solid ${isActive ? '#fb923c' : '#fff'};box-shadow:0 6px 18px -4px #0f172a88;
-      font-weight:800;font-size:${count > 99 ? 11 : 12.5}px;line-height:1;transition:all .2s ease;">
-      <span>${count}</span><span style="font-size:6.5px;font-weight:600;opacity:.75;letter-spacing:.04em;">HERE</span>
-    </div>`
-  });
+
 
 /** Water-droplet pin for MY memory journal entries — photo pinned at its location. */
 const memoryDropletIcon = (photo: string, color: string, isDream: boolean) =>
@@ -436,7 +370,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   currentUser,
   travelers,
   itineraries = [],
-  onOpenChatWithTraveler,
   onGoToItinerary,
   embedded = false
 }) => {
@@ -457,24 +390,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [photoIdx, setPhotoIdx] = useState<Record<string, number>>({});
   const [mapZoom, setMapZoom] = useState(2.2);
 
-  // Pin visibility options (the red/green/visited/dream layer toggles)
-  const [pinLayers, setPinLayers] = useState({ travelers: true, hotspots: true, current: true, visited: true, dream: true });
-  // Nomad-Table-style hotspot: active city + free-fly target for hotspot cards
-  const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
-  const [hotspotFly, setHotspotFly] = useState<{ lat: number; lng: number; seq: number } | null>(null);
-  // Traveller profile popup (tap a map pin's "View Profile")
-  const [profileTravelerId, setProfileTravelerId] = useState<string | null>(null);
-
-  // MY VIEW filter — which traveler pins *I* see on the map
-  const [travelerView, setTravelerView] = useState<TravelerViewMode>('all');
-
-  // Map privacy: what OTHER people can see of my dots
-  const [mapPrivacy, setMapPrivacy] = useState<MapPrivacy>(() => {
-    return (localStorage.getItem('wanderlust_map_privacy') as MapPrivacy) || 'companions';
-  });
-  useEffect(() => {
-    localStorage.setItem('wanderlust_map_privacy', mapPrivacy);
-  }, [mapPrivacy]);
+  // Pin visibility options (current/visited/dream layer toggles)
+  const [pinLayers, setPinLayers] = useState({ current: true, visited: true, dream: true });
 
   // Photo lightbox (tap photo → pop up, zoom in/out, click outside to close)
   const [lightbox, setLightbox] = useState<{ photos: string[]; idx: number; title: string } | null>(null);
@@ -506,11 +423,13 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   // Show journal memories as water-droplet photo pins on the map
   const [memoryDropletsOn, setMemoryDropletsOn] = useState(true);
+  // Map fly-to target when a journal entry is tapped
+  const [memoryFly, setMemoryFly] = useState<{ lat: number; lng: number } | null>(null);
 
   /** Fly the map to a memory's city dot and highlight its status. */
   const flyToMemory = (mem: TravelMemory) => {
     if (typeof mem.coordinates.lat === 'number' && typeof mem.coordinates.lng === 'number') {
-      setHotspotFly({ lat: mem.coordinates.lat, lng: mem.coordinates.lng, seq: Date.now() });
+      setMemoryFly({ lat: mem.coordinates.lat, lng: mem.coordinates.lng });
       setActiveFilter(mem.status);
     }
   };
@@ -743,13 +662,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     return travelers.find((t) => t.id === id) || travelers[0];
   };
 
-  // My View filter: all travelers / people nearby (≤1,500 km) / confirmed buddies only
-  const visibleTravelerPins = MAP_TRAVELER_PINS.filter((pin) => {
-    if (pin.isMe) return true;
-    if (travelerView === 'all') return true;
-    if (travelerView === 'buddies') return !!getTravelerById(pin.id).isConfirmedBuddy;
-    return haversineKm(MY_GEO.lat, MY_GEO.lng, pin.lat, pin.lng) <= NEARBY_RADIUS_KM;
-  });
 
   // Country colouring: each country's strongest status wins (Current > Visited > Dream)
   const countryStatusMap = useMemo(() => {
@@ -831,15 +743,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     };
   };
 
-  const activePinTraveler = getTravelerById(selectedPinId);
   const activePinInfo = MAP_TRAVELER_PINS.find((p) => p.id === selectedPinId) || MAP_TRAVELER_PINS[0];
   const myPin = MAP_TRAVELER_PINS[0];
-  const isActiveConfirmed = !!activePinTraveler.isConfirmedBuddy && !activePinInfo.isMe;
-
-  // Real great-circle distance between You and the selected traveler
-  const distanceKm = !activePinInfo.isMe
-    ? haversineKm(MY_GEO.lat, MY_GEO.lng, activePinInfo.lat, activePinInfo.lng)
-    : null;
 
   // Which of MY memory dots render depends on the layer toggles
   const visibleMemoryDots = memories.filter((m) => {
@@ -915,45 +820,9 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         {/* Map Top Bar: live counter + layer toggles (hidden in full-screen — controls float on the map) */}
         {!isMapFullscreen && (
         <div className="p-4 border-b border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-            </span>
-            <span className="font-semibold text-stone-900 dark:text-stone-100">
-              {getTranslation('liveRadar')}: {visibleTravelerPins.length} of {MAP_TRAVELER_PINS.length} Travellers Shown
-            </span>
-          </div>
-
-          {/* My View — filter which traveler pins I see */}
-          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-semibold">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mr-0.5">My view:</span>
-            {([
-              ['all', 'All travelers'],
-              ['nearby', `People nearby (≤${NEARBY_RADIUS_KM.toLocaleString()} km)`],
-              ['buddies', 'Confirmed buddies']
-            ] as const).map(([val, label]) => (
-              <button
-                key={val}
-                type="button"
-                onClick={() => setTravelerView(val)}
-                className={`px-2 py-1 rounded-full border transition-all cursor-pointer ${
-                  travelerView === val
-                    ? 'bg-rose-600 border-rose-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:border-rose-300'
-                }`}
-                title={`Filter traveler pins: ${label}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
           {/* Layer toggles — tap to show/hide each dot type */}
           <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-semibold">
             {([
-              ['travelers', 'bg-rose-500', 'Travellers'],
-              ['hotspots', 'bg-stone-900', 'City Buzz'],
               ['current', 'bg-emerald-500', 'Current'],
               ['visited', 'bg-sky-600', 'Visited'],
               ['dream', 'bg-amber-500', 'Dream Next']
@@ -996,7 +865,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         <div
           className={
             isMapFullscreen
-              ? 'fixed inset-0 z-[90] w-screen h-screen bg-[#dbeafe]'
+              ? 'fixed inset-0 z-[90] w-screen h-screen bg-[#dbeafe] dark:bg-[#0b0620]'
               : 'relative w-full h-[62vh] min-h-[26rem] z-0'
           }
         >
@@ -1010,7 +879,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             zoomControl={false}
             attributionControl={false}
             className="w-full h-full"
-            style={{ background: '#dbeafe' }}
+            style={{ background: 'transparent' }}
           >
             <TileLayer
               url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -1019,6 +888,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             />
             <ZoomWatcher onZoom={setMapZoom} />
             <MapFlyer target={activePinInfo} />
+            <MapFlyer target={memoryFly} />
 
             {/* Country colouring — Visited / Current / Dream countries filled on the world map */}
             <GeoJSON
@@ -1027,16 +897,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               style={styleCountryFeature as any}
             />
 
-            {/* Flight arc You → selected traveler */}
-            {!activePinInfo.isMe && (
-              <Polyline
-                positions={[
-                  [myPin.lat, myPin.lng],
-                  [activePinInfo.lat, activePinInfo.lng]
-                ]}
-                pathOptions={{ color: activePinInfo.color, weight: 2.5, dashArray: '6 8', opacity: 0.85 }}
-              />
-            )}
+            
 
             {/* My memory journal CITY dots — dark halo ring + solid colour dot so cities
                 stand out clearly from the filled country shapes underneath */}
@@ -1078,67 +939,24 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 />
               ))}
 
-            {/* Confirmed companions' shared trail dots */}
-            {Object.entries(COMPANION_TRAILS).map(([tid, dots]) => {
-              const traveler = travelers.find((t) => t.id === tid);
-              if (!traveler?.isConfirmedBuddy) return null;
-              return dots.map((d, i) => (
-                <CircleMarker
-                  key={`trail-${tid}-${i}`}
-                  center={[d.lat, d.lng]}
-                  radius={5}
-                  pathOptions={{
-                    color: '#fff',
-                    weight: 1.5,
-                    fillColor: d.status === 'Visited' ? '#0ea5e9' : '#f59e0b',
-                    fillOpacity: 0.95
-                  }}
-                  eventHandlers={{ click: () => setSelectedPinId(tid) }}
-                />
-              ));
-            })}
+            
 
-            {/* Traveller avatar pins (filtered by My View) */}
-            {pinLayers.travelers &&
-              visibleTravelerPins.map((pin) => (
-                <Marker
-                  key={pin.id}
-                  position={[pin.lat, pin.lng]}
-                  icon={pinIcons[pin.id]}
-                  eventHandlers={{ click: () => setSelectedPinId(pin.id) }}
-                />
-              ))}
+            {/* My avatar pin */}
+            <Marker
+              key={myPin.id}
+              position={[myPin.lat, myPin.lng]}
+              icon={pinIcons[myPin.id]}
+              eventHandlers={{ click: () => setSelectedPinId(myPin.id) }}
+            />
 
-            {/* City Buzz hotspots — live count of solo travellers per city (Nomad-Table style).
-                Only rendered at world/region zoom so the count bubbles never cover nearby
-                traveller profile pics when you zoom in. */}
-            {pinLayers.hotspots && mapZoom <= 3.5 &&
-              CITY_HOTSPOTS.map((h) => {
-                const g = geoFor(h.city);
-                if (!g) return null;
-                return (
-                  <Marker
-                    key={`hot-${h.city}`}
-                    position={[g.lat, g.lng]}
-                    icon={hotspotIcon(h.count, activeHotspot === h.city)}
-                    eventHandlers={{
-                      click: () => {
-                        setActiveHotspot(h.city);
-                        setHotspotFly({ lat: g.lat, lng: g.lng, seq: Date.now() });
-                      }
-                    }}
-                  />
-                );
-              })}
-            <FreeFlyer target={hotspotFly} />
+
+            
           </MapContainer>
 
           {/* Full-screen controls row — compact layer toggles floating on the map */}
           {isMapFullscreen && (
             <div className="absolute top-3 left-1/2 -transtone-x-1/2 z-[600] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-xl text-[10px] font-semibold max-w-[calc(100vw-7rem)] overflow-x-auto">
               {([
-                ['travelers', 'bg-rose-500', 'Travellers'],
-                ['hotspots', 'bg-stone-900', 'City Buzz'],
                 ['current', 'bg-emerald-500', 'Current'],
                 ['visited', 'bg-sky-600', 'Visited'],
                 ['dream', 'bg-amber-500', 'Dream']
@@ -1175,9 +993,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-900/70 text-white text-[10px] font-bold backdrop-blur shadow-md">
               <LocateFixed className="w-3 h-3 text-emerald-300" />
               {mapZoom > 3
-                ? mapZoom > 3.5 && pinLayers.hotspots
-                  ? `Zoom ${mapZoom.toFixed(1)}× · City Buzz counts hidden — travellers clear`
-                  : `Zoom ${mapZoom.toFixed(1)}×`
+                ? `Zoom ${mapZoom.toFixed(1)}×`
                 : 'Scroll / pinch to zoom · drag to explore'}
             </span>
           </div>
@@ -1217,26 +1033,16 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   </button>
                 </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#10b981', opacity: 0.4, border: '1px solid #10b981' }} />
-                Current country
-                <span className="w-2 h-2 rounded-full ml-2" style={{ background: '#10b981', outline: '1.5px solid #0f172a' }} />
-                Current city
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#10b981' }} />
+                Current
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#0ea5e9', opacity: 0.35, border: '1px solid #0ea5e9' }} />
-                Visited country
-                <span className="w-2 h-2 rounded-full ml-2" style={{ background: '#0ea5e9', outline: '1.5px solid #0f172a' }} />
-                Visited city
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#0ea5e9' }} />
+                Visited
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#f59e0b', opacity: 0.35, border: '1px solid #f59e0b' }} />
-                Dream country
-                <span className="w-2 h-2 rounded-full ml-2" style={{ background: '#f59e0b', outline: '1.5px solid #0f172a' }} />
-                Dream city
-              </div>
-              <div className="flex items-center gap-1.5 pt-0.5 border-t border-stone-200/70 dark:border-stone-700/70">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
-                Traveller pins
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#f59e0b' }} />
+                Dream Next
               </div>
               </div>
             )}
@@ -1385,37 +1191,24 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             </div>
           )}
 
-          {/* Active Pin Overlay Card (stays fixed, not zoomed) */}
+                    {/* Active Pin Overlay Card — you only */}
           <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-white/60 dark:border-stone-700 rounded-2xl p-3.5 shadow-2xl z-[500]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <img
-                  src={activePinTraveler.avatar}
-                  alt={activePinTraveler.name}
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
                   className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-stone-900"
                   style={{ ['--tw-ring-color' as any]: activePinInfo.color }}
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 truncate">
                     <span className="font-bold text-xs text-stone-900 dark:text-stone-50 truncate">
-                      {activePinInfo.isMe ? `You (${currentUser.name.split(' ')[0]})` : activePinTraveler.name}
+                      You ({currentUser.name.split(' ')[0]})
                     </span>
-                    {activePinInfo.isMe && (
-                      <span className="text-[9px] bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 px-1.5 py-0.5 rounded-full font-bold">
-                        You are here
-                      </span>
-                    )}
-                    {!activePinInfo.isMe && (
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
-                          isActiveConfirmed
-                            ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300'
-                            : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400'
-                        }`}
-                      >
-                        {isActiveConfirmed ? 'Confirmed companion' : 'Current position only'}
-                      </span>
-                    )}
+                    <span className="text-[9px] bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 px-1.5 py-0.5 rounded-full font-bold">
+                      You are here
+                    </span>
                   </div>
                   <div className="text-[11px] text-stone-500 dark:text-stone-400 flex items-center gap-1 mt-0.5 truncate">
                     <MapPin className="w-3 h-3 shrink-0" style={{ color: activePinInfo.color }} />
@@ -1423,187 +1216,19 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                {!activePinInfo.isMe ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setProfileTravelerId(activePinTraveler.id)}
-                      className="px-3 py-1.5 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 rounded-2xl text-xs font-bold hover:border-rose-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                    >
-                      View Profile
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onOpenChatWithTraveler(activePinTraveler, activePinInfo.destination)}
-                      className="px-3 py-1.5 bg-rose-600 text-white rounded-2xl text-xs font-bold hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-md shadow-orange-500/25"
-                    >
-                      Say Hello
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => onGoToItinerary(MY_DESTINATION)}
-                    className="px-3 py-1.5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl text-xs font-bold hover:bg-stone-700 transition-colors cursor-pointer"
-                  >
-                    My Itinerary
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Distance from you + privacy note */}
-            {!activePinInfo.isMe && distanceKm !== null && (
-              <div className="mt-2.5 pt-2.5 border-t border-stone-200/70 dark:border-stone-700/70 flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 text-[10px] font-bold">
-                  <Plane className="w-3 h-3" />
-                  {formatDistance(distanceKm)} away from you
-                </span>
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 text-[10px] font-bold">
-                  {estimateFlightTime(distanceKm)}
-                </span>
-                {!isActiveConfirmed && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 text-[10px] font-semibold">
-                    <ShieldCheck className="w-3 h-3" />
-                    Visited & dream pins unlock after mutual confirmation
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Map privacy selector — OTHERS SEE ME: who can see my pins */}
-        {!isMapFullscreen && (
-        <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-stone-50/60 dark:bg-stone-900">
-          <span className="flex items-center gap-1.5 font-semibold text-stone-700 dark:text-stone-300">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Others see me — who can see my Visited & Dream pins:
-          </span>
-          <div className="flex items-center gap-1.5">
-            {([
-              ['everyone', 'Everyone'],
-              ['companions', 'Confirmed companions only'],
-              ['current', 'Current location only']
-            ] as const).map(([val, label]) => (
               <button
-                key={val}
                 type="button"
-                onClick={() => setMapPrivacy(val)}
-                className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
-                  mapPrivacy === val
-                    ? 'bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 border-stone-900 dark:border-stone-100'
-                    : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-stone-400'
-                }`}
+                onClick={() => onGoToItinerary(MY_DESTINATION)}
+                className="shrink-0 px-3 py-1.5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl text-xs font-bold hover:bg-stone-700 transition-colors cursor-pointer"
               >
-                {label}
+                My Itinerary
               </button>
-            ))}
+            </div>
           </div>
         </div>
-        )}
+
       </div>
 
-      {/* Traveller profile popup — tap "View Profile" on any map pin */}
-      {profileTravelerId && (
-        <TravelerProfilePopup
-          traveler={getTravelerById(profileTravelerId)}
-          currentUserId={currentUser.id}
-          itineraries={itineraries}
-          onClose={() => setProfileTravelerId(null)}
-          onOpenChat={(t) => onOpenChatWithTraveler(t)}
-        />
-      )}
-
-      {/* City Buzz — Nomad-Table-style "who's travelling where" leaderboard */}<div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-stone-500 uppercase tracking-wider mb-1">
-              <Users className="w-3.5 h-3.5 text-rose-500" />
-              <span>City Buzz · Live</span>
-            </div>
-            <h3 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
-              Where Solo Travellers Are Right Now
-            </h3>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-              Tap a city to fly there on the map and see who's around.
-            </p>
-          </div>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold shrink-0">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            {CITY_HOTSPOTS.reduce((a, h) => a + h.count, 0).toLocaleString()} travellers online
-          </span>
-        </div>
-
-        <div className="flex gap-3 overflow-x-auto pb-2 snap-x scrollbar-thin">
-          {CITY_HOTSPOTS.map((h, rank) => {
-            const isActive = activeHotspot === h.city;
-            const pinsHere = MAP_TRAVELER_PINS.filter(
-              (p) => p.destination.toLowerCase().split(',')[0].trim() === h.city || (h.city === 'amalfi' && p.destination.includes('Amalfi'))
-            );
-            return (
-              <button
-                key={h.city}
-                type="button"
-                onClick={() => {
-                  const g = geoFor(h.city);
-                  setActiveHotspot(h.city);
-                  if (g) setHotspotFly({ lat: g.lat, lng: g.lng, seq: Date.now() });
-                }}
-                className={`snap-start shrink-0 w-52 text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-gradient-to-br from-stone-900 to-stone-800 text-white border-stone-700 shadow-lg'
-                    : 'bg-stone-50 dark:bg-stone-800/60 border-stone-200 dark:border-stone-700 hover:border-rose-300 dark:hover:border-rose-700'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-amber-300' : 'text-stone-400'}`}>
-                    #{rank + 1}
-                  </span>
-                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                    isActive ? 'bg-white/15 text-white' : 'bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300'
-                  }`}>
-                    <Users className="w-2.5 h-2.5" />
-                    {h.count}
-                  </span>
-                </div>
-                <div className={`mt-1.5 font-bold text-sm leading-tight truncate ${isActive ? 'text-white' : 'text-stone-900 dark:text-stone-100'}`}>
-                  {h.label.split(',')[0]}
-                </div>
-                <div className={`text-[10px] truncate ${isActive ? 'text-stone-300' : 'text-stone-500 dark:text-stone-400'}`}>
-                  {h.label.split(',').slice(1).join(',').trim()}
-                </div>
-                <div className={`mt-1.5 text-[10px] italic truncate ${isActive ? 'text-amber-200/90' : 'text-rose-500 dark:text-rose-400'}`}>
-                  {h.vibe}
-                </div>
-                {pinsHere.length > 0 && (
-                  <div className="mt-2 flex items-center -space-x-1.5">
-                    {pinsHere.slice(0, 4).map((p) => {
-                      const t = getTravelerById(p.id);
-                      return (
-                        <img
-                          key={p.id}
-                          src={t.avatar}
-                          alt={t.name}
-                          className="w-5 h-5 rounded-full object-cover border-2 border-white dark:border-stone-800"
-                        />
-                      );
-                    })}
-                    <span className={`pl-2.5 text-[9px] font-semibold ${isActive ? 'text-stone-300' : 'text-stone-400'}`}>
-                      on WanderLust
-                    </span>
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Places Gone & Memories Journal Section */}
       <div className="space-y-6">
@@ -1636,202 +1261,183 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           </div>
         </div>
 
-        {/* Memories Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Memories — boarding-pass ticket rows (compact) */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           {filteredMemories.map((mem) => {
             const photos = mem.photos.length > 0 ? mem.photos : [DEFAULT_MEMORY_PHOTO];
             const idx = Math.min(photoIdx[mem.id] || 0, photos.length - 1);
+            const statusColor = STATUS_STYLES[mem.status].dot;
 
             return (
               <div
                 key={mem.id}
-                className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-xl hover:-transtone-y-1 transition-all flex flex-col justify-between group"
+                className="group relative flex items-stretch bg-white dark:bg-stone-900/80 border border-stone-200 dark:border-stone-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg hover:border-stone-300 dark:hover:border-stone-700 transition-all"
               >
-                <div>
-                  {/* Photo carousel — tap to open lightbox */}
-                  <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-orange-100 via-rose-100 to-amber-100 dark:from-stone-800 dark:to-stone-800">
-                    <img
-                      key={photos[idx]}
-                      src={photos[idx]}
-                      alt={mem.destination}
-                      onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                      onClick={() => openLightbox(photos, idx, `${mem.destination}, ${mem.country}`)}
-                      className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500 cursor-zoom-in"
-                    />
-
-                    {/* Carousel arrows */}
-                    {photos.length > 1 && (
-                      <>
-                        <button
-                          type="button"
-                          aria-label="Previous photo"
-                          onClick={() => stepPhoto(mem.id, photos.length, -1)}
-                          className="absolute left-2 top-1/2 -transtone-y-1/2 w-7 h-7 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Next photo"
-                          onClick={() => stepPhoto(mem.id, photos.length, 1)}
-                          className="absolute right-2 top-1/2 -transtone-y-1/2 w-7 h-7 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-
-                        {/* Dots */}
-                        <div className="absolute bottom-2.5 left-1/2 -transtone-x-1/2 flex items-center gap-1 z-10">
-                          {photos.map((_, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              aria-label={`Photo ${i + 1}`}
-                              onClick={() => setPhotoIdx((prev) => ({ ...prev, [mem.id]: i }))}
-                              className={`rounded-full transition-all cursor-pointer ${
-                                i === idx ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/60 hover:bg-white/90'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    )}
-
-                    <div className="absolute top-3 left-3 bg-stone-900/80 backdrop-blur-xs text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-rose-400" />
-                      <span>{mem.destination}, {mem.country}</span>
-                    </div>
-
-                    <span
-                      className={`absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-xs ${STATUS_STYLES[mem.status].badge}`}
-                    >
-                      {mem.status}
-                    </span>
-
-                    <div className="absolute bottom-2.5 right-3 flex items-center gap-1.5">
-                      {photos.length > 1 && (
-                        <span className="bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
-                          <Camera className="w-3 h-3" />
-                          {idx + 1}/{photos.length}
-                        </span>
-                      )}
-                      <span className="bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono px-2 py-0.5 rounded flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {mem.date}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-5 space-y-3">
-                    {editingNoteId === mem.id ? (
-                      <div className="space-y-2">
-                        <textarea
-                          rows={3}
-                          value={editNoteText}
-                          onChange={(e) => setEditNoteText(e.target.value)}
-                          className="w-full px-2.5 py-2 text-xs border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 resize-y"
-                        />
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setEditingNoteId(null)}
-                            className="px-2.5 py-1 text-[11px] text-stone-500 bg-stone-100 dark:bg-stone-800 rounded-md cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSaveNote(mem.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-rose-600 rounded-md cursor-pointer"
-                          >
-                            <Check className="w-3 h-3" />
-                            Save
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="relative group/note">
-                        <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed italic pr-6">
-                          "{mem.memoryNote}"
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingNoteId(mem.id);
-                            setEditNoteText(mem.memoryNote);
-                          }}
-                          className="absolute top-0 right-0 p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 opacity-0 group-hover/note:opacity-100 transition-opacity cursor-pointer"
-                          title="Edit this memory note"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Companions Tagged (optional — each chip can be removed) */}
-                    {mem.companionsTagged.length > 0 && (
-                      <div className="pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider flex items-center gap-1">
-                          <Users className="w-3 h-3 text-stone-500" />
-                          With:
-                        </span>
-                        {mem.companionsTagged.map((c) => (
-                          <span
-                            key={c}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 pl-2 pr-1 py-0.5 rounded-full"
-                          >
-                            {c}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMemoryCompanion(mem.id, c)}
-                              className="p-0.5 rounded-full hover:bg-orange-200 dark:hover:bg-orange-900 text-orange-500 hover:text-orange-800 dark:hover:text-orange-200 transition-colors cursor-pointer"
-                              title={`Remove ${c} from this memory`}
-                            >
-                              <X className="w-2.5 h-2.5" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                {/* Ticket stub — status colour, perforated edge */}
+                <div
+                  className="relative w-14 shrink-0 flex flex-col items-center justify-center gap-1 py-3 border-r border-dashed border-stone-300 dark:border-stone-700"
+                  style={{ background: `color-mix(in srgb, ${statusColor} 14%, transparent)` }}
+                >
+                  <Plane
+                    className="w-4 h-4 -rotate-45"
+                    style={{ color: statusColor }}
+                  />
+                  <span
+                    className="text-[8px] font-black uppercase tracking-widest [writing-mode:vertical-rl] rotate-180"
+                    style={{ color: statusColor }}
+                  >
+                    {mem.status === 'Current Location' ? 'Now' : mem.status === 'Dream Next' ? 'Dream' : 'Visited'}
+                  </span>
+                  {/* perforation holes */}
+                  <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-stone-50 dark:bg-[#06030f] border border-stone-200 dark:border-stone-800" />
+                  <span className="absolute -bottom-1.5 -right-1.5 w-3 h-3 rounded-full bg-stone-50 dark:bg-[#06030f] border border-stone-200 dark:border-stone-800" />
                 </div>
 
-                {/* Bottom Actions */}
-                <div className="px-5 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-xs text-stone-500">
+                {/* Photo thumb — tap to open lightbox */}
+                <div className="relative w-20 sm:w-24 shrink-0 my-2.5 ml-3 rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800 self-stretch">
+                  <img
+                    key={photos[idx]}
+                    src={photos[idx]}
+                    alt={mem.destination}
+                    onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
+                    onClick={() => openLightbox(photos, idx, `${mem.destination}, ${mem.country}`)}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-104 transition-transform duration-500 cursor-zoom-in"
+                  />
+                  {photos.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Previous photo"
+                        onClick={() => stepPhoto(mem.id, photos.length, -1)}
+                        className="absolute left-0.5 top-1/2 -transtone-y-1/2 w-5 h-5 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+                      >
+                        <ChevronLeft className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Next photo"
+                        onClick={() => stepPhoto(mem.id, photos.length, 1)}
+                        className="absolute right-0.5 top-1/2 -transtone-y-1/2 w-5 h-5 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+                      >
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                      <span className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 z-10">
+                        <Camera className="w-2.5 h-2.5" />
+                        {idx + 1}/{photos.length}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 min-w-0 px-3 py-2.5 flex flex-col justify-center gap-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MapPin className="w-3 h-3 shrink-0" style={{ color: statusColor }} />
+                    <span className="font-bold text-xs text-stone-900 dark:text-stone-100 truncate">
+                      {mem.destination}, {mem.country}
+                    </span>
+                    <span className="shrink-0 text-[9px] font-mono text-stone-400 flex items-center gap-1">
+                      <Calendar className="w-2.5 h-2.5" />
+                      {mem.date}
+                    </span>
+                  </div>
+
+                  {editingNoteId === mem.id ? (
+                    <div className="space-y-1.5">
+                      <textarea
+                        rows={2}
+                        value={editNoteText}
+                        onChange={(e) => setEditNoteText(e.target.value)}
+                        className="w-full px-2 py-1.5 text-xs border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 resize-y"
+                      />
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditingNoteId(null)}
+                          className="px-2 py-0.5 text-[10px] text-stone-500 bg-stone-100 dark:bg-stone-800 rounded-md cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveNote(mem.id)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-white bg-rose-600 rounded-md cursor-pointer"
+                        >
+                          <Check className="w-2.5 h-2.5" />
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p
+                      className="text-[11px] text-stone-500 dark:text-stone-400 leading-snug italic line-clamp-2 cursor-pointer"
+                      title="Tap to edit this memory note"
+                      onClick={() => {
+                        setEditingNoteId(mem.id);
+                        setEditNoteText(mem.memoryNote);
+                      }}
+                    >
+                      "{mem.memoryNote}"
+                    </p>
+                  )}
+
+                  {mem.companionsTagged.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Users className="w-2.5 h-2.5 text-stone-400" />
+                      {mem.companionsTagged.map((c) => (
+                        <span
+                          key={c}
+                          className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 pl-1.5 pr-0.5 py-px rounded-full"
+                        >
+                          {c}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMemoryCompanion(mem.id, c)}
+                            className="p-px rounded-full hover:bg-orange-200 dark:hover:bg-orange-900 text-orange-500 hover:text-orange-800 dark:hover:text-orange-200 transition-colors cursor-pointer"
+                            title={`Remove ${c} from this memory`}
+                          >
+                            <X className="w-2 h-2" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions — tucked on the right, appear on hover (always visible on touch) */}
+                <div className="shrink-0 flex flex-col items-center justify-center gap-0.5 px-2 border-l border-dashed border-stone-200 dark:border-stone-800 text-stone-400 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
                     onClick={() => onGoToItinerary(`${mem.destination}, ${mem.country}`)}
-                    className="font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 underline cursor-pointer"
+                    className="p-1.5 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                    title="View itinerary"
                   >
-                    View Itinerary
+                    <Plane className="w-3.5 h-3.5" />
                   </button>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleEditMemory(mem)}
-                      className="text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 p-1 transition-colors cursor-pointer"
-                      title="Edit this memory (photos, companions, note...)"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleShareMemory(mem)}
-                      className="text-stone-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
-                      title="Share this memory"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteMemory(mem.id)}
-                      className="text-stone-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
-                      title="Remove memory"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleEditMemory(mem)}
+                    className="p-1.5 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
+                    title="Edit this memory (photos, companions, note...)"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleShareMemory(mem)}
+                    className="p-1.5 hover:text-rose-600 transition-colors cursor-pointer"
+                    title="Share this memory"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMemory(mem.id)}
+                    className="p-1.5 hover:text-red-600 transition-colors cursor-pointer"
+                    title="Remove memory"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             );
@@ -1946,26 +1552,32 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
       {/* Record New Travel Memory Modal */}
       {isAddMemoryModalOpen && (
-        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => {
-                setIsAddMemoryModalOpen(false);
-                setEditingMemoryId(null);
-              }}
-              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="font-display font-bold text-lg text-stone-950 dark:text-stone-50">
-              {editingMemoryId ? 'Edit Travel Memory' : 'Record a Travel Memory'}
-            </h3>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-              {editingMemoryId
-                ? 'Update the destination, photos, companions you traveled with, and your journal passage.'
-                : 'Add a place you have gone to, your companion buddies, photos, and personal memory notes.'}
-            </p>
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-lg p-6 sm:p-7 relative">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <div className="wl-modal-eyebrow">WanderLust Studio</div>
+                <h3 className="wl-modal-title mt-1.5">
+                  {editingMemoryId ? 'Edit Travel Memory' : 'Record a Travel Memory'}
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1.5">
+                  {editingMemoryId
+                    ? 'Update the destination, photos, companions you traveled with, and your journal passage.'
+                    : 'Add a place you have gone to, your companion buddies, photos, and personal memory notes.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddMemoryModalOpen(false);
+                  setEditingMemoryId(null);
+                }}
+                className="wl-modal-close"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             <form onSubmit={handleCreateMemory} className="mt-4 space-y-3.5 text-xs">
               {/* Generate journal from one of my itineraries */}

@@ -294,14 +294,14 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ itinerary, onUpdateI
                     <React.Fragment key={`${day.dayNumber}_leg_${i}`}>
                       <Polyline
                         positions={positions}
+                        // keep every sampled point so flight arcs stay smooth curves
+                        smoothFactor={lineKind === 'curved-dotted' ? 0 : 1}
                         pathOptions={{
                           color,
                           weight: focused ? 4.5 : 3.5,
                           opacity: focused ? 0.95 : 0.8,
                           dashArray: dotted ? '1 9' : undefined,
-                          lineCap: 'round',
-                          // keep every sampled point so flight arcs stay smooth curves
-                          smoothFactor: lineKind === 'curved-dotted' ? 0 : 1
+                          lineCap: 'round'
                         }}
                       />
                       <Marker

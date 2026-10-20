@@ -891,11 +891,11 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
           : itin.travelGuide?.arrivalRulesAndApps?.entryRegulations || [];
         return (
           <div
-            className="fixed inset-0 z-[90] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+            className="wl-modal-overlay"
             onClick={() => setVisaPopupOpen(false)}
           >
             <div
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 shadow-xl max-h-[85vh] overflow-y-auto"
+              className="wl-modal-card max-w-lg p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -944,11 +944,11 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
         if (!tax) return null;
         return (
           <div
-            className="fixed inset-0 z-[90] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+            className="wl-modal-overlay"
             onClick={() => setTaxTipsCountry(null)}
           >
             <div
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 shadow-xl"
+              className="wl-modal-card max-w-md p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">

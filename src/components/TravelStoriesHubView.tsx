@@ -577,8 +577,8 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
 
       {/* Article Detail Reading Modal */}
       {activeArticle && (
-        <div className="fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 max-w-2xl w-full p-6 sm:p-7 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-5 animate-in fade-in zoom-in-95">
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-2xl p-6 sm:p-7 relative space-y-5 animate-in fade-in zoom-in-95">
             <button
               onClick={() => setActiveArticle(null)}
               className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 p-1.5 rounded-lg cursor-pointer"
@@ -702,21 +702,27 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
 
       {/* Write New Story / Tip Modal */}
       {isWriteModalOpen && (
-        <div className="fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 max-w-xl w-full p-6 sm:p-7 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setIsWriteModalOpen(false)}
-              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 p-1.5 rounded-lg cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="font-display font-bold text-xl text-stone-950 dark:text-stone-50">
-              Publish a Travel Story or Cultural Tip
-            </h3>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-              Share local etiquette, dining recommendations, digital survival tips, or safety advice with fellow solo travelers.
-            </p>
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-xl p-6 sm:p-7 relative">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <div className="wl-modal-eyebrow">WanderLust Studio</div>
+                <h3 className="wl-modal-title mt-1.5">
+                  Publish a Travel Story or Cultural Tip
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1.5">
+                  Share local etiquette, dining recommendations, digital survival tips, or safety advice with fellow solo travelers.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWriteModalOpen(false)}
+                className="wl-modal-close"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             <form onSubmit={handlePublishArticle} className="mt-5 space-y-4 text-xs">
               <div>

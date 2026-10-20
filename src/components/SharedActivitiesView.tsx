@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TravelActivity, SoloTraveler } from '../types/travel';
-import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign, Trash2, EyeOff, Eye, CalendarDays, ArrowRight } from 'lucide-react';
+import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign, Trash2, EyeOff, Eye, CalendarDays, ArrowRight, X } from 'lucide-react';
 import { generateSafeMeetingGuide } from '../services/geminiService';
 import { getTranslation } from '../utils/i18n';
 import { WORLD_CURRENCIES } from '../data/currencies';
@@ -502,13 +502,15 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
 
       {/* Safety Meetup Guide Modal */}
       {safetyModalData && (
-        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-stone-200 max-w-md w-full p-6 shadow-xl relative">
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-md p-6 relative">
             <button
+              type="button"
               onClick={() => setSafetyModalData(null)}
-              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer"
+              className="wl-modal-close absolute top-4 right-4"
+              aria-label="Close"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-center gap-2 mb-2 text-stone-900">
@@ -558,21 +560,27 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
 
       {/* Propose Activity Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-stone-200 max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setIsCreateModalOpen(false)}
-              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer"
-            >
-              ✕
-            </button>
-
-            <h3 className="font-display font-bold text-lg text-stone-950">
-              Propose a Shared Activity
-            </h3>
-            <p className="text-xs text-stone-500 mt-1">
-              Invite other solo travelers in your destination to join a hike, boat trip, road trip, or food tasting.
-            </p>
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-lg p-6 sm:p-7 relative">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <div className="wl-modal-eyebrow">WanderLust Studio</div>
+                <h3 className="wl-modal-title mt-1.5">
+                  Propose a Shared Activity
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1.5">
+                  Invite other solo travelers in your destination to join a hike, boat trip, road trip, or food tasting.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="wl-modal-close"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             <form onSubmit={handleFormSubmit} className="mt-5 space-y-4 text-xs">
               <div>

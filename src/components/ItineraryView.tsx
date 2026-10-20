@@ -33,8 +33,6 @@ import {
   Sun,
   MoonStar,
   Pencil,
-  Eye,
-  EyeOff,
   Map as MapIcon,
   Wand2,
   Footprints,
@@ -55,7 +53,6 @@ import { taxInfoFor } from '../utils/taxInfo';
 import ActivityImage from './ActivityImage';
 import { travelAppsFor } from '../data/travelApps';
 import { emergencyNumbersFor } from '../data/emergencyNumbers';
-import { getFxRates, refreshFxRates, benchmarkString, rateFor, convertAmount, type FxState } from '../utils/currency';
 import { getTranslation, tv } from '../utils/i18n';
 import AutoGrowTextarea from './AutoGrowTextarea';
 import { WORLD_COUNTRIES } from './DestinationSelector';
@@ -473,15 +470,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     : [...itineraries]
   ).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
-  // Studio bento stats
-  const costFx = getFxRates();
-  const totalSpentAll =
-    soloExpenses.reduce((sum, e) => sum + convertAmount(e.amount, e.currency || 'USD', 'USD', costFx), 0) +
-    sharedExpenses.reduce((sum, e) => sum + convertAmount(e.amount, e.currency || 'USD', 'USD', costFx), 0);
-  const countryCount = new Set(
-    itineraries.map((it) => (it.country || it.destination.split(',').pop() || '').trim().toLowerCase()).filter(Boolean)
-  ).size;
-
   // Do not automatically expand any trip box on open; only expand when tapped as
   // requested — except in trip detail mode, where the one trip is always expanded
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>(
@@ -502,24 +490,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [optimizedDayKey, setOptimizedDayKey] = useState<string | null>(null);
   // Want-to-go pool: draft text of the add-place input, per trip
   const [wishlistDrafts, setWishlistDrafts] = useState<Record<string, string>>({});
-
-  // Visibility toggle popup ("open to public" / "private")
-  const [visibilityToast, setVisibilityToast] = useState<{ isPublic: boolean; text: string } | null>(null);
-  const visibilityToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleToggleVisibility = (itin: TravelItinerary) => {
-    const isPublic = (itin.visibility || 'public') === 'public';
-    const nextPublic = !isPublic;
-    onUpdateItinerary?.({ ...itin, visibility: nextPublic ? 'public' : 'private' });
-    if (visibilityToastTimer.current) clearTimeout(visibilityToastTimer.current);
-    setVisibilityToast({
-      isPublic: nextPublic,
-      text: nextPublic
-        ? `${itin.destination} is now open to public — other travelers can discover this trip and connect with you.`
-        : `${itin.destination} is now private — visible only to you.`
-    });
-    visibilityToastTimer.current = setTimeout(() => setVisibilityToast(null), 3200);
-  };
 
   const handleOpenEditTrip = (itin: TravelItinerary) => {
     setEditingTripId(itin.id);
@@ -1197,34 +1167,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           </p>
         </div>
 
-        {/* Bento stats */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-2xl">
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-4 shadow-xs">
-            <div className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 tabular-nums">
-              {sortedItineraries.length}
-            </div>
-            <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-stone-400">
-              {getTranslation('statTrips')}
-            </div>
-          </div>
-          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-4 shadow-xs">
-            <div className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 tabular-nums">
-              {countryCount}
-            </div>
-            <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-stone-400">
-              {getTranslation('statCountries')}
-            </div>
-          </div>
-          <div className="bg-stone-950 dark:bg-violet-400 rounded-3xl p-4 shadow-xs">
-            <div className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-violet-300 dark:text-stone-950 tabular-nums">
-              {totalSpentAll > 0 ? `$${Math.round(totalSpentAll).toLocaleString()}` : '—'}
-            </div>
-            <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-stone-400 dark:text-stone-700">
-              {getTranslation('statSpent')}
-            </div>
-          </div>
-        </div>
-
         {/* Command-bar creation card */}
         <div className="max-w-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl shadow-sm p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-3">
@@ -1430,28 +1372,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             </span>
                           );
                         })()}
-                        {/* Eye icon visibility toggle — tap to open to public / make private */}
-                        {(() => {
-                          const isPublic = (itinerary.visibility || 'public') === 'public';
-                          return (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleVisibility(itinerary);
-                              }}
-                              title={isPublic ? 'Open to public — tap to make private' : 'Private — tap to open to public'}
-                              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border transition-colors cursor-pointer ${
-                                isPublic
-                                  ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/80 dark:border-emerald-800 hover:bg-emerald-100'
-                                  : 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 hover:bg-slate-200'
-                              }`}
-                            >
-                              {isPublic ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                              <span>{isPublic ? getTranslation('openToPublic') : getTranslation('privateTrip')}</span>
-                            </button>
-                          );
-                        })()}
+
                         {itinerary.tripScope && (
                           <span className="text-[10px] font-semibold text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-800 px-2 py-0.5 rounded">
                             {itinerary.tripScope}
@@ -1691,38 +1612,33 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       )}
 
       {/* Visibility toggle popup (open to public / private) */}
-      {visibilityToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] animate-in fade-in slide-in-from-bottom-2">
-          <div className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-semibold backdrop-blur-md ${
-            visibilityToast.isPublic
-              ? 'bg-emerald-600/95 border-emerald-400/50 text-white'
-              : 'bg-slate-900/95 border-slate-600/50 text-white'
-          }`}>
-            {visibilityToast.isPublic ? <Eye className="w-4 h-4 shrink-0" /> : <EyeOff className="w-4 h-4 shrink-0" />}
-            <span>{visibilityToast.text}</span>
-          </div>
-        </div>
-      )}
+
 
 
 
       {/* Plan New Itinerary Modal with Dynamic Multi-Day Builder */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-2xl w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setIsAddModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
-            >
-              ✕
-            </button>
-
-            <h3 className="font-display font-bold text-xl text-slate-950 dark:text-slate-50">
-              Plan New Trip Itinerary & Schedule
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Build your day-by-day plan with morning, afternoon, and evening activities, plus companion goals. Add Day 2, Day 3, or as many days as your trip requires.
-            </p>
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-2xl p-6 sm:p-7 relative">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <div className="wl-modal-eyebrow">WanderLust Studio</div>
+                <h3 className="wl-modal-title mt-1.5">
+                  Plan New Trip Itinerary & Schedule
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1.5 max-w-md">
+                  Build your day-by-day plan with morning, afternoon, and evening activities. Add Day 2, Day 3, or as many days as your trip requires.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="wl-modal-close"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             <form onSubmit={handleFormSubmit} className="mt-5 space-y-4 text-xs">
               <div>
@@ -2047,30 +1963,29 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         const itin = itineraries.find((x) => x.id === editingTripId);
         if (!itin) return null;
         return (
-          <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setEditingTripId(null)}>
+          <div className="wl-modal-overlay" onClick={() => setEditingTripId(null)}>
             <div
-              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-2xl w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto"
+              className="wl-modal-card max-w-2xl p-6 sm:p-7 relative"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                onClick={() => setEditingTripId(null)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
-              >
-                ✕
-              </button>
-
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-lg bg-rose-600 text-white flex items-center justify-center">
-                  <Pencil className="w-4 h-4" />
-                </div>
+              <div className="flex items-start justify-between gap-4 mb-5">
                 <div>
-                  <h3 className="font-display font-bold text-xl text-slate-950 dark:text-slate-50">
+                  <div className="wl-modal-eyebrow">WanderLust Studio</div>
+                  <h3 className="wl-modal-title mt-1.5">
                     {getTranslation('editTrip')} · {itin.destination}
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-1.5">
                     {itin.startDate} – {itin.endDate} · {getTranslation('editTripSub')}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingTripId(null)}
+                  className="wl-modal-close"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
               <div className="mt-5 space-y-3 text-xs">

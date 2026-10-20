@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, MapPin, CalendarDays, Wallet, Stamp as StampIcon } from 'lucide-react';
+import { Globe, MapPin, CalendarDays, Wallet, Stamp as StampIcon, Plane } from 'lucide-react';
 import { SoloTraveler, TravelItinerary, SoloPersonalExpense, ExpenseItem } from '../types/travel';
 import { getTranslation } from '../utils/i18n';
 import { getFxRates, convertAmount } from '../utils/currency';
@@ -78,11 +78,36 @@ export const PassportView: React.FC<PassportViewProps> = ({
     <div className="space-y-8">
       {/* ── Passport cover ─────────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-[2rem] bg-stone-950 dark:bg-black text-stone-100 shadow-xl">
+        {/* cosmic wash */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_85%_0%,rgba(139,92,246,0.28),transparent_70%),radial-gradient(ellipse_45%_40%_at_5%_100%,rgba(76,29,149,0.35),transparent_70%)]" />
+        {/* constellation motif */}
+        <svg className="absolute top-5 left-6 sm:left-9 w-36 h-24 text-violet-300/50" viewBox="0 0 144 96" fill="none" aria-hidden>
+          <path d="M12 74 L44 30 L86 52 L128 18" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 4" strokeLinecap="round" />
+          <circle cx="12" cy="74" r="2.4" fill="currentColor" />
+          <circle cx="44" cy="30" r="3" fill="currentColor" />
+          <circle cx="86" cy="52" r="2" fill="currentColor" />
+          <circle cx="128" cy="18" r="2.8" fill="currentColor" />
+          <circle cx="66" cy="12" r="1.2" fill="currentColor" opacity="0.7" />
+          <circle cx="104" cy="82" r="1.2" fill="currentColor" opacity="0.7" />
+          <circle cx="20" cy="20" r="1" fill="currentColor" opacity="0.5" />
+        </svg>
         {/* faint globe watermark */}
-        <Globe className="absolute -right-10 -top-10 w-56 h-56 text-stone-800/80 dark:text-stone-900" strokeWidth={0.6} />
+        <Globe className="absolute -right-10 -top-10 w-56 h-56 text-violet-200/10" strokeWidth={0.6} />
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-300 via-violet-400 to-emerald-400" />
+        {/* dotted flight path sweeping along the bottom with an aeroplane */}
+        <svg className="absolute bottom-2 left-0 w-full h-14" viewBox="0 0 600 56" preserveAspectRatio="none" aria-hidden>
+          <path
+            d="M-8 46 Q 120 8 260 30 T 590 12"
+            fill="none"
+            stroke="rgba(196,181,253,0.4)"
+            strokeWidth="1.6"
+            strokeDasharray="0.5 8"
+            strokeLinecap="round"
+          />
+        </svg>
+        <Plane className="absolute right-6 bottom-6 w-4 h-4 text-violet-300/80 rotate-45" />
 
-        <div className="relative p-6 sm:p-9">
+        <div className="relative z-10 p-6 sm:p-9">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 text-violet-300">
@@ -158,6 +183,21 @@ export const PassportView: React.FC<PassportViewProps> = ({
 
       {/* ── Entry stamps wall ──────────────────────────────────────────── */}
       <div>
+        {/* boarding-route divider: dotted path + aeroplane */}
+        <div className="relative h-8 mb-4" aria-hidden>
+          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 600 32" preserveAspectRatio="none">
+            <path
+              d="M0 24 Q 180 4 340 18 T 600 10"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeDasharray="0.5 8"
+              strokeLinecap="round"
+              className="text-stone-300 dark:text-violet-400/40"
+            />
+          </svg>
+          <Plane className="absolute right-1 top-0 w-3.5 h-3.5 text-stone-400 dark:text-violet-300 rotate-45" />
+        </div>
         <div className="flex items-baseline justify-between gap-3 mb-4">
           <h2 className="font-display text-xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
             {getTranslation('passportStamps')}

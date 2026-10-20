@@ -1103,8 +1103,8 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
       {/* Add Custom Currency Modal (Row 2 Picker) */}
       {isAddCurrencyModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto text-xs space-y-4">
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-md p-6 relative text-xs space-y-4">
             <button
               onClick={() => setIsAddCurrencyModalOpen(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
@@ -1253,8 +1253,8 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
       {/* Add Solo Expense Modal */}
       {isAddSoloModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-md p-6 relative">
             <button
               onClick={() => setIsAddSoloModalOpen(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
@@ -1390,8 +1390,8 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
       {/* Add Shared Expense Modal */}
       {isAddSharedModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-md p-6 relative">
             <button
               onClick={() => setIsAddSharedModalOpen(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
