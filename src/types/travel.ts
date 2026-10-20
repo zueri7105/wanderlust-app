@@ -201,6 +201,8 @@ export interface TravelItinerary {
   tripScope?: TripScope;
   dateFlexibility?: 'Exact Dates' | '±1 Day' | '±2 Days' | '±3 Days';
   visibility?: 'public' | 'companions_only' | 'private';
+  /** Want-to-go pool: places stashed for later, assignable to a day slot (圆周旅迹-style 待规划地点) */
+  wishlist?: string[];
 }
 
 export interface ChatMessage {

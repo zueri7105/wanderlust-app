@@ -34,10 +34,17 @@ import {
   MoonStar,
   Pencil,
   Eye,
-  EyeOff
+  EyeOff,
+  Map as MapIcon,
+  Wand2,
+  Footprints,
+  Bus,
+  Car,
+  BookmarkPlus,
+  ListPlus
 } from 'lucide-react';
 import { generateDestinationTravelGuide } from '../services/geminiService';
-import { formatTemperature } from '../utils/units';
+import { formatTemperature, haversineKm } from '../utils/units';
 import { lookupCountryGuide, visaAdviceFor, tippingAdviceFor } from '../utils/countryGuides';
 import { cardAcceptanceForCountry, tippingForCountry, countryInfoFor, countryNameFor, visaVerdictFor, isSameBlocTraveler } from '../utils/countryInfo';
 import { taxInfoFor } from '../utils/taxInfo';
@@ -48,6 +55,8 @@ import { getFxRates, refreshFxRates, benchmarkString, rateFor, type FxState } fr
 import { getTranslation, tv } from '../utils/i18n';
 import AutoGrowTextarea from './AutoGrowTextarea';
 import { WORLD_COUNTRIES } from './DestinationSelector';
+import { TripRouteMap } from './TripRouteMap';
+import { findPlaceGeo, estimateLeg, optimizeStopOrder, type TravelMode } from '../utils/placeGeo';
 
 interface ItineraryViewProps {
   itineraries: TravelItinerary[];
@@ -340,16 +349,57 @@ const splitTasks = (text: string): string[] =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+/** Transport mode meta for the "km · min" leg connector between two stops. */
+const LEG_MODE_META: Record<TravelMode, { Icon: typeof Footprints; labelKey: string }> = {
+  walk: { Icon: Footprints, labelKey: 'modeWalk' },
+  transit: { Icon: Bus, labelKey: 'modeTransit' },
+  drive: { Icon: Car, labelKey: 'modeDrive' }
+};
+
+/**
+ * Pi-Travel-style leg connector: shown between two consecutive stops when both
+ * resolve to real places — "2.8 km · ~9 min" with a walk/transit/drive icon.
+ */
+const DayLegConnector: React.FC<{ from: string; to: string }> = ({ from, to }) => {
+  const a = findPlaceGeo(from);
+  const b = findPlaceGeo(to);
+  if (!a || !b) return null;
+  const km = haversineKm(a.lat, a.lng, b.lat, b.lng);
+  if (km < 0.05) return null; // same spot, no leg
+  const leg = estimateLeg(km);
+  const { Icon, labelKey } = LEG_MODE_META[leg.mode];
+  return (
+    <div className="relative pl-4 pb-2.5 flex items-center">
+      <span
+        aria-hidden="true"
+        className="absolute left-[2.5px] top-0 bottom-0 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
+      />
+      <span className="inline-flex items-center gap-1.5 ml-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-800/60 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
+        <Icon className="w-3 h-3" />
+        <span className="font-mono tabular-nums">
+          {tv('legEstimate', { km: km < 10 ? km.toFixed(1) : Math.round(km).toString(), min: leg.minutes })}
+        </span>
+        <span className="text-emerald-600/80 dark:text-emerald-400/80 font-medium">
+          · {getTranslation(labelKey)}
+        </span>
+      </span>
+    </div>
+  );
+};
+
 interface SwipeableDayCardProps {
   day: ItineraryDay;
   isLast: boolean;
   canDelete: boolean;
   onDelete: () => void;
   destination?: string;
+  /** One-tap route optimiser (magic wand) for this day's stops */
+  onOptimize?: () => void;
+  optimized?: boolean;
 }
 
 // Timeline day card with swipe-left-to-delete (pointer-driven, works on touch + mouse)
-const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onDelete, destination = '' }) => {
+const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onDelete, destination = '', onOptimize, optimized }) => {
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
@@ -373,6 +423,17 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onD
     drag.current = null;
     setDragging(false);
     setOffset((cur) => (cur < -SWIPE_DELETE_WIDTH / 2 ? -SWIPE_DELETE_WIDTH : 0));
+  };
+
+  // Ordered slot → tasks lists so leg connectors can span slot boundaries
+  // (last activity of one slot → first activity of the next).
+  const slotsWithTasks = DAY_TIME_ROWS.map((row) => ({ ...row, tasks: splitTasks(day[row.key]) }));
+  const nonEmptySlots = slotsWithTasks.filter((s) => s.tasks.length > 0);
+  const nextTaskAfter = (slotIdx: number, taskIdx: number): string | null => {
+    const slot = nonEmptySlots[slotIdx];
+    if (taskIdx < slot.tasks.length - 1) return slot.tasks[taskIdx + 1];
+    const nextSlot = nonEmptySlots[slotIdx + 1];
+    return nextSlot ? nextSlot.tasks[0] : null;
   };
 
   return (
@@ -427,22 +488,39 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onD
                   <span className="font-mono text-[11px] text-slate-400 tabular-nums">{day.date}</span>
                 )}
               </div>
-              {canDelete && (
-                <button
-                  type="button"
-                  onClick={onDelete}
-                  className="sm:opacity-0 sm:group-hover/day:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-all cursor-pointer shrink-0"
-                  title="Delete this day (or swipe left)"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <div className="flex items-center gap-1 shrink-0">
+                {onOptimize && (
+                  <button
+                    type="button"
+                    onClick={onOptimize}
+                    className={`inline-flex items-center gap-1 p-1.5 rounded-lg transition-all cursor-pointer ${
+                      optimized
+                        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50'
+                        : 'sm:opacity-0 sm:group-hover/day:opacity-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                    }`}
+                    title={getTranslation('optimizeRouteTitle')}
+                  >
+                    {optimized ? <Check className="w-3.5 h-3.5" /> : <Wand2 className="w-3.5 h-3.5" />}
+                    {optimized && (
+                      <span className="text-[10px] font-bold">{getTranslation('routeOptimized')}</span>
+                    )}
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="sm:opacity-0 sm:group-hover/day:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-all cursor-pointer"
+                    title="Delete this day (or swipe left)"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="space-y-3.5">
-              {DAY_TIME_ROWS.map(({ key, labelKey, Icon, chip, dot }) => {
-                const tasks = splitTasks(day[key]);
-                if (tasks.length === 0) return null;
+              {nonEmptySlots.map(({ key, labelKey, Icon, chip, dot, tasks }, slotIdx) => {
                 return (
                   <div key={key}>
                     {/* Slot label on its own row; activities stack below it so the
@@ -451,22 +529,28 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onD
                       <Icon className="w-3 h-3" />
                       <span>{getTranslation(labelKey)}</span>
                     </span>
-                    {/* Dotted task list: one dot per task, connected by a dashed string */}
+                    {/* Dotted task list with km·min leg connectors between stops */}
                     <div className="mt-1.5">
-                      {tasks.map((task, taskIdx) => (
-                        <div key={taskIdx} className="relative pl-4 pb-2.5 last:pb-0 flex items-start">
-                          {taskIdx < tasks.length - 1 && (
-                            <span
-                              aria-hidden="true"
-                              className="absolute left-[2.5px] top-[16px] bottom-0 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
-                            />
-                          )}
-                          <span className={`absolute left-0 top-[7px] w-1.5 h-1.5 rounded-full ${dot} ring-2 ring-white dark:ring-slate-900 z-10`} />
-                          {/* key-term photo sits in front of the words, behind the bullet dot — tap for a bigger view + intro */}
-                          <ActivityImage text={task} destination={destination} />
-                          <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 pt-0.5">{task}</span>
-                        </div>
-                      ))}
+                      {tasks.map((task, taskIdx) => {
+                        const nextTask = nextTaskAfter(slotIdx, taskIdx);
+                        return (
+                          <React.Fragment key={taskIdx}>
+                            <div className="relative pl-4 pb-2.5 flex items-start">
+                              {(taskIdx < tasks.length - 1 || nextTask) && (
+                                <span
+                                  aria-hidden="true"
+                                  className="absolute left-[2.5px] top-[16px] bottom-0 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
+                                />
+                              )}
+                              <span className={`absolute left-0 top-[7px] w-1.5 h-1.5 rounded-full ${dot} ring-2 ring-white dark:ring-slate-900 z-10`} />
+                              {/* key-term photo sits in front of the words, behind the bullet dot — tap for a bigger view + intro */}
+                              <ActivityImage text={task} destination={destination} />
+                              <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 pt-0.5">{task}</span>
+                            </div>
+                            {nextTask && <DayLegConnector from={task} to={nextTask} />}
+                          </React.Fragment>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -609,6 +693,13 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [editTripDays, setEditTripDays] = useState<ItineraryDay[]>([]);
   const [editTripNotes, setEditTripNotes] = useState('');
 
+  // Pi-Travel-style route map — which trip currently shows its day route map
+  const [routeMapOpenFor, setRouteMapOpenFor] = useState<string | null>(null);
+  // "Optimized!" confirmation on the magic-wand button, per trip+day
+  const [optimizedDayKey, setOptimizedDayKey] = useState<string | null>(null);
+  // Want-to-go pool: draft text of the add-place input, per trip
+  const [wishlistDrafts, setWishlistDrafts] = useState<Record<string, string>>({});
+
   // Visa details popup — full visa paragraph + entry customs, on demand
   const [visaPopupItinId, setVisaPopupItinId] = useState<string | null>(null);
 
@@ -750,6 +841,73 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       .filter((d) => d.dayNumber !== dayNumber)
       .map((d, i) => ({ ...d, dayNumber: i + 1 }));
     onUpdateItinerary?.({ ...itin, days: updatedDays });
+  };
+
+  /* ── Pi-Travel-style route features (圆周旅迹) ─────────────────────────── */
+
+  /** Magic wand: reorder each slot's stops by nearest-neighbour to cut backtracking. */
+  const handleOptimizeDayRoute = (itin: TravelItinerary, dayNumber: number) => {
+    const day = itin.days.find((d) => d.dayNumber === dayNumber);
+    if (!day) return;
+    const slotKeys: Array<'morningActivity' | 'afternoonActivity' | 'eveningActivity'> = [
+      'morningActivity',
+      'afternoonActivity',
+      'eveningActivity'
+    ];
+    const optimizedDay = { ...day };
+    let changed = false;
+    slotKeys.forEach((key) => {
+      const tasks = splitTasks(day[key]);
+      if (tasks.length < 3) return; // reordering <3 stops never helps
+      const reordered = optimizeStopOrder(tasks.map((t) => ({ t, geo: findPlaceGeo(t) })));
+      const nextText = reordered.map((x) => x.t).join('\n');
+      if (nextText !== tasks.join('\n')) {
+        optimizedDay[key] = nextText;
+        changed = true;
+      }
+    });
+    if (changed) {
+      onUpdateItinerary?.({
+        ...itin,
+        days: itin.days.map((d) => (d.dayNumber === dayNumber ? optimizedDay : d))
+      });
+    }
+    // Flash the confirmation either way so the tap always feels responsive
+    const key = `${itin.id}_${dayNumber}`;
+    setOptimizedDayKey(key);
+    setTimeout(() => setOptimizedDayKey((cur) => (cur === key ? null : cur)), 2600);
+  };
+
+  /** Want-to-go pool: stash a place for later. */
+  const handleAddWishlistPlace = (itin: TravelItinerary) => {
+    const text = (wishlistDrafts[itin.id] || '').trim();
+    if (!text) return;
+    const wishlist = [...(itin.wishlist || []), text];
+    onUpdateItinerary?.({ ...itin, wishlist });
+    setWishlistDrafts((prev) => ({ ...prev, [itin.id]: '' }));
+  };
+
+  const handleRemoveWishlistPlace = (itin: TravelItinerary, idx: number) => {
+    const wishlist = (itin.wishlist || []).filter((_, i) => i !== idx);
+    onUpdateItinerary?.({ ...itin, wishlist });
+  };
+
+  /** Assign a pooled place to a day's morning/afternoon/evening slot. */
+  const handleAssignWishlistPlace = (
+    itin: TravelItinerary,
+    idx: number,
+    dayNumber: number,
+    slot: 'morningActivity' | 'afternoonActivity' | 'eveningActivity'
+  ) => {
+    const place = (itin.wishlist || [])[idx];
+    if (!place) return;
+    const days = itin.days.map((d) => {
+      if (d.dayNumber !== dayNumber) return d;
+      const existing = splitTasks(d[slot]);
+      return { ...d, [slot]: [...existing, place].join('\n') };
+    });
+    const wishlist = (itin.wishlist || []).filter((_, i) => i !== idx);
+    onUpdateItinerary?.({ ...itin, days, wishlist });
   };
 
   const handleAddChecklistItem = (itinId: string, defaultItems: string[]) => {
@@ -1198,6 +1356,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             // Traveller nationality's home currency (for the dual exchange-rate display)
             const natCurrency = countryInfoFor(guideNat)?.currency || { code: 'EUR', symbol: '€', name: 'Euro' };
             const visaVerdict = visaVerdictFor(guideNat, `${itinerary.country || ''} ${itinerary.destination}`);
+            // Pi-style card stat: total planned stops across every day & slot
+            const placesCount = itinerary.days.reduce(
+              (n, d) =>
+                n +
+                splitTasks(d.morningActivity).length +
+                splitTasks(d.afternoonActivity).length +
+                splitTasks(d.eveningActivity).length,
+              0
+            );
 
             return (
               <SwipeableTripShell
@@ -1216,10 +1383,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       [itinerary.id]: !prev[itinerary.id]
                     }))
                   }
-                  className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/70 dark:hover:brightness-105/40 transition-colors border-b border-slate-100 dark:border-slate-800"
+                  className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer bg-gradient-to-r from-emerald-50/70 via-teal-50/40 to-transparent dark:from-emerald-950/30 dark:via-teal-950/15 dark:to-transparent hover:from-emerald-50 hover:via-teal-50/60 dark:hover:from-emerald-950/40 transition-colors border-b border-slate-100 dark:border-slate-800"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-rose-600 text-white flex flex-col items-center justify-center shrink-0 shadow-xs">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex flex-col items-center justify-center shrink-0 shadow-xs shadow-emerald-500/30">
                       <span className="text-[10px] font-bold uppercase font-mono tracking-wider">
                         {itinerary.days.length}
                       </span>
@@ -1235,6 +1402,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         </h3>
                         <span className="font-mono text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                           {itinerary.startDate} – {itinerary.endDate}
+                        </span>
+                        {/* Total planned stops, Pi-Travel card style */}
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-2 py-0.5 rounded">
+                          <MapPin className="w-3 h-3" />
+                          {tv('placesCount', { n: placesCount })}
                         </span>
                         {/* Visa chip — does the traveller's passport need a visa for this country? */}
                         {(() => {
@@ -1375,6 +1547,108 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       </div>
                     </div>
 
+                    {/* Want-to-go pool (圆周旅迹 待规划地点): stash places now, assign to a day slot later */}
+                    <div className="bg-gradient-to-br from-emerald-50/80 to-teal-50/60 dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-200/70 dark:border-emerald-900/50 rounded-xl p-4 sm:p-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <BookmarkPlus className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-emerald-950 dark:text-emerald-100">
+                            {getTranslation('wishlistTitle')}
+                          </div>
+                          <p className="text-[11px] text-emerald-800/70 dark:text-emerald-300/70">
+                            {getTranslation('wishlistSub')}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={wishlistDrafts[itinerary.id] || ''}
+                          onChange={(e) =>
+                            setWishlistDrafts((prev) => ({ ...prev, [itinerary.id]: e.target.value }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddWishlistPlace(itinerary);
+                            }
+                          }}
+                          placeholder={getTranslation('wishlistPh')}
+                          className="flex-1 min-w-0 px-3 py-2 text-xs border border-emerald-200 dark:border-emerald-800 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddWishlistPlace(itinerary)}
+                          className="inline-flex items-center gap-1 px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:brightness-105 cursor-pointer shadow-xs shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>{getTranslation('addBtn')}</span>
+                        </button>
+                      </div>
+
+                      {(itinerary.wishlist || []).length > 0 && (
+                        <div className="space-y-1.5">
+                          {(itinerary.wishlist || []).map((place, idx) => (
+                            <div
+                              key={`${place}_${idx}`}
+                              className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 bg-white dark:bg-slate-900 border border-emerald-100 dark:border-emerald-900/50 rounded-lg"
+                            >
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
+                                  {place}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveWishlistPlace(itinerary, idx)}
+                                  className="p-1 text-slate-300 hover:text-red-500 transition-colors cursor-pointer shrink-0"
+                                  title={getTranslation('removeFromPool')}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <ListPlus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <select
+                                  value=""
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    if (!v) return;
+                                    const [dayNum, slot] = v.split('|');
+                                    handleAssignWishlistPlace(
+                                      itinerary,
+                                      idx,
+                                      Number(dayNum),
+                                      slot as 'morningActivity' | 'afternoonActivity' | 'eveningActivity'
+                                    );
+                                  }}
+                                  className="px-2 py-1.5 text-[11px] font-semibold border border-emerald-200 dark:border-emerald-800 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 cursor-pointer"
+                                >
+                                  <option value="">{getTranslation('assignToSlot')}</option>
+                                  {itinerary.days.map((d) => (
+                                    <optgroup key={d.dayNumber} label={`${tv('dayN', { n: d.dayNumber })}${d.title ? ` · ${d.title}` : ''}`}>
+                                      <option value={`${d.dayNumber}|morningActivity`}>
+                                        {tv('dayN', { n: d.dayNumber })} · {getTranslation('slotMorning')}
+                                      </option>
+                                      <option value={`${d.dayNumber}|afternoonActivity`}>
+                                        {tv('dayN', { n: d.dayNumber })} · {getTranslation('slotAfternoon')}
+                                      </option>
+                                      <option value={`${d.dayNumber}|eveningActivity`}>
+                                        {tv('dayN', { n: d.dayNumber })} · {getTranslation('slotEvening')}
+                                      </option>
+                                    </optgroup>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Detailed Day-by-Day Journey Timeline — swipe a day card left to delete it */}
                     <div className="space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1386,6 +1660,21 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         <div className="flex items-center gap-2 self-start sm:self-auto">
                           <button
                             type="button"
+                            onClick={() =>
+                              setRouteMapOpenFor((cur) => (cur === itinerary.id ? null : itinerary.id))
+                            }
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg cursor-pointer shadow-xs transition-colors ${
+                              routeMapOpenFor === itinerary.id
+                                ? 'text-white bg-emerald-600 hover:brightness-105'
+                                : 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
+                            }`}
+                            title={getTranslation('routeMapTitle')}
+                          >
+                            <MapIcon className="w-3.5 h-3.5" />
+                            <span>{getTranslation('routeMap')}</span>
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleOpenEditTrip(itinerary)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-rose-600 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
                           >
@@ -1395,6 +1684,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         </div>
                       </div>
 
+                      {/* 圆周旅迹-style day route map: numbered stops + connecting lines */}
+                      {routeMapOpenFor === itinerary.id && (
+                        <TripRouteMap days={itinerary.days} destination={itinerary.destination} />
+                      )}
+
                       <div className="space-y-3">
                         {itinerary.days.map((day, dayIdx) => (
                           <SwipeableDayCard
@@ -1403,6 +1697,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             isLast={dayIdx === itinerary.days.length - 1}
                             canDelete={itinerary.days.length > 1}
                             onDelete={() => handleDeleteDayFromSchedule(itinerary, day.dayNumber)}
+                            onOptimize={() => handleOptimizeDayRoute(itinerary, day.dayNumber)}
+                            optimized={optimizedDayKey === `${itinerary.id}_${day.dayNumber}`}
                             destination={`${itinerary.destination} ${itinerary.country || ''}`}
                           />
                         ))}
