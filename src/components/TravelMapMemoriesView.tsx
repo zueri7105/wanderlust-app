@@ -42,6 +42,8 @@ interface TravelMapMemoriesViewProps {
   itineraries?: TravelItinerary[];
   onOpenChatWithTraveler: (traveler: SoloTraveler, destination?: string) => void;
   onGoToItinerary: (destination: string) => void;
+  /** Hide the page header when embedded under another section (e.g. the Passport page) */
+  embedded?: boolean;
 }
 
 const CITY_GEO: Record<string, { lat: number; lng: number }> = {
@@ -435,7 +437,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   travelers,
   itineraries = [],
   onOpenChatWithTraveler,
-  onGoToItinerary
+  onGoToItinerary,
+  embedded = false
 }) => {
   const [memories, setMemories] = useState<TravelMemory[]>(() => {
     const saved = localStorage.getItem('wanderlust_travel_memories');
@@ -861,6 +864,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
       <style>{`@keyframes wl-ping{0%{transform:scale(1);opacity:.6}80%,100%{transform:scale(1.6);opacity:0}} .wl-pin{background:transparent;border:none;} .leaflet-container{font-family:inherit;}`}</style>
 
       {/* Header */}
+      {!embedded && (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-gradient-to-r from-rose-100 to-orange-100 dark:from-rose-950/50 dark:to-orange-950/50 text-rose-700 dark:text-rose-300 rounded-full mb-2 border border-rose-200/60 dark:border-rose-800/40">
@@ -904,6 +908,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           </button>
         </div>
       </div>
+      )}
 
       {/* Map Card — wraps inline; in full-screen mode the map overlays escape the card */}
       <div className={isMapFullscreen ? 'contents' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm'}>

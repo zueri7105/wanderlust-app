@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TravelItinerary, SoloTraveler, ItineraryDay, TravelGuideInfo, TripScope } from '../types/travel';
+import { TravelItinerary, SoloTraveler, ItineraryDay, TravelGuideInfo, TripScope, SoloPersonalExpense, ExpenseItem } from '../types/travel';
 import {
   Calendar,
   MapPin,
@@ -51,7 +51,7 @@ import { taxInfoFor } from '../utils/taxInfo';
 import ActivityImage from './ActivityImage';
 import { travelAppsFor } from '../data/travelApps';
 import { emergencyNumbersFor } from '../data/emergencyNumbers';
-import { getFxRates, refreshFxRates, benchmarkString, rateFor, type FxState } from '../utils/currency';
+import { getFxRates, refreshFxRates, benchmarkString, rateFor, convertAmount, type FxState } from '../utils/currency';
 import { getTranslation, tv } from '../utils/i18n';
 import AutoGrowTextarea from './AutoGrowTextarea';
 import { WORLD_COUNTRIES } from './DestinationSelector';
@@ -61,6 +61,8 @@ import { findPlaceGeo, estimateLeg, optimizeStopOrder, type TravelMode } from '.
 interface ItineraryViewProps {
   itineraries: TravelItinerary[];
   currentUser: SoloTraveler;
+  soloExpenses?: SoloPersonalExpense[];
+  sharedExpenses?: ExpenseItem[];
   onAddItinerary: (itinerary: TravelItinerary) => void;
   onUpdateItinerary?: (itinerary: TravelItinerary) => void;
   onDeleteItinerary?: (id: string) => void;
@@ -645,6 +647,8 @@ const SwipeableTripShell: React.FC<{
 export const ItineraryView: React.FC<ItineraryViewProps> = ({
   itineraries,
   currentUser,
+  soloExpenses = [],
+  sharedExpenses = [],
   onAddItinerary,
   onUpdateItinerary,
   onDeleteItinerary,
@@ -656,6 +660,32 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const sortedItineraries = [...itineraries].sort(
     (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
   );
+
+  // ── Trip costs — fold the old Trip Costs data into each trip card ──────
+  // An expense belongs to a trip when its destination's first segment matches.
+  const costFx = getFxRates();
+  const expenseMatchesTrip = (expDest: string, itin: TravelItinerary) => {
+    const seg = (expDest || '').toLowerCase().split(',')[0].trim();
+    return !!seg && itin.destination.toLowerCase().includes(seg);
+  };
+  const tripCostSummary = (itin: TravelItinerary): { total: number; count: number } => {
+    const entries = [
+      ...soloExpenses.filter((e) => expenseMatchesTrip(e.destination, itin)),
+      ...sharedExpenses.filter((e) => expenseMatchesTrip(e.destination, itin))
+    ];
+    const total = entries.reduce(
+      (sum, e) => sum + convertAmount(e.amount, e.currency || 'USD', 'USD', costFx),
+      0
+    );
+    return { total, count: entries.length };
+  };
+  // Studio bento stats
+  const totalSpentAll =
+    soloExpenses.reduce((sum, e) => sum + convertAmount(e.amount, e.currency || 'USD', 'USD', costFx), 0) +
+    sharedExpenses.reduce((sum, e) => sum + convertAmount(e.amount, e.currency || 'USD', 'USD', costFx), 0);
+  const countryCount = new Set(
+    itineraries.map((it) => (it.country || it.destination.split(',').pop() || '').trim().toLowerCase()).filter(Boolean)
+  ).size;
 
   // Do not automatically expand any trip box on open; only expand when tapped as requested
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
@@ -1422,107 +1452,138 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
   return (
     <div className="space-y-10">
-      {/* ── Pi-Travel-style hero + creation hub ─────────────────────────── */}
-      <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 sm:-mt-10 px-4 sm:px-6 lg:px-8 pt-14 sm:pt-20 pb-8 bg-gradient-to-b from-sky-100/90 via-sky-50/60 to-transparent dark:from-sky-950/50 dark:via-slate-950/20">
-        <div className="max-w-3xl mx-auto text-center space-y-3">
-          <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-slate-50">
-            {getTranslation('heroPlannerTitle')}
+      {/* ── Studio header: editorial greeting + command-bar creation ────── */}
+      <div className="space-y-7">
+        <div className="max-w-2xl">
+          <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-lime-600 dark:text-lime-400 mb-2.5">
+            {getTranslation('myTripsTitle')}
+          </div>
+          <h1 className="font-display text-4xl sm:text-6xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 leading-[1.05]">
+            {tv('tripsGreeting', { name: currentUser.name.split(' ')[0] })}
           </h1>
-          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400">
-            {getTranslation('heroPlannerSub')}
+          <p className="mt-3 text-sm sm:text-base text-stone-500 dark:text-stone-400 max-w-xl">
+            {getTranslation('tripsHeroSub')}
           </p>
+        </div>
 
-          {/* Creation card — quick create / parse a guide */}
-          <div className="mt-6 bg-white dark:bg-slate-900 border border-sky-100 dark:border-slate-700 rounded-2xl shadow-lg shadow-sky-100/60 dark:shadow-none p-4 sm:p-5 text-left">
-            <div className="flex items-center gap-2 mb-3">
+        {/* Bento stats */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-2xl">
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-4 shadow-xs">
+            <div className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 tabular-nums">
+              {sortedItineraries.length}
+            </div>
+            <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-stone-400">
+              {getTranslation('statTrips')}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-4 shadow-xs">
+            <div className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 tabular-nums">
+              {countryCount}
+            </div>
+            <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-stone-400">
+              {getTranslation('statCountries')}
+            </div>
+          </div>
+          <div className="bg-stone-950 dark:bg-lime-400 rounded-3xl p-4 shadow-xs">
+            <div className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-lime-300 dark:text-stone-950 tabular-nums">
+              {totalSpentAll > 0 ? `$${Math.round(totalSpentAll).toLocaleString()}` : '—'}
+            </div>
+            <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-stone-400 dark:text-stone-700">
+              {getTranslation('statSpent')}
+            </div>
+          </div>
+        </div>
+
+        {/* Command-bar creation card */}
+        <div className="max-w-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl shadow-sm p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              type="button"
+              onClick={() => setCreateTab('quick')}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                createTab === 'quick'
+                  ? 'bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950'
+                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{getTranslation('quickCreateTab')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreateTab('parse')}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                createTab === 'parse'
+                  ? 'bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950'
+                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>{getTranslation('parseGuideTab')}</span>
+            </button>
+          </div>
+
+          {createTab === 'quick' ? (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={quickText}
+                onChange={(e) => setQuickText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleQuickCreate();
+                }}
+                placeholder={getTranslation('quickCreatePh')}
+                className="flex-1 min-w-0 px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-lime-400"
+              />
               <button
                 type="button"
-                onClick={() => setCreateTab('quick')}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
-                  createTab === 'quick'
-                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
-                }`}
+                onClick={handleQuickCreate}
+                className="w-12 h-12 rounded-2xl bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 flex items-center justify-center transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
+                title={getTranslation('createTripBtn')}
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{getTranslation('quickCreateTab')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreateTab('parse')}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
-                  createTab === 'parse'
-                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>{getTranslation('parseGuideTab')}</span>
+                <ArrowRight className="w-5 h-5" />
               </button>
             </div>
-
-            {createTab === 'quick' ? (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={quickText}
-                  onChange={(e) => setQuickText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleQuickCreate();
-                  }}
-                  placeholder={getTranslation('quickCreatePh')}
-                  className="flex-1 min-w-0 px-4 py-3 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/60 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-300"
-                />
+          ) : (
+            <div className="space-y-2.5">
+              <textarea
+                value={parseText}
+                onChange={(e) => setParseText(e.target.value)}
+                rows={3}
+                placeholder={getTranslation('parseGuidePh')}
+                className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-lime-400 resize-none"
+              />
+              <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={handleQuickCreate}
-                  className="w-11 h-11 rounded-xl bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center transition-colors cursor-pointer shadow-md shadow-sky-500/30 shrink-0"
-                  title={getTranslation('createTripBtn')}
+                  onClick={handleParseImport}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:scale-[1.03] transition-all cursor-pointer shadow-md"
                 >
-                  <ArrowRight className="w-5 h-5" />
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{getTranslation('parseGuideBtn')}</span>
                 </button>
               </div>
-            ) : (
-              <div className="space-y-2.5">
-                <textarea
-                  value={parseText}
-                  onChange={(e) => setParseText(e.target.value)}
-                  rows={3}
-                  placeholder={getTranslation('parseGuidePh')}
-                  className="w-full px-4 py-3 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/60 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-300 resize-none"
-                />
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleParseImport}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-sky-500 hover:bg-sky-600 rounded-xl transition-colors cursor-pointer shadow-md shadow-sky-500/30"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>{getTranslation('parseGuideBtn')}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-right">
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(true)}
-                className="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 transition-colors cursor-pointer"
-              >
-                {getTranslation('manualCreateLink')}
-              </button>
             </div>
+          )}
+
+          <div className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 text-right">
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="text-xs font-semibold text-stone-500 dark:text-stone-400 hover:text-lime-600 dark:hover:text-lime-400 transition-colors cursor-pointer"
+            >
+              {getTranslation('manualCreateLink')}
+            </button>
           </div>
         </div>
       </div>
 
       {/* My trips */}
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-display text-xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
+        <h2 className="font-display text-xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
           {getTranslation('myTripsTitle')}
         </h2>
-        <span className="text-xs font-medium text-slate-400 font-mono tabular-nums">
+        <span className="text-xs font-medium text-stone-400 font-mono tabular-nums">
           {sortedItineraries.length}
         </span>
       </div>
@@ -1569,6 +1630,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
               0
             );
 
+            const cost = tripCostSummary(itinerary);
+
             return (
               <SwipeableTripShell
                 key={itinerary.id}
@@ -1586,7 +1649,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       [itinerary.id]: !prev[itinerary.id]
                     }))
                   }
-                  className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer bg-gradient-to-r from-sky-50/70 via-cyan-50/40 to-transparent dark:from-sky-950/30 dark:via-cyan-950/15 dark:to-transparent hover:from-sky-50 hover:via-cyan-50/60 dark:hover:from-sky-950/40 transition-colors border-b border-slate-100 dark:border-slate-800"
+                  className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer bg-gradient-to-r from-stone-100/80 via-stone-50/50 to-transparent dark:from-stone-800/40 dark:via-stone-800/20 dark:to-transparent hover:from-stone-100 dark:hover:from-stone-800/60 transition-colors border-b border-slate-100 dark:border-slate-800"
                 >
                   <div className="flex items-start gap-4">
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex flex-col items-center justify-center shrink-0 shadow-xs shadow-emerald-500/30">
@@ -1611,6 +1674,19 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           <MapPin className="w-3 h-3" />
                           {tv('placesCount', { n: placesCount })}
                         </span>
+                        {/* Logged trip spend — the old Trip Costs tab, folded into the trip */}
+                        {cost.count > 0 && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-stone-900 dark:text-stone-950 bg-lime-200 dark:bg-lime-300 border border-lime-400/60 px-2 py-0.5 rounded"
+                            title={`${getTranslation('costChipTitle')} · ${tv('costEntries', { n: cost.count })}`}
+                          >
+                            <DollarSign className="w-3 h-3" />
+                            <span className="tabular-nums">${Math.round(cost.total).toLocaleString()}</span>
+                            <span className="opacity-60 font-normal">
+                              {tv('costPerDay', { amt: `$${Math.round(cost.total / Math.max(1, itinerary.days.length)).toLocaleString()}` })}
+                            </span>
+                          </span>
+                        )}
                         {/* Visa chip — does the traveller's passport need a visa for this country? */}
                         {(() => {
                           const destText = `${itinerary.country || ''} ${itinerary.destination}`;

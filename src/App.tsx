@@ -29,7 +29,8 @@ import { CreateTripModal } from './components/CreateTripModal';
 import { EmergencySOSModal } from './components/EmergencySOSModal';
 import { SettingsView } from './components/SettingsView';
 import { TravelMapMemoriesView } from './components/TravelMapMemoriesView';
-import { TravelStoriesHubView } from './components/TravelStoriesHubView';
+import { PassportView } from './components/PassportView';
+import { ExploreView } from './components/ExploreView';
 import { playAudioAlert, getTranslation } from './utils/i18n';
 import { getAppSettings } from './utils/settings';
 import { BellRing, X } from 'lucide-react';
@@ -461,7 +462,7 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#090D16] flex flex-col text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex flex-col text-slate-900 dark:text-slate-100 transition-colors md:pl-[76px]">
       {/* Navigation */}
       <Navigation
         activeTab={activeTab}
@@ -477,21 +478,31 @@ export default function App() {
       />
 
       {/* Main Content Viewport */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-28 md:pb-10">
         {activeTab === 'itinerary' && (
           <ItineraryView
             itineraries={itineraries}
             currentUser={currentUser}
+            soloExpenses={soloExpenses}
+            sharedExpenses={sharedExpenses}
             onAddItinerary={handleAddItinerary}
             onUpdateItinerary={handleUpdateItinerary}
             onDeleteItinerary={handleDeleteItinerary}
           />
         )}
 
-        {/* Inspiration — travel guides worth copying */}
+        {/* Explore — shared activities + travel tips */}
         {activeTab === 'stories' && (
-          <TravelStoriesHubView
+          <ExploreView
+            activities={activities}
+            travelers={travelers}
             currentUser={currentUser}
+            selectedDestination={selectedDestination}
+            onJoinActivity={handleJoinActivity}
+            onLeaveActivity={handleLeaveActivity}
+            onOpenActivityChat={setActiveChatActivityId}
+            onCreateNewActivity={handleCreateNewActivity}
+            onDeleteActivity={(id) => setActivities((prev) => prev.filter((a) => a.id !== id))}
             onGoToDestination={(dest) => {
               setSelectedDestination(dest);
               setActiveTab('itinerary');
@@ -499,18 +510,27 @@ export default function App() {
           />
         )}
 
-        {/* Footprints — travel map & memories */}
+        {/* Passport — travel passport, entry stamps & footprints map */}
         {activeTab === 'map' && (
-          <TravelMapMemoriesView
-            currentUser={currentUser}
-            travelers={travelers}
-            itineraries={itineraries}
-            onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
-            onGoToItinerary={(dest) => {
-              setSelectedDestination(dest);
-              setActiveTab('itinerary');
-            }}
-          />
+          <div className="space-y-8">
+            <PassportView
+              currentUser={currentUser}
+              itineraries={itineraries}
+              soloExpenses={soloExpenses}
+              sharedExpenses={sharedExpenses}
+            />
+            <TravelMapMemoriesView
+              embedded
+              currentUser={currentUser}
+              travelers={travelers}
+              itineraries={itineraries}
+              onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
+              onGoToItinerary={(dest) => {
+                setSelectedDestination(dest);
+                setActiveTab('itinerary');
+              }}
+            />
+          </div>
         )}
 
         {activeTab === 'profile' && (

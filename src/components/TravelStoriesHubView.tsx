@@ -166,11 +166,14 @@ const CATEGORIES = ['All Articles', ...STORY_CATEGORIES] as const;
 interface TravelStoriesHubViewProps {
   currentUser: SoloTraveler;
   onGoToDestination?: (dest: string) => void;
+  /** Hide the hero + trending photo row (when embedded inside another page, e.g. Explore → Tips) */
+  hideHero?: boolean;
 }
 
 export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
   currentUser,
-  onGoToDestination
+  onGoToDestination,
+  hideHero
 }) => {
   const [articles, setArticles] = useState<KnowledgeArticle[]>(() => {
     const saved = localStorage.getItem('wanderlust_knowledge_articles');
@@ -305,6 +308,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
   return (
     <div className="space-y-8">
       {/* Pi-Travel-style hero (逛一逛) */}
+      {!hideHero && (
       <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 sm:-mt-10 px-4 sm:px-6 lg:px-8 pt-14 sm:pt-20 pb-10 bg-gradient-to-b from-sky-100/90 via-sky-50/60 to-transparent dark:from-sky-950/50 dark:via-slate-950/20">
         <div className="max-w-3xl mx-auto text-center space-y-3">
           <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-slate-50">
@@ -345,6 +349,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
           ))}
         </div>
       </div>
+      )}
 
       {/* Header — minimal */}
       <div className="pb-6 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
