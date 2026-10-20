@@ -494,7 +494,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
       {/* Demo Data Management */}
       <div className="pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
         <div>
-          <span className="font-semibold text-slate-900 dark:text-slate-100">WanderLust v2.4</span> · Solo Group Travel Platform
+          <span className="font-semibold text-slate-900 dark:text-slate-100">WanderLust v2.4</span> · Premium Itinerary Planner
         </div>
         <button
           type="button"

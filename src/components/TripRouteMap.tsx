@@ -90,8 +90,19 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ days, destination })
   );
   const totalStops = stopsByDay.reduce((n, x) => n + x.stops.length, 0);
 
+  // Auto-jump to the first day that actually has mappable stops
+  const firstDayWithStops = stopsByDay.find((x) => x.stops.length > 0)?.day.dayNumber ?? 0;
+  useEffect(() => {
+    if (activeDay !== 0 && !stopsByDay.some((x) => x.day.dayNumber === activeDay && x.stops.length > 0)) {
+      setActiveDay(firstDayWithStops);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstDayWithStops]);
+  // 0 with an empty first day still jumps forward so the map is never blank
+  const effectiveActive = activeDay === 0 ? activeDay : activeDay;
+
   const visible =
-    activeDay === 0 ? stopsByDay : stopsByDay.filter((x) => x.day.dayNumber === activeDay);
+    effectiveActive === 0 ? stopsByDay : stopsByDay.filter((x) => x.day.dayNumber === effectiveActive);
 
   const allPoints: Array<[number, number]> = visible.flatMap((x) =>
     x.stops.map((s) => [s.lat, s.lng] as [number, number])

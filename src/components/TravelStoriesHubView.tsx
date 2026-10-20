@@ -19,8 +19,25 @@ import {
   Pilcrow,
   Trash2,
   EyeOff,
-  Eye
+  Eye,
+  Compass
 } from 'lucide-react';
+import { TRENDING_DESTINATIONS } from '../data/trendingDestinations';
+import kyotoImg from '../assets/images/destination_kyoto_bamboo_1792119350483.jpg';
+import oaxacaImg from '../assets/images/destination_oaxaca_market_1792119352389.jpg';
+import amalfiImg from '../assets/images/destination_amalfi_boat_1792119352021.jpg';
+import exploreImg from '../assets/images/solo_travelers_explore_1792127184490.jpg';
+import diningImg from '../assets/images/solo_travelers_dining_1792127167887.jpg';
+import heroCompanionsImg from '../assets/images/hero_travel_companions_1792119350242.jpg';
+
+const TRENDING_IMAGES: Record<string, string> = {
+  kyoto: kyotoImg,
+  explore: exploreImg,
+  amalfi: amalfiImg,
+  oaxaca: oaxacaImg,
+  dining: diningImg,
+  stories: heroCompanionsImg
+};
 
 /** A story content block: paragraph or subheading. Subheadings persist as "## text". */
 interface StoryBlock {
@@ -287,6 +304,48 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
 
   return (
     <div className="space-y-8">
+      {/* Pi-Travel-style hero (逛一逛) */}
+      <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 sm:-mt-10 px-4 sm:px-6 lg:px-8 pt-14 sm:pt-20 pb-10 bg-gradient-to-b from-sky-100/90 via-sky-50/60 to-transparent dark:from-sky-950/50 dark:via-slate-950/20">
+        <div className="max-w-3xl mx-auto text-center space-y-3">
+          <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-slate-50">
+            {getTranslation('inspirationHeroTitle')}
+          </h1>
+          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400">
+            {getTranslation('inspirationHeroSub')}
+          </p>
+        </div>
+
+        {/* Trending destination photo cards */}
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 max-w-6xl mx-auto">
+          {TRENDING_DESTINATIONS.map((d, idx) => (
+            <button
+              key={d.name}
+              type="button"
+              onClick={() => onGoToDestination && onGoToDestination(d.name)}
+              className={`group relative overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all text-left cursor-pointer ${
+                idx % 2 === 1 ? 'lg:translate-y-5' : ''
+              }`}
+            >
+              <img
+                src={TRENDING_IMAGES[d.imageKey] || exploreImg}
+                alt={d.name}
+                className="w-full h-40 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent" />
+              <div className="absolute bottom-0 inset-x-0 p-3">
+                <div className="text-[13px] font-bold text-white leading-snug drop-shadow">
+                  {d.name}
+                </div>
+                <div className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/20 backdrop-blur-sm text-[10px] font-semibold text-white">
+                  <Compass className="w-3 h-3" />
+                  <span>{d.trendNote}</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Header — minimal */}
       <div className="pb-6 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

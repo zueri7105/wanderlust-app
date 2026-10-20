@@ -64,9 +64,9 @@ interface ItineraryViewProps {
   onAddItinerary: (itinerary: TravelItinerary) => void;
   onUpdateItinerary?: (itinerary: TravelItinerary) => void;
   onDeleteItinerary?: (id: string) => void;
-  onGoToCompanions: (destination: string) => void;
-  onGoToExploreTrips: (destination: string) => void;
-  onGoToActivities: (destination: string) => void;
+  onGoToCompanions?: (destination: string) => void;
+  onGoToExploreTrips?: (destination: string) => void;
+  onGoToActivities?: (destination: string) => void;
   onOpenChatWithCompanion?: (travelerId: string) => void;
 }
 
@@ -613,7 +613,7 @@ const SwipeableTripShell: React.FC<{
   };
 
   return (
-    <div className="relative rounded-xl overflow-hidden group/trip">
+    <div className="relative rounded-2xl overflow-hidden group/trip">
       {/* Red delete zone revealed behind the trip card when swiping left */}
       {canDelete && (
         <button
@@ -629,7 +629,7 @@ const SwipeableTripShell: React.FC<{
 
       <div
         style={{ transform: `translateX(${offset}px)` }}
-        className={`relative touch-pan-y ${dragging ? '' : 'transition-transform'}`}
+        className={`relative touch-pan-y bg-white dark:bg-slate-900 ${dragging ? '' : 'transition-transform'}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
@@ -1143,12 +1143,62 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
     setIsGeneratingGuide(true);
 
+    const guide = await buildTravelGuide(formDest, formCountry, formCities[0], formNotes, formStartDate, formEndDate);
+
+    const newItinerary: TravelItinerary = {
+      id: `itin_${Date.now()}`,
+      travelerId: currentUser.id,
+      destination: formDest.includes(',') ? formDest : `${formCities[0] || formDest}, ${guide.destinationCountry}`,
+      country: guide.destinationCountry,
+      cities: formCities.length > 1 ? formCities : undefined,
+      startDate: formStartDate,
+      endDate: formEndDate,
+      companionPurpose: selectedPurposes.length > 0 ? selectedPurposes : ['Solo Exploration'],
+      notes: formNotes || `Solo trip to ${formDest}.`,
+      days: formDays.map((d, idx) => {
+        // Map the user's free-form activity boxes onto the structured day slots:
+        // first 3 activities → morning / afternoon / evening, extras join the evening slot.
+        const fmt = (it?: FormDayItem) =>
+          it ? (it.detail.trim() ? `${it.name.trim() || 'Activity'} — ${it.detail.trim()}` : it.name.trim()) : '';
+        const [m, a, ...rest] = d.items;
+        const eveningParts = rest.map(fmt).filter(Boolean);
+        return {
+          dayNumber: idx + 1,
+          title: d.title,
+          morningActivity: fmt(m) || 'Free morning to explore at your own pace.',
+          afternoonActivity: fmt(a) || 'Free afternoon for spontaneous plans.',
+          eveningActivity: eveningParts.join(' · ') || 'Relaxed evening, dinner nearby.',
+          companionGoal: d.companionGoal
+        };
+      }),
+      travelGuide: guide,
+      tripScope: formTripScope,
+      dateFlexibility: formDateFlexibility,
+      visibility: 'public'
+    };
+
+    onAddItinerary(newItinerary);
+    setIsAddModalOpen(false);
+
+    // Auto expand the new trip
+    setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
+  };
+
+  /** Shared guide builder (country knowledge base + optional AI generation). */
+  const buildTravelGuide = async (
+    destInput: string,
+    countryInput: string,
+    firstCity: string | undefined,
+    notes: string,
+    startDate: string,
+    endDate: string
+  ): Promise<TravelGuideInfo> => {
     // Country knowledge base: resolves bare cities ("Bangkok" → Thailand) and aligns
     // entry rules, customs, phrases and currency with whatever destination is typed.
-    const kb = lookupCountryGuide(formDest);
+    const kb = lookupCountryGuide(destInput);
     const nat = currentUser.country || 'Germany';
-    const country = formCountry.trim() || (kb.key !== 'generic' ? kb.name : formDest);
-    const city = formCities[0] || formDest;
+    const country = countryInput.trim() || (kb.key !== 'generic' ? kb.name : destInput);
+    const city = firstCity || destInput;
     const visaText = visaAdviceFor(nat, kb);
     const tippingText = tippingAdviceFor(nat, kb);
     const kbCurrency = {
@@ -1258,70 +1308,223 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         ],
         soloSafetyAdvisories: [emergencyAdvisory, 'Meet potential travel companions in busy public places and share your live location with someone you trust.']
       };
-    } finally {
-      setIsGeneratingGuide(false);
     }
+    setIsGeneratingGuide(false);
+    return guide;
+  };
 
+  /* ── Pi-Travel creation hub ────────────────────────────────────────────── */
+  const [createTab, setCreateTab] = useState<'quick' | 'parse'>('quick');
+  const [quickText, setQuickText] = useState('');
+  const [parseText, setParseText] = useState('');
+
+  /** Quick create: "想去北京3天2晚" → draft itinerary skeleton, then refine in Edit Trip. */
+  const handleQuickCreate = async () => {
+    const raw = quickText.trim();
+    if (!raw || isGeneratingGuide) return;
+    const m = raw.match(/^(.+?)\s*(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
+    const destination = (m ? m[1] : raw).replace(/^想去\s*/, '').trim() || raw;
+    const dayCount = m ? Math.min(14, Math.max(1, Number(m[2]))) : 3;
+    const start = new Date();
+    start.setDate(start.getDate() + 14);
+    const end = new Date(start);
+    end.setDate(end.getDate() + dayCount - 1);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const days: ItineraryDay[] = Array.from({ length: dayCount }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return {
+        dayNumber: i + 1,
+        date: iso(d),
+        title: '',
+        morningActivity: '',
+        afternoonActivity: '',
+        eveningActivity: ''
+      };
+    });
+    setIsGeneratingGuide(true);
+    const guide = await buildTravelGuide(destination, '', destination.split(',')[0]?.trim(), '', iso(start), iso(end));
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,
       travelerId: currentUser.id,
-      destination: formDest,
-      country: country,
-      cities: formCities,
-      startDate: formStartDate,
-      endDate: formEndDate,
-      companionPurpose: selectedPurposes.length > 0 ? selectedPurposes : ['Solo Exploration'],
-      notes: formNotes || `Solo trip to ${formDest}.`,
-      days: formDays.map((d, idx) => {
-        // Map the user's free-form activity boxes onto the structured day slots:
-        // first 3 activities → morning / afternoon / evening, extras join the evening slot.
-        const fmt = (it?: FormDayItem) =>
-          it ? (it.detail.trim() ? `${it.name.trim() || 'Activity'} — ${it.detail.trim()}` : it.name.trim()) : '';
-        const [m, a, ...rest] = d.items;
-        const eveningParts = rest.map(fmt).filter(Boolean);
-        return {
-          dayNumber: idx + 1,
-          title: d.title,
-          morningActivity: fmt(m) || 'Free morning to explore at your own pace.',
-          afternoonActivity: fmt(a) || 'Free afternoon for spontaneous plans.',
-          eveningActivity: eveningParts.join(' · ') || 'Relaxed evening, dinner nearby.',
-          companionGoal: d.companionGoal
-        };
-      }),
+      destination,
+      country: destination.includes(',') ? destination.split(',').pop()!.trim() : guide.destinationCountry,
+      startDate: iso(start),
+      endDate: iso(end),
+      companionPurpose: [],
+      notes: '',
+      days,
       travelGuide: guide,
-      tripScope: formTripScope,
-      dateFlexibility: formDateFlexibility,
-      visibility: 'public'
+      visibility: 'private'
     };
-
     onAddItinerary(newItinerary);
-    setIsAddModalOpen(false);
+    setQuickText('');
+    setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
+    handleOpenEditTrip(newItinerary);
+  };
 
-    // Auto expand the new trip
+  /** Parse pasted guide text: named places fall into the Want-to-go pool of a draft trip. */
+  const handleParseImport = async () => {
+    const text = parseText.trim();
+    if (!text || isGeneratingGuide) return;
+    const dayCount = Math.max(2, Math.min(7, Math.round(text.length / 400) || 2));
+    const places: string[] = [];
+    const seen = new Set<string>();
+    text
+      .split(/[\n,，。;；、·•]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 2 && s.length <= 60)
+      .forEach((s) => {
+        if (!findPlaceGeo(s) || seen.has(s.toLowerCase())) return;
+        seen.add(s.toLowerCase());
+        places.push(s);
+      });
+    const start = new Date();
+    start.setDate(start.getDate() + 14);
+    const end = new Date(start);
+    end.setDate(end.getDate() + dayCount - 1);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const days: ItineraryDay[] = Array.from({ length: dayCount }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return {
+        dayNumber: i + 1,
+        date: iso(d),
+        title: '',
+        morningActivity: '',
+        afternoonActivity: '',
+        eveningActivity: ''
+      };
+    });
+    const firstPlace = places[0] ? findPlaceGeo(places[0])?.name || '' : '';
+    setIsGeneratingGuide(true);
+    const guide = await buildTravelGuide(firstPlace || text.slice(0, 40), '', firstPlace, text.slice(0, 300), iso(start), iso(end));
+    const newItinerary: TravelItinerary = {
+      id: `itin_${Date.now()}`,
+      travelerId: currentUser.id,
+      destination: firstPlace
+        ? firstPlace.replace(/\b\w/g, (c) => c.toUpperCase())
+        : getTranslation('untitledTrip'),
+      country: '',
+      startDate: iso(start),
+      endDate: iso(end),
+      companionPurpose: [],
+      notes: tv('parsedFromGuide', { n: places.length }),
+      days,
+      travelGuide: guide,
+      wishlist: places,
+      visibility: 'private'
+    };
+    onAddItinerary(newItinerary);
+    setParseText('');
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
   };
 
   return (
     <div className="space-y-10">
-      {/* Header — minimal */}
-      <div className="pb-6 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-rose-600 dark:text-rose-400 flex items-center gap-1.5 mb-2">
-            <Calendar className="w-3.5 h-3.5" />
-            Trips & Guides
+      {/* ── Pi-Travel-style hero + creation hub ─────────────────────────── */}
+      <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 sm:-mt-10 px-4 sm:px-6 lg:px-8 pt-14 sm:pt-20 pb-8 bg-gradient-to-b from-sky-100/90 via-sky-50/60 to-transparent dark:from-sky-950/50 dark:via-slate-950/20">
+        <div className="max-w-3xl mx-auto text-center space-y-3">
+          <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-slate-50">
+            {getTranslation('heroPlannerTitle')}
+          </h1>
+          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400">
+            {getTranslation('heroPlannerSub')}
           </p>
-          <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
-            {getTranslation('itineraryTitle')}
-          </h2>
-        </div>
 
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:brightness-105 transition-colors shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{getTranslation('planNewItinerary')}</span>
-        </button>
+          {/* Creation card — quick create / parse a guide */}
+          <div className="mt-6 bg-white dark:bg-slate-900 border border-sky-100 dark:border-slate-700 rounded-2xl shadow-lg shadow-sky-100/60 dark:shadow-none p-4 sm:p-5 text-left">
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setCreateTab('quick')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                  createTab === 'quick'
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{getTranslation('quickCreateTab')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreateTab('parse')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                  createTab === 'parse'
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>{getTranslation('parseGuideTab')}</span>
+              </button>
+            </div>
+
+            {createTab === 'quick' ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={quickText}
+                  onChange={(e) => setQuickText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleQuickCreate();
+                  }}
+                  placeholder={getTranslation('quickCreatePh')}
+                  className="flex-1 min-w-0 px-4 py-3 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/60 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                />
+                <button
+                  type="button"
+                  onClick={handleQuickCreate}
+                  className="w-11 h-11 rounded-xl bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center transition-colors cursor-pointer shadow-md shadow-sky-500/30 shrink-0"
+                  title={getTranslation('createTripBtn')}
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                <textarea
+                  value={parseText}
+                  onChange={(e) => setParseText(e.target.value)}
+                  rows={3}
+                  placeholder={getTranslation('parseGuidePh')}
+                  className="w-full px-4 py-3 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/60 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-300 resize-none"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleParseImport}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-sky-500 hover:bg-sky-600 rounded-xl transition-colors cursor-pointer shadow-md shadow-sky-500/30"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{getTranslation('parseGuideBtn')}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-right">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 transition-colors cursor-pointer"
+              >
+                {getTranslation('manualCreateLink')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* My trips */}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
+          {getTranslation('myTripsTitle')}
+        </h2>
+        <span className="text-xs font-medium text-slate-400 font-mono tabular-nums">
+          {sortedItineraries.length}
+        </span>
       </div>
 
       {/* Itinerary Boxes Stacked Top to Bottom Sorted by Earlier Start Date */}
@@ -1373,7 +1576,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 onDelete={() => handleDeleteTripFromEdit(itinerary)}
               >
               <div
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden transition-all"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md overflow-hidden transition-all"
               >
                 {/* Trip Itinerary Box Header (Clickable to Expand / Collapse) */}
                 <div
@@ -1383,7 +1586,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       [itinerary.id]: !prev[itinerary.id]
                     }))
                   }
-                  className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer bg-gradient-to-r from-emerald-50/70 via-teal-50/40 to-transparent dark:from-emerald-950/30 dark:via-teal-950/15 dark:to-transparent hover:from-emerald-50 hover:via-teal-50/60 dark:hover:from-emerald-950/40 transition-colors border-b border-slate-100 dark:border-slate-800"
+                  className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer bg-gradient-to-r from-sky-50/70 via-cyan-50/40 to-transparent dark:from-sky-950/30 dark:via-cyan-950/15 dark:to-transparent hover:from-sky-50 hover:via-cyan-50/60 dark:hover:from-sky-950/40 transition-colors border-b border-slate-100 dark:border-slate-800"
                 >
                   <div className="flex items-start gap-4">
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex flex-col items-center justify-center shrink-0 shadow-xs shadow-emerald-500/30">
@@ -1515,38 +1718,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   </div>
                 </div>
 
-                {/* Expanded Detailed Solo Journey, Day Schedule Editing & Travel Guide */}
+                {/* Expanded Detailed Journey, Day Schedule Editing & Travel Guide */}
                 {isExpanded && (
                   <div className="p-6 space-y-8 bg-slate-50/40 dark:bg-slate-950/30">
-                    {/* Action Links Bar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          {tv('travelBuddiesFor', { dest: itinerary.destination })}
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          {tv('othersHeading', { dest: itinerary.destination.split(',')[0] })}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => onGoToCompanions(itinerary.destination)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
-                        >
-                          <Users className="w-3.5 h-3.5" />
-                          <span>{getTranslation('findMatchingCompanions')}</span>
-                        </button>
-
-                        <button
-                          onClick={() => onGoToActivities(itinerary.destination)}
-                          className="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-lg cursor-pointer"
-                        >
-                          <span>{getTranslation('sharedActivitiesBtn')}</span>
-                        </button>
-                      </div>
-                    </div>
-
                     {/* Want-to-go pool (圆周旅迹 待规划地点): stash places now, assign to a day slot later */}
                     <div className="bg-gradient-to-br from-emerald-50/80 to-teal-50/60 dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-200/70 dark:border-emerald-900/50 rounded-xl p-4 sm:p-5 space-y-3">
                       <div className="flex items-center gap-2">

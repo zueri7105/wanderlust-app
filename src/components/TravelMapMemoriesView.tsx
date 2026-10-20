@@ -496,9 +496,9 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   // Map legend collapsed/expanded
   const [legendCollapsed, setLegendCollapsed] = useState(false);
-  // Full-screen map mode (viewport-filling overlay) — opens full-screen by default so the
-  // first thing you see is the big world map; exit with Esc / the minimise button.
-  const [isMapFullscreen, setIsMapFullscreen] = useState(true);
+  // Full-screen map mode (viewport-filling overlay) — opens inline so the top nav stays
+  // reachable; go full-screen with the maximise button (Esc / minimise to exit).
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   // On-map Memories Journal drawer (combined into the map)
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   // Show journal memories as water-droplet photo pins on the map
