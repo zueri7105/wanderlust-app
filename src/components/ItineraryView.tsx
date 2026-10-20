@@ -45,7 +45,8 @@ import ActivityImage from './ActivityImage';
 import { travelAppsFor } from '../data/travelApps';
 import { emergencyNumbersFor } from '../data/emergencyNumbers';
 import { getFxRates, refreshFxRates, benchmarkString, rateFor, type FxState } from '../utils/currency';
-import { getTranslation } from '../utils/i18n';
+import { getTranslation, tv } from '../utils/i18n';
+import AutoGrowTextarea from './AutoGrowTextarea';
 import { WORLD_COUNTRIES } from './DestinationSelector';
 
 interface ItineraryViewProps {
@@ -277,28 +278,28 @@ export function resolveDestinationCurrency(itinerary: TravelItinerary) {
 
 const DAY_TIME_ROWS: Array<{
   key: 'morningActivity' | 'afternoonActivity' | 'eveningActivity';
-  label: string;
+  labelKey: string;
   Icon: typeof Sun;
   chip: string;
   dot: string;
 }> = [
   {
     key: 'morningActivity',
-    label: 'Morning',
+    labelKey: 'slotMorning',
     Icon: Sunrise,
     chip: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200/70 dark:border-amber-900/60',
     dot: 'bg-amber-400'
   },
   {
     key: 'afternoonActivity',
-    label: 'Afternoon',
+    labelKey: 'slotAfternoon',
     Icon: Sun,
     chip: 'bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 border-orange-200/70 dark:border-orange-900/60',
     dot: 'bg-orange-400'
   },
   {
     key: 'eveningActivity',
-    label: 'Evening',
+    labelKey: 'slotEvening',
     Icon: MoonStar,
     chip: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border-indigo-200/70 dark:border-indigo-900/60',
     dot: 'bg-indigo-400'
@@ -348,7 +349,7 @@ interface SwipeableDayCardProps {
 }
 
 // Timeline day card with swipe-left-to-delete (pointer-driven, works on touch + mouse)
-const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDelete, onDelete, destination = '' }) => {
+const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onDelete, destination = '' }) => {
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
@@ -400,30 +401,19 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDel
         onPointerLeave={endDrag}
       >
         <div className="p-4 sm:p-5 flex gap-4">
-          {/* Timeline rail — a gradient line from the day circle to the bottom of
-              THIS card, fading as it descends. Every day gets one, including the
-              last day (shorter tail), so newly added days never look detached. */}
+          {/* Timeline rail — a full-height gradient line under every day circle,
+              fading as it descends. Every day gets one, including the last. */}
           <div className="relative flex flex-col items-center shrink-0 w-10 self-stretch">
             <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-display font-extrabold text-sm shadow-md shadow-orange-500/30 shrink-0">
               {day.dayNumber}
             </div>
-            {isLast ? (
-              <div
-                className="w-[3px] h-6 rounded-full mt-1"
-                style={{
-                  background:
-                    'linear-gradient(to bottom, rgba(251,113,133,0.9), rgba(254,205,170,0.12))'
-                }}
-              />
-            ) : (
-              <div
-                className="flex-1 w-[3px] rounded-full mt-1"
-                style={{
-                  background:
-                    'linear-gradient(to bottom, rgba(251,113,133,0.95), rgba(251,146,60,0.55), rgba(254,205,170,0.12))'
-                }}
-              />
-            )}
+            <div
+              className="flex-1 w-[3px] rounded-full mt-1"
+              style={{
+                background:
+                  'linear-gradient(to bottom, rgba(251,113,133,0.95), rgba(251,146,60,0.55), rgba(254,205,170,0.12))'
+              }}
+            />
           </div>
 
           {/* Day body */}
@@ -449,29 +439,32 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDel
               )}
             </div>
 
-            <div className="space-y-2.5">
-              {DAY_TIME_ROWS.map(({ key, label, Icon, chip, dot }) => {
+            <div className="space-y-3.5">
+              {DAY_TIME_ROWS.map(({ key, labelKey, Icon, chip, dot }) => {
                 const tasks = splitTasks(day[key]);
+                if (tasks.length === 0) return null;
                 return (
-                  <div key={key} className="flex items-start gap-2.5">
-                    <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide shrink-0 mt-0.5 w-[88px] sm:w-[104px] ${chip}`}>
+                  <div key={key}>
+                    {/* Slot label on its own row; activities stack below it so the
+                        photo and text get the full card width */}
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${chip}`}>
                       <Icon className="w-3 h-3" />
-                      <span className="hidden sm:inline">{label}</span>
+                      <span>{getTranslation(labelKey)}</span>
                     </span>
                     {/* Dotted task list: one dot per task, connected by a dashed string */}
-                    <div className="flex-1 min-w-0">
+                    <div className="mt-1.5">
                       {tasks.map((task, taskIdx) => (
-                        <div key={taskIdx} className="relative pl-4 pb-2 last:pb-0 flex items-start">
+                        <div key={taskIdx} className="relative pl-4 pb-2.5 last:pb-0 flex items-start">
                           {taskIdx < tasks.length - 1 && (
                             <span
                               aria-hidden="true"
-                              className="absolute left-[2.5px] top-[13px] bottom-0 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
+                              className="absolute left-[2.5px] top-[16px] bottom-0 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
                             />
                           )}
-                          <span className={`absolute left-0 top-[5px] w-1.5 h-1.5 rounded-full ${dot} ring-2 ring-white dark:ring-slate-900 z-10`} />
-                          {/* key-term image sits in front of the words, behind the bullet dot */}
+                          <span className={`absolute left-0 top-[7px] w-1.5 h-1.5 rounded-full ${dot} ring-2 ring-white dark:ring-slate-900 z-10`} />
+                          {/* key-term photo sits in front of the words, behind the bullet dot — tap for a bigger view + intro */}
                           <ActivityImage text={task} destination={destination} />
-                          <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{task}</span>
+                          <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 pt-0.5">{task}</span>
                         </div>
                       ))}
                     </div>
@@ -484,7 +477,7 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDel
               <div className="flex items-start gap-2 text-[11px] bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 rounded-xl px-3 py-2">
                 <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                 <span className="text-emerald-900 dark:text-emerald-200">
-                  <strong className="font-semibold">Companionship goal:</strong> {day.companionGoal}
+                  <strong className="font-semibold">{getTranslation('companionshipGoal')}</strong> {day.companionGoal}
                 </span>
               </div>
             )}
@@ -647,7 +640,23 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   };
 
   const handleSaveTripEdit = (itin: TravelItinerary) => {
-    const renumbered = editTripDays.map((d, i) => ({ ...d, dayNumber: i + 1 }));
+    // Drop empty activity boxes, tidy whitespace, and give untitled days a
+    // sensible default so blank editor fields never leak into the timeline.
+    const clean = (text: string) =>
+      (text || '')
+        .split(/[\n\r]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .join('\n');
+    const renumbered = editTripDays.map((d, i) => ({
+      ...d,
+      dayNumber: i + 1,
+      title: (d.title || '').trim() || `Day ${i + 1}`,
+      morningActivity: clean(d.morningActivity),
+      afternoonActivity: clean(d.afternoonActivity),
+      eveningActivity: clean(d.eveningActivity),
+      companionGoal: (d.companionGoal || '').trim()
+    }));
     onUpdateItinerary?.({ ...itin, days: renumbered, notes: editTripNotes });
     setEditingTripId(null);
   };
@@ -664,33 +673,66 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     setEditTripDays((prev) => prev.map((d, i) => (i === index ? { ...d, [field]: val } : d)));
   };
 
-  // "+" button on a morning/afternoon/evening slot in the trip editor —
-  // appends a fresh activity line to that slot (one activity per line).
-  const handleAddEditDayActivity = (
+  // Editor activity slots: one box per activity. Splits on the same separators
+  // the day card uses (newlines, "·", "•", ";") so boxes match the display.
+  const editDayLines = (text: string): string[] => {
+    if (!text || !text.trim()) return [''];
+    return text.split(/[\n\r]+|[·•;]\s*/);
+  };
+
+  // Update a single activity box (line) inside a morning/afternoon/evening slot
+  const handleUpdateEditDayActivityLine = (
     index: number,
-    field: 'morningActivity' | 'afternoonActivity' | 'eveningActivity'
+    field: 'morningActivity' | 'afternoonActivity' | 'eveningActivity',
+    lineIdx: number,
+    val: string
   ) => {
-    const next = prompt('Add an activity (e.g. "Fushimi Inari at sunrise"):');
-    if (!next || !next.trim()) return;
     setEditTripDays((prev) =>
       prev.map((d, i) => {
         if (i !== index) return d;
-        const cur = (d[field] || '').trim();
-        return { ...d, [field]: cur ? `${cur}\n${next.trim()}` : next.trim() };
+        const lines = editDayLines(d[field]);
+        lines[lineIdx] = val;
+        return { ...d, [field]: lines.join('\n') };
       })
     );
   };
 
+  // "+" beside a slot appends a fresh empty activity box to that slot
+  const handleAddEditDayActivityBox = (
+    index: number,
+    field: 'morningActivity' | 'afternoonActivity' | 'eveningActivity'
+  ) => {
+    setEditTripDays((prev) =>
+      prev.map((d, i) => (i === index ? { ...d, [field]: `${editDayLines(d[field]).join('\n')}\n` } : d))
+    );
+  };
+
+  // Small × on a box removes that activity line
+  const handleRemoveEditDayActivityBox = (
+    index: number,
+    field: 'morningActivity' | 'afternoonActivity' | 'eveningActivity',
+    lineIdx: number
+  ) => {
+    setEditTripDays((prev) =>
+      prev.map((d, i) => {
+        if (i !== index) return d;
+        const lines = editDayLines(d[field]).filter((_, li) => li !== lineIdx);
+        return { ...d, [field]: lines.join('\n') };
+      })
+    );
+  };
+
+  // New days start completely blank — placeholders guide, no pre-filled text.
   const handleAddEditDay = () => {
     const nextNum = editTripDays.length + 1;
     setEditTripDays((prev) => [
       ...prev,
       {
         dayNumber: nextNum,
-        title: `Day ${nextNum} Exploration`,
-        morningActivity: 'Morning activity and local neighborhood walk.',
-        afternoonActivity: 'Visit cultural sight, scenic viewpoint, or local market.',
-        eveningActivity: 'Dinner at an authentic local restaurant.',
+        title: '',
+        morningActivity: '',
+        afternoonActivity: '',
+        eveningActivity: '',
         companionGoal: ''
       }
     ]);
@@ -708,27 +750,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       .filter((d) => d.dayNumber !== dayNumber)
       .map((d, i) => ({ ...d, dayNumber: i + 1 }));
     onUpdateItinerary?.({ ...itin, days: updatedDays });
-  };
-
-  const handleAddNewDayToSchedule = (itin: TravelItinerary) => {
-    const nextDayNum = itin.days.length + 1;
-    const newDay: ItineraryDay = {
-      dayNumber: nextDayNum,
-      title: `Day ${nextDayNum} Exploration`,
-      morningActivity: 'Morning activity and local neighborhood walk.',
-      afternoonActivity: 'Visit cultural sight, scenic viewpoint, or local market.',
-      eveningActivity: 'Dinner at authentic local restaurant.',
-      companionGoal: 'Companion to share dinner or day sightseeing'
-    };
-
-    const updatedItin: TravelItinerary = {
-      ...itin,
-      days: [...itin.days, newDay]
-    };
-
-    if (onUpdateItinerary) {
-      onUpdateItinerary(updatedItin);
-    }
   };
 
   const handleAddChecklistItem = (itinId: string, defaultItems: string[]) => {
@@ -1226,12 +1247,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           const sameBloc = isSameBlocTraveler(guideNat, destText);
                           const isHome = v.verdict.startsWith('Home country');
                           const label = isHome
-                            ? 'Home country'
+                            ? getTranslation('visaHomeCountry')
                             : v.tone === 'free'
-                            ? (sameBloc ? 'Visa-free · free movement' : 'Visa-free likely')
+                            ? (sameBloc ? getTranslation('visaFreeMovement') : getTranslation('visaFreeLikely'))
                             : v.tone === 'online'
-                            ? 'E-visa / on arrival'
-                            : 'Embassy visa likely';
+                            ? getTranslation('visaOnArrival')
+                            : getTranslation('visaEmbassy');
                           const cls = isHome || v.tone === 'free'
                             ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/80 dark:border-emerald-800'
                             : v.tone === 'online'
@@ -1265,7 +1286,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               }`}
                             >
                               {isPublic ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                              <span>{isPublic ? 'Open to Public' : 'Private'}</span>
+                              <span>{isPublic ? getTranslation('openToPublic') : getTranslation('privateTrip')}</span>
                             </button>
                           );
                         })()}
@@ -1294,7 +1315,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               )}
                             </span>
                           ))}
-                          <span className="text-slate-400 ml-1">multi-city trip</span>
+                          <span className="text-slate-400 ml-1">{getTranslation('multiCityTrip')}</span>
                         </div>
                       )}
 
@@ -1326,7 +1347,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       <span>{getTranslation('editTrip')}</span>
                     </button>
                     <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      {isExpanded ? 'Hide Details' : 'Tap to View Detailed Solo Journey & Guide'}
+                      {isExpanded ? getTranslation('hideDetails') : getTranslation('tapToView')}
                     </span>
                     <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -1341,10 +1362,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
                       <div>
                         <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          Travel buddies for {itinerary.destination}
+                          {tv('travelBuddiesFor', { dest: itinerary.destination })}
                         </div>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          Others heading to {itinerary.destination.split(',')[0]} — for a day or the whole ride.
+                          {tv('othersHeading', { dest: itinerary.destination.split(',')[0] })}
                         </p>
                       </div>
 
@@ -1361,7 +1382,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           onClick={() => onGoToActivities(itinerary.destination)}
                           className="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-lg cursor-pointer"
                         >
-                          <span>Shared Activities</span>
+                          <span>{getTranslation('sharedActivitiesBtn')}</span>
                         </button>
                       </div>
                     </div>
@@ -1369,24 +1390,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     {/* Detailed Day-by-Day Journey Timeline — swipe a day card left to delete it */}
                     <div className="space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <div className="text-sm font-display font-bold text-slate-900 dark:text-slate-100">
-                            Your journey · {itinerary.days.length} day{itinerary.days.length === 1 ? '' : 's'}
-                          </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Swipe left to remove a day · <strong className="text-slate-700 dark:text-slate-300">Edit Trip</strong> reworks them all at once.
-                          </p>
+                        <div className="text-sm font-display font-bold text-slate-900 dark:text-slate-100">
+                          {getTranslation('yourJourney')} · {itinerary.days.length}{' '}
+                          {itinerary.days.length === 1 ? getTranslation('dayOne') : getTranslation('dayMany')}
                         </div>
 
                         <div className="flex items-center gap-2 self-start sm:self-auto">
-                          <button
-                            type="button"
-                            onClick={() => handleAddNewDayToSchedule(itinerary)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Add Day {itinerary.days.length + 1}</span>
-                          </button>
                           <button
                             type="button"
                             onClick={() => handleOpenEditTrip(itinerary)}
@@ -1422,10 +1431,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             </div>
                             <div>
                               <h4 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
-                                Travel Guide · {itinerary.travelGuide.destinationCity || itinerary.destination.split(',')[0]} ({itinerary.travelGuide.destinationCountry})
+                                {getTranslation('travelGuideLabel')} · {itinerary.travelGuide.destinationCity || itinerary.destination.split(',')[0]} ({itinerary.travelGuide.destinationCountry})
                               </h4>
                               <p className="text-xs text-slate-500 dark:text-slate-400">
-                                Verified run-through for traveller nationality:{' '}
+                                {getTranslation('verifiedRun')}{' '}
                                 <strong className="text-slate-800 dark:text-slate-200">{itinerary.travelGuide.travelerNationality}</strong>
                               </p>
                             </div>
@@ -1444,10 +1453,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             </div>
                             <div className="min-w-0">
                               <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                                Visa & Entry · {guideKb.name}
+                                {getTranslation('visaEntryLabel')} · {guideKb.name}
                               </div>
                               <div className="text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400">
-                                For a {guideNat} passport
+                                {tv('forPassport', { nat: guideNat })}
                               </div>
                             </div>
                           </div>
@@ -1469,7 +1478,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               onClick={() => setVisaPopupItinId(itinerary.id)}
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold text-violet-700 dark:text-violet-300 bg-white dark:bg-slate-900 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer"
                             >
-                              More details
+                              {getTranslation('moreDetails')}
                             </button>
                           </div>
                         </div>
@@ -1478,14 +1487,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                           {/* City-Specific Weather Outlook (Microclimate & Period Trends) */}
                           <div className="p-4 sm:p-5 bg-gradient-to-br from-sky-50 via-orange-50/60 to-amber-50 dark:from-slate-800/60 dark:via-slate-800/40 dark:to-slate-800/60 border border-sky-100 dark:border-slate-700 rounded-xl space-y-2.5 text-xs">
-                            <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-2">
-                                <CloudSun className="w-4 h-4 text-amber-600" />
-                                <span>City Weather Trend & Outlook</span>
-                              </div>
-                              <span className="text-[10px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 px-2 py-0.5 rounded font-mono font-medium">
-                                {itinerary.cities && itinerary.cities.length > 1 ? `${itinerary.cities.length} Cities` : 'City-Specific'}
-                              </span>
+                            <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm">
+                              <CloudSun className="w-4 h-4 text-amber-600" />
+                              <span>{getTranslation('cityWeather')}</span>
                             </div>
 
                             {/* Multi-city trips: one weather card per city */}
@@ -1511,11 +1515,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                       </div>
                                       <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
                                         <div className="bg-amber-50 dark:bg-amber-950/30 px-2 py-1 rounded border border-amber-200 dark:border-amber-800">
-                                          <span className="text-amber-700 dark:text-amber-400">Day:</span>{' '}
+                                          <span className="text-amber-700 dark:text-amber-400">{getTranslation('dayShort')}</span>{' '}
                                           <span className="font-bold text-amber-900 dark:text-amber-200">{formatTemperature(shiftCelsius(base?.daytimeAvg || '20°C', shift))}</span>
                                         </div>
                                         <div className="bg-indigo-50 dark:bg-indigo-950/30 px-2 py-1 rounded border border-indigo-200 dark:border-indigo-800">
-                                          <span className="text-indigo-500 dark:text-indigo-400">Night:</span>{' '}
+                                          <span className="text-indigo-500 dark:text-indigo-400">{getTranslation('nightShort')}</span>{' '}
                                           <span className="font-bold text-indigo-900 dark:text-indigo-200">{formatTemperature(shiftCelsius(base?.nighttimeAvg || '13°C', shift))}</span>
                                         </div>
                                       </div>
@@ -1524,7 +1528,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                       </p>
                                       {cityIdx === 0 && base?.clothingAdvice && (
                                         <p className="text-[10px] text-amber-800 dark:text-amber-300">
-                                          <strong>Clothing advice for the route:</strong> {base.clothingAdvice}
+                                          <strong>{getTranslation('clothingRoute')}</strong> {base.clothingAdvice}
                                         </p>
                                       )}
                                     </div>
@@ -1534,19 +1538,19 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             ) : (
                             <div className="space-y-1.5 text-slate-700 dark:text-slate-300">
                               <div>
-                                <span className="font-semibold text-slate-900 dark:text-slate-100">Location:</span>{' '}
+                                <span className="font-semibold text-slate-900 dark:text-slate-100">{getTranslation('locationLabel')}</span>{' '}
                                 {itinerary.travelGuide.weatherOutlook?.cityName || itinerary.travelGuide.destinationCity || itinerary.destination}
                               </div>
                               <div className="font-mono tabular-nums text-slate-950 dark:text-slate-50 font-bold text-sm">
-                                Temp Range: {formatTemperature(itinerary.travelGuide.weatherOutlook?.temperatureRange || '14°C – 23°C')}
+                                {getTranslation('tempRange')} {formatTemperature(itinerary.travelGuide.weatherOutlook?.temperatureRange || '14°C – 23°C')}
                               </div>
                               <div className="grid grid-cols-2 gap-2 py-1 text-[11px] font-mono">
                                 <div className="bg-amber-50 dark:bg-amber-950/30 p-2 rounded border border-amber-200 dark:border-amber-800">
-                                  <span className="text-amber-700 dark:text-amber-400 block">Daytime High:</span>
+                                  <span className="text-amber-700 dark:text-amber-400 block">{getTranslation('daytimeHigh')}</span>
                                   <span className="font-bold text-amber-900 dark:text-amber-200">{formatTemperature(itinerary.travelGuide.weatherOutlook?.daytimeAvg || '20°C')}</span>
                                 </div>
                                 <div className="bg-indigo-50 dark:bg-indigo-950/30 p-2 rounded border border-indigo-200 dark:border-indigo-800">
-                                  <span className="text-indigo-500 dark:text-indigo-400 block">Nighttime Low:</span>
+                                  <span className="text-indigo-500 dark:text-indigo-400 block">{getTranslation('nighttimeLow')}</span>
                                   <span className="font-bold text-indigo-900 dark:text-indigo-200">{formatTemperature(itinerary.travelGuide.weatherOutlook?.nighttimeAvg || '13°C')}</span>
                                 </div>
                               </div>
@@ -1555,7 +1559,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               </p>
                               {itinerary.travelGuide.weatherOutlook?.clothingAdvice && (
                                 <div className="text-[11px] bg-amber-50/70 dark:bg-amber-950/30 p-2 rounded border border-amber-200/60 text-amber-900 dark:text-amber-200">
-                                  <strong>Clothing Advice:</strong> {itinerary.travelGuide.weatherOutlook.clothingAdvice}
+                                  <strong>{getTranslation('clothingAdvice')}</strong> {itinerary.travelGuide.weatherOutlook.clothingAdvice}
                                 </div>
                               )}
                             </div>
@@ -1567,7 +1571,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between text-sm">
                               <div className="flex items-center gap-2">
                                 <Luggage className="w-4 h-4 text-emerald-700" />
-                                <span>Checklist and Notes</span>
+                                <span>{getTranslation('checklistNotes')}</span>
                               </div>
                             </div>
 
@@ -1582,9 +1586,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               return (
                                 <div className="space-y-2">
                                   <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                                    <span>Essentials to get you started — add your own below.</span>
+                                    <span>{getTranslation('essentialsHint')}</span>
                                     <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-300">
-                                      {packedCount}/{currentItems.length} packed
+                                      {packedCount}/{currentItems.length} {getTranslation('packedWord')}
                                     </span>
                                   </div>
                                   <ul className="space-y-1.5 text-slate-700 dark:text-slate-300 max-h-48 overflow-y-auto pr-1">
@@ -1647,7 +1651,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                           handleAddChecklistItem(itinerary.id, defaultItems);
                                         }
                                       }}
-                                      placeholder="Add personal packing item..."
+                                      placeholder={getTranslation('addPackingPh')}
                                       className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
                                     />
                                     <button
@@ -1655,7 +1659,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                       onClick={() => handleAddChecklistItem(itinerary.id, defaultItems)}
                                       className="px-2.5 py-1.5 text-xs font-semibold text-white bg-rose-600 rounded-md hover:brightness-105 transition-colors cursor-pointer shrink-0"
                                     >
-                                      Add
+                                      {getTranslation('addBtn')}
                                     </button>
                                   </div>
 
@@ -1663,14 +1667,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                   <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-1">
                                     <label className="flex items-center gap-1 font-semibold text-slate-900 dark:text-slate-100 text-[11px]">
                                       <FileText className="w-3 h-3 text-slate-500" />
-                                      <span>My Notes & Ideas:</span>
+                                      <span>{getTranslation('myNotes')}</span>
                                     </label>
-                                    <textarea
-                                      rows={2}
+                                    <AutoGrowTextarea
+                                      minRows={2}
                                       value={notesByItin[itinerary.id] ?? (itinerary.notes || '')}
                                       onChange={(e) => handleUpdateNotes(itinerary.id, e.target.value)}
-                                      placeholder="Write down personal notes, tips, must-try cafes, or travel ideas here..."
-                                      className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-slate-900 leading-relaxed resize-y"
+                                      placeholder={getTranslation('notesPh')}
+                                      className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-slate-900 leading-relaxed"
                                     />
                                   </div>
                                 </div>
@@ -1696,7 +1700,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-700">
                                 <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm">
                                   <DollarSign className="w-4 h-4 text-emerald-600" />
-                                  <span>Specific Destination Currency & Payment Norms</span>
+                                  <span>{getTranslation('currencyTitle')}</span>
                                 </div>
                                 <span className="font-mono text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded">
                                   {curr.code} ({curr.symbol})
@@ -1706,7 +1710,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                                   <div className="flex items-center justify-between gap-1">
-                                    <span className="text-[11px] text-slate-500 block">Exchange Rates:</span>
+                                    <span className="text-[11px] text-slate-500 block">{getTranslation('exchangeRates')}</span>
                                     <span
                                       className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                                         fx.isLive
@@ -1719,11 +1723,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                           fx.isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
                                         }`}
                                       />
-                                      {fx.isLive ? 'Live' : 'Estimated'}
+                                      {fx.isLive ? getTranslation('liveBadge') : getTranslation('estimatedBadge')}
                                     </span>
                                   </div>
-                                  {/* Two neat conversions: USD → destination currency, and the
-                                      traveler's home currency → destination currency */}
+                                  {/* Each conversion gets two stacked rows: the currency pair on
+                                      the first row, its exchange rate on the row below */}
                                   {(() => {
                                     const tgt = curr.code;
                                     const fmtRateN = (n: number) =>
@@ -1737,21 +1741,21 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                       ? '—'
                                       : `1 ${natCode} ≈ ${curr.symbol}${fmtRateN(rateFor(tgt, fx) / rateFor(natCode, fx))} ${tgt}`;
                                     return (
-                                      <div className="mt-1 space-y-1">
-                                        <div className="flex items-center justify-between gap-2 font-mono text-xs">
-                                          <span className="text-slate-500 dark:text-slate-400 font-sans text-[10px] font-semibold uppercase tracking-wide">USD → {tgt}</span>
-                                          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums" title={same ? 'Same currency — no conversion' : undefined}>{usdLine}</span>
+                                      <div className="mt-1.5 space-y-2">
+                                        <div>
+                                          <div className="text-slate-500 dark:text-slate-400 text-[10px] font-semibold uppercase tracking-wide">USD → {tgt}</div>
+                                          <div className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100 tabular-nums" title={same ? getTranslation('sameCurrency') : undefined}>{usdLine}</div>
                                         </div>
-                                        <div className="flex items-center justify-between gap-2 font-mono text-xs">
-                                          <span className="text-slate-500 dark:text-slate-400 font-sans text-[10px] font-semibold uppercase tracking-wide">{natCode} ({guideNat}) → {tgt}</span>
-                                          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums" title={natCode === tgt ? 'Same currency — no conversion' : undefined}>{natLine}</span>
+                                        <div className="pt-1.5 border-t border-slate-100 dark:border-slate-700">
+                                          <div className="text-slate-500 dark:text-slate-400 text-[10px] font-semibold uppercase tracking-wide">{natCode} ({guideNat}) → {tgt}</div>
+                                          <div className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100 tabular-nums" title={natCode === tgt ? getTranslation('sameCurrency') : undefined}>{natLine}</div>
                                         </div>
                                       </div>
                                     );
                                   })()}
                                 </div>
                                 <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 sm:col-span-2">
-                                  <span className="text-[11px] text-slate-500 block">Card & Cash Acceptance:</span>
+                                  <span className="text-[11px] text-slate-500 block">{getTranslation('cardCash')}</span>
                                   <span className="text-slate-800 dark:text-slate-200 text-xs mt-0.5 block">
                                     {curr.cardAcceptance}
                                   </span>
@@ -1762,17 +1766,17 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                     return (
                                       <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex items-start justify-between gap-2">
                                         <span className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                                          <strong className="text-slate-800 dark:text-slate-200">Tax:</strong>{' '}
-                                          prices are usually shown <strong>{tax.included ? 'with tax included' : 'before tax — it is added at checkout'}</strong> ({tax.rate})
-                                          — unless the store states otherwise.
+                                          <strong className="text-slate-800 dark:text-slate-200">{getTranslation('taxLabel')}</strong>{' '}
+                                          <strong>{tax.included ? getTranslation('taxIncluded') : getTranslation('taxExcluded')}</strong> ({tax.rate})
+                                          — {getTranslation('unlessStore')}.
                                         </span>
                                         <button
                                           type="button"
                                           onClick={() => setTaxTipsCountry(countryNameFor(`${itinerary.country || ''} ${itinerary.destination}`))}
                                           className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition-colors cursor-pointer shrink-0"
-                                          title="How to claim the tourist tax refund"
+                                          title={getTranslation('taxBack')}
                                         >
-                                          Tax tips
+                                          {getTranslation('taxTips')}
                                         </button>
                                       </div>
                                     );
@@ -1781,7 +1785,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               </div>
 
                               <div className="text-[11px] text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 p-2.5 rounded-lg">
-                                <strong className="text-slate-900 dark:text-slate-100">Tipping Rules:</strong>{' '}
+                                <strong className="text-slate-900 dark:text-slate-100">{getTranslation('tippingRules')}</strong>{' '}
                                 {tippingAdviceFor(guideNat, guideKb)}
                               </div>
                             </div>
@@ -1793,10 +1797,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between text-sm pb-2 border-b border-slate-200 dark:border-slate-700">
                             <div className="flex items-center gap-2">
                               <Smartphone className="w-4 h-4 text-blue-600" />
-                              <span>Connectivity, Navigation Apps & Entry Regulations</span>
+                              <span>{getTranslation('connectivityTitle')}</span>
                             </div>
                             <span className="text-[10px] text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded font-medium">
-                              Critical Solo Advice
+                              {getTranslation('criticalAdvice')}
                             </span>
                           </div>
 
@@ -1804,7 +1808,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           {itinerary.travelGuide.arrivalRulesAndApps?.connectivityAdvice && (
                             <div className="p-3 bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/80 rounded-lg text-slate-800 dark:text-slate-200">
                               <div className="font-semibold text-blue-900 dark:text-blue-300 text-xs mb-0.5">
-                                Digital Connectivity & Map Navigation Advice:
+                                {getTranslation('connectivityAdvice')}
                               </div>
                               <p className="leading-relaxed text-xs">
                                 {itinerary.travelGuide.arrivalRulesAndApps.connectivityAdvice}
@@ -1815,7 +1819,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           {/* Recommended Apps — concrete apps locals actually use */}
                           <div>
                             <div className="font-semibold text-slate-900 dark:text-slate-100 text-xs mb-2">
-                              Essential Travel Apps for {guideKb.key !== 'generic' ? guideKb.name : itinerary.country || itinerary.destination}:
+                              {tv('essentialAppsFor', { dest: guideKb.key !== 'generic' ? guideKb.name : itinerary.country || itinerary.destination })}
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                               {guideApps.map((app, idx) => (
@@ -1833,7 +1837,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-xs">
                           <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm pb-2 border-b border-slate-200 dark:border-slate-700 mb-2.5">
                             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                            <span>Local Customs & Cultural Etiquette</span>
+                            <span>{getTranslation('customsTitle')}</span>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {(() => {
@@ -1872,7 +1876,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2.5">
                             <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm">
                               <Languages className="w-4 h-4 text-indigo-600" />
-                              <span>Basic Greetings in Local Language</span>
+                              <span>{getTranslation('greetingsTitle')}</span>
                             </div>
                             <div className="space-y-2 pt-1">
                               {(guideKb.key !== 'generic'
@@ -1884,7 +1888,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                     {g.phrase}
                                   </div>
                                   <div className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
-                                    <span>Meaning: <em>{g.translation}</em></span>
+                                    <span>{getTranslation('meaningLabel')} <em>{g.translation}</em></span>
                                     <span className="font-mono text-indigo-700 dark:text-indigo-400 font-semibold">[{g.phonetic}]</span>
                                   </div>
                                 </div>
@@ -1896,7 +1900,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2.5">
                             <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm">
                               <AlertTriangle className="w-4 h-4 text-amber-600" />
-                              <span>Cultural Shocks & Traveller Realities</span>
+                              <span>{getTranslation('shocksTitle')}</span>
                             </div>
                             <div className="space-y-2 pt-1">
                               {itinerary.travelGuide.culturalShocks?.map((shock, idx) => (
@@ -1908,7 +1912,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                     {shock.description}
                                   </p>
                                   <div className="text-[10px] text-amber-800 dark:text-amber-300 font-medium">
-                                    💡 Tip: {shock.tip}
+                                    {getTranslation('tipLabel')} {shock.tip}
                                   </div>
                                 </div>
                               ))}
@@ -1919,28 +1923,28 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         {/* Safety & Meeting Point Guidelines */}
                         <div className="p-4 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-xs space-y-2">
                           <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                            Solo Safety Advisories & Recommended Public Meeting Points:
+                            {getTranslation('safetyTitle')}
                           </div>
 
                           {/* Emergency & police numbers for the destination country */}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {guideEmergency.numbers.general && (
                               <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg p-2.5 text-center">
-                                <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Emergency ({guideEmergency.country})</div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">{getTranslation('emergencyLabel')} ({guideEmergency.country})</div>
                                 <div className="font-mono font-extrabold text-rose-700 dark:text-rose-300 text-sm tabular-nums">{guideEmergency.numbers.general}</div>
                               </div>
                             )}
                             <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg p-2.5 text-center">
-                              <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Police</div>
+                              <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">{getTranslation('policeLabel')}</div>
                               <div className="font-mono font-extrabold text-rose-700 dark:text-rose-300 text-sm tabular-nums">{guideEmergency.numbers.police}</div>
                             </div>
                             <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg p-2.5 text-center">
-                              <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Ambulance</div>
+                              <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">{getTranslation('ambulanceLabel')}</div>
                               <div className="font-mono font-extrabold text-rose-700 dark:text-rose-300 text-sm tabular-nums">{guideEmergency.numbers.ambulance}</div>
                             </div>
                             {guideEmergency.numbers.fire && (
                               <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg p-2.5 text-center">
-                                <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Fire</div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">{getTranslation('fireLabel')}</div>
                                 <div className="font-mono font-extrabold text-rose-700 dark:text-rose-300 text-sm tabular-nums">{guideEmergency.numbers.fire}</div>
                               </div>
                             )}
@@ -2000,10 +2004,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
               <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div>
                   <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
-                    Visa & Entry · {kb.name}
+                    {getTranslation('visaEntryLabel')} · {kb.name}
                   </h3>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400 mt-0.5">
-                    For a {nat} passport
+                    {tv('forPassport', { nat })}
                   </p>
                 </div>
                 <button
@@ -2021,7 +2025,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
               <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
                 <div className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-2">
-                  Entry Customs & Regulations
+                  {getTranslation('entryCustoms')}
                 </div>
                 <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                   {rules.map((reg, idx) => (
@@ -2053,10 +2057,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
               <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div>
                   <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
-                    Tax in {taxTipsCountry}
+                    {tv('taxIn', { country: taxTipsCountry })}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Standard rate {tax.rate} · displayed prices {tax.included ? 'include' : 'exclude'} tax (unless the store states otherwise)
+                    {tv(tax.included ? 'taxPopupSubInc' : 'taxPopupSubExc', { rate: tax.rate })} ({getTranslation('unlessStore')})
                   </p>
                 </div>
                 <button
@@ -2068,11 +2072,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 </button>
               </div>
               <div className="pt-4 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                <div className="font-bold text-slate-900 dark:text-slate-100 mb-1.5">Getting the tax back</div>
+                <div className="font-bold text-slate-900 dark:text-slate-100 mb-1.5">{getTranslation('taxBack')}</div>
                 {tax.refund ? (
                   <p>{tax.refund}</p>
                 ) : (
-                  <p>{taxTipsCountry} has no general tourist tax-refund scheme — the price you pay is final. Keep receipts anyway: business travellers may reclaim through their company.</p>
+                  <p>{tv('noRefund', { country: taxTipsCountry })}</p>
                 )}
               </div>
             </div>
@@ -2439,10 +2443,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 </div>
                 <div>
                   <h3 className="font-display font-bold text-xl text-slate-950 dark:text-slate-50">
-                    Edit Trip · {itin.destination}
+                    {getTranslation('editTrip')} · {itin.destination}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {itin.startDate} – {itin.endDate} · Update every day of the schedule in one place.
+                    {itin.startDate} – {itin.endDate} · {getTranslation('editTripSub')}
                   </p>
                 </div>
               </div>
@@ -2450,7 +2454,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
               <div className="mt-5 space-y-3 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    Day-by-Day Schedule ({editTripDays.length} Days)
+                    {getTranslation('daySchedule')} ({tv('daysCount', { n: editTripDays.length })})
                   </span>
                   <button
                     type="button"
@@ -2458,7 +2462,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add Another Day</span>
+                    <span>{getTranslation('addAnotherDay')}</span>
                   </button>
                 </div>
 
@@ -2468,13 +2472,13 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 dark:text-slate-100">Day {idx + 1}</span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100">{tv('dayN', { n: idx + 1 })}</span>
                       {editTripDays.length > 1 && (
                         <button
                           type="button"
                           onClick={() => handleRemoveEditDay(idx)}
                           className="text-slate-400 hover:text-red-600 cursor-pointer"
-                          title="Remove this day"
+                          title={getTranslation('removeDayTitle')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -2485,41 +2489,62 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       type="text"
                       value={d.title}
                       onChange={(e) => handleUpdateEditDay(idx, 'title', e.target.value)}
-                      placeholder="Day title / highlight"
+                      placeholder={getTranslation('dayTitlePh')}
                       className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold"
                     />
 
-                    <div className="space-y-1.5">
-                      {DAY_TIME_ROWS.map(({ key, label, Icon }) => (
-                        <div key={key} className="flex items-start gap-2">
-                          <span className="inline-flex items-center gap-1 w-24 shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-2">
-                            <Icon className="w-3 h-3" />
-                            {label}
-                          </span>
-                          <textarea
-                            rows={2}
-                            value={d[key]}
-                            onChange={(e) => handleUpdateEditDay(idx, key, e.target.value)}
-                            placeholder={`${label} tasks — one per line`}
-                            className="flex-1 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 resize-y"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleAddEditDayActivity(idx, key)}
-                            className="mt-0.5 w-6 h-6 shrink-0 inline-flex items-center justify-center rounded-full border border-dashed border-rose-300 dark:border-rose-800 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                            title={`Add a ${label.toLowerCase()} activity`}
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                    <div className="space-y-2.5">
+                      {DAY_TIME_ROWS.map(({ key, labelKey, Icon }) => {
+                        const lines = editDayLines(d[key]);
+                        return (
+                          <div key={key}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                <Icon className="w-3 h-3" />
+                                {getTranslation(labelKey)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleAddEditDayActivityBox(idx, key)}
+                                className="w-6 h-6 shrink-0 inline-flex items-center justify-center rounded-full border border-dashed border-rose-300 dark:border-rose-800 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                title={`${getTranslation('addActivityBox')} · ${getTranslation(labelKey)}`}
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            {/* One auto-growing box per activity — no scrolling, no manual resize */}
+                            <div className="space-y-1.5">
+                              {lines.map((line, lineIdx) => (
+                                <div key={lineIdx} className="flex items-start gap-1.5">
+                                  <AutoGrowTextarea
+                                    value={line}
+                                    onChange={(e) => handleUpdateEditDayActivityLine(idx, key, lineIdx, e.target.value)}
+                                    placeholder={getTranslation('activityPh')}
+                                    className="flex-1 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                                  />
+                                  {lines.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveEditDayActivityBox(idx, key, lineIdx)}
+                                      className="mt-1 p-1 text-slate-300 hover:text-red-500 cursor-pointer shrink-0"
+                                      title={getTranslation('removeActivityBox')}
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <input
                       type="text"
                       value={d.companionGoal || ''}
                       onChange={(e) => handleUpdateEditDay(idx, 'companionGoal', e.target.value)}
-                      placeholder="Companionship goal for this day (optional)"
+                      placeholder={getTranslation('companionGoalPh')}
                       className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px]"
                     />
                   </div>
@@ -2527,10 +2552,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Trip Overview & Notes
+                    {getTranslation('tripNotesLabel')}
                   </label>
-                  <textarea
-                    rows={2}
+                  <AutoGrowTextarea
+                    minRows={2}
                     value={editTripNotes}
                     onChange={(e) => setEditTripNotes(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
@@ -2546,7 +2571,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-red-500 to-rose-600 rounded-lg hover:brightness-105 transition-colors shadow-xs cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete This Trip</span>
+                  <span>{getTranslation('deleteThisTrip')}</span>
                 </button>
 
                 <div className="flex items-center gap-2 justify-end">
@@ -2555,7 +2580,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     onClick={() => setEditingTripId(null)}
                     className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 cursor-pointer"
                   >
-                    Cancel
+                    {getTranslation('cancelBtn')}
                   </button>
                   <button
                     type="button"
@@ -2563,7 +2588,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:brightness-105 transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Save All Changes</span>
+                    <span>{getTranslation('saveAllChanges')}</span>
                   </button>
                 </div>
               </div>
