@@ -196,7 +196,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
 
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-500 rounded-lg hover:brightness-105 transition-colors cursor-pointer shrink-0 self-start sm:self-auto shadow-xs"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:brightness-105 transition-colors cursor-pointer shrink-0 self-start sm:self-auto shadow-xs"
         >
           <Plus className="w-4 h-4" />
           <span>Propose Activity</span>
@@ -212,7 +212,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
                 selectedCategory === cat
-                  ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white font-semibold shadow-xs'
+                  ? 'bg-rose-600 text-white font-semibold shadow-xs'
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
@@ -276,7 +276,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
             )}
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-cyan-500 rounded-lg hover:brightness-105 cursor-pointer"
+              className="inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:brightness-105 cursor-pointer"
             >
               Propose First Activity
             </button>

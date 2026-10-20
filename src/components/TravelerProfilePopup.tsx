@@ -176,7 +176,7 @@ export const TravelerProfilePopup: React.FC<TravelerProfilePopupProps> = ({
                 onOpenChat(traveler);
                 onClose();
               }}
-              className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-orange-500 rounded-xl hover:brightness-105 cursor-pointer shadow-md shadow-orange-500/25"
+              className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-rose-600 rounded-xl hover:brightness-105 cursor-pointer shadow-md shadow-orange-500/25"
             >
               <MessageCircle className="w-3.5 h-3.5" />
               <span>Message {traveler.name.split(' ')[0]}</span>

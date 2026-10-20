@@ -83,9 +83,9 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-md mb-2">
-            <Sliders className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-            <span>App Preferences & Customization</span>
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400 mb-2">
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Preferences</span>
           </div>
           <h2 className="font-display text-2xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
             {getTranslation('settingsTitle')}
@@ -105,7 +105,7 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 1. Theme & Appearance (Bright / Dark Mode) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-amber-400">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-xs">
               {settings.theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
@@ -160,7 +160,7 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
         </div>
 
         {/* 2. App Language */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-blue-400">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center shadow-xs">
               <Globe className="w-4 h-4" />
@@ -201,7 +201,7 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
         </div>
 
         {/* 3. Units & Measurements */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-emerald-400">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center shadow-xs">
               <Sliders className="w-4 h-4" />
@@ -243,7 +243,7 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
         </div>
 
         {/* 4. Chat Presence Status — pick the badge others see on your messages profile */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-cyan-400">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-sky-500 text-white flex items-center justify-center shadow-xs">
               <CircleDot className="w-4 h-4" />
@@ -298,7 +298,7 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
         </div>
 
         {/* 4b. Message Translation — which language received messages are translated into */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-indigo-400">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-400 to-violet-500 text-white flex items-center justify-center shadow-xs">
               <Languages className="w-4 h-4" />
@@ -336,7 +336,7 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
         </div>
 
         {/* 5. Safety & Solo Female Protection Mode */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-rose-400">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-400 to-red-500 text-white flex items-center justify-center shadow-xs">
               <Shield className="w-4 h-4" />
@@ -403,7 +403,7 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
         </div>
 
         {/* 6. Notifications & Sound */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-violet-400">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-fuchsia-500 text-white flex items-center justify-center shadow-xs">
               <Bell className="w-4 h-4" />
@@ -446,7 +446,7 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
         </div>
 
         {/* 7. Emergency Auto-Ping Interval */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 border-t-4 border-t-red-400 md:col-span-2">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4 md:col-span-2">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-400 to-rose-600 text-white flex items-center justify-center shadow-xs">
               <Shield className="w-4 h-4" />

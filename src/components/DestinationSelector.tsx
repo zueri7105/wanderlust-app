@@ -392,7 +392,7 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
                   onClick={() => setSelectedContinent(cont)}
                   className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors cursor-pointer font-medium ${
                     selectedContinent === cont
-                      ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white font-semibold'
+                      ? 'bg-rose-600 text-white font-semibold'
                       : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                   }`}
                 >
@@ -439,7 +439,7 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
                       onClick={() => handleSelect(label)}
                       className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-colors cursor-pointer ${
                         isSelected
-                          ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white font-bold'
+                          ? 'bg-rose-600 text-white font-bold'
                           : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:brightness-105'
                       }`}
                     >
@@ -475,7 +475,7 @@ export const DestinationSelector: React.FC<DestinationSelectorProps> = ({
                           onClick={() => handleSelect(item.country)}
                           className={`flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg transition-colors cursor-pointer text-left ${
                             isSelected
-                              ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white font-bold'
+                              ? 'bg-rose-600 text-white font-bold'
                               : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:brightness-105'
                           }`}
                         >

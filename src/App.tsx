@@ -35,7 +35,7 @@ import { EmergencySOSModal } from './components/EmergencySOSModal';
 import { SettingsView } from './components/SettingsView';
 import { TravelMapMemoriesView } from './components/TravelMapMemoriesView';
 import { TravelStoriesHubView } from './components/TravelStoriesHubView';
-import { playAudioAlert } from './utils/i18n';
+import { playAudioAlert, getTranslation } from './utils/i18n';
 import { getAppSettings } from './utils/settings';
 import { BellRing, X } from 'lucide-react';
 
@@ -466,7 +466,7 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-[#FBF6EE] dark:bg-[#090D16] flex flex-col text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#090D16] flex flex-col text-slate-900 dark:text-slate-100 transition-colors">
       {/* Navigation */}
       <Navigation
         activeTab={activeTab}
@@ -481,7 +481,7 @@ export default function App() {
       />
 
       {/* Main Content Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {activeTab === 'explore' && (
           <ExploreTripsView
             myTrips={myTrips}
@@ -539,26 +539,75 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'matcher' && (
-          <CompanionMatcher
-            trips={trips}
-            itineraries={itineraries}
-            travelers={travelers}
-            currentUser={currentUser}
-            selectedDestination={selectedDestination}
-            onSelectDestination={setSelectedDestination}
-            selectedInterest={selectedInterest}
-            onSelectInterest={setSelectedInterest}
-            selectedScope={selectedScope}
-            onSelectScope={setSelectedScope}
-            onToggleStarTraveler={handleToggleStarTraveler}
-            onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
-            onViewActivitiesForDestination={(dest) => {
-              setSelectedDestination(dest);
-              setActiveTab('activities');
-            }}
-            onAddReview={handleAddCompanionReview}
-          />
+        {/* Companions Hub — Discover + Messages in one panel */}
+        {(activeTab === 'matcher' || activeTab === 'messages') && (
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-2xs text-xs font-semibold">
+              <button
+                onClick={() => setActiveTab('matcher')}
+                className={`px-4 py-1.5 rounded-full transition-colors cursor-pointer ${
+                  activeTab === 'matcher'
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                {getTranslation('matcher')}
+              </button>
+              <button
+                onClick={() => setActiveTab('messages')}
+                className={`px-4 py-1.5 rounded-full transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                  activeTab === 'messages'
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                {getTranslation('messages')}
+                {directConversationsCount > 0 && (
+                  <span className="font-mono tabular-nums text-[10px] opacity-80">({directConversationsCount})</span>
+                )}
+              </button>
+            </div>
+
+            {activeTab === 'matcher' && (
+              <CompanionMatcher
+                trips={trips}
+                itineraries={itineraries}
+                travelers={travelers}
+                currentUser={currentUser}
+                selectedDestination={selectedDestination}
+                onSelectDestination={setSelectedDestination}
+                selectedInterest={selectedInterest}
+                onSelectInterest={setSelectedInterest}
+                selectedScope={selectedScope}
+                onSelectScope={setSelectedScope}
+                onToggleStarTraveler={handleToggleStarTraveler}
+                onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
+                onViewActivitiesForDestination={(dest) => {
+                  setSelectedDestination(dest);
+                  setActiveTab('activities');
+                }}
+                onAddReview={handleAddCompanionReview}
+              />
+            )}
+
+            {activeTab === 'messages' && (
+              <MessagesView
+                chats={chats}
+                travelers={travelers}
+                currentUser={currentUser}
+                trips={trips}
+                itineraries={itineraries}
+                activeTravelerId={activeCompanionChatId}
+                onSelectTraveler={setActiveCompanionChatId}
+                onSendMessage={handleSendDirectMessage}
+                onToggleStarTraveler={handleToggleStarTraveler}
+                onGoToItinerary={(dest) => {
+                  setSelectedDestination(dest);
+                  setActiveTab('itinerary');
+                }}
+              />
+            )}
+          </div>
         )}
 
         {/* Travel Map & Memories (Nomad Radar) */}
@@ -575,48 +624,59 @@ export default function App() {
           />
         )}
 
-        {/* Travel Stories & Community Knowledge Hub */}
-        {activeTab === 'stories' && (
-          <TravelStoriesHubView
-            currentUser={currentUser}
-            onGoToDestination={(dest) => {
-              setSelectedDestination(dest);
-              setActiveTab('explore');
-            }}
-          />
-        )}
+        {/* Gather Hub — Shared Activities + Stories & Tips in one panel */}
+        {(activeTab === 'activities' || activeTab === 'stories') && (
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-1 p-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-2xs text-xs font-semibold">
+              <button
+                onClick={() => setActiveTab('activities')}
+                className={`px-4 py-1.5 rounded-full transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                  activeTab === 'activities'
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                {getTranslation('activities')}
+                {openActivitiesCount > 0 && (
+                  <span className="font-mono tabular-nums text-[10px] opacity-80">({openActivitiesCount})</span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('stories')}
+                className={`px-4 py-1.5 rounded-full transition-colors cursor-pointer ${
+                  activeTab === 'stories'
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                {getTranslation('stories')}
+              </button>
+            </div>
 
-        {/* Dedicated Chatbox Between Companions and Activities */}
-        {activeTab === 'messages' && (
-          <MessagesView
-            chats={chats}
-            travelers={travelers}
-            currentUser={currentUser}
-            trips={trips}
-            itineraries={itineraries}
-            activeTravelerId={activeCompanionChatId}
-            onSelectTraveler={setActiveCompanionChatId}
-            onSendMessage={handleSendDirectMessage}
-            onToggleStarTraveler={handleToggleStarTraveler}
-            onGoToItinerary={(dest) => {
-              setSelectedDestination(dest);
-              setActiveTab('itinerary');
-            }}
-          />
-        )}
+            {activeTab === 'activities' && (
+              <SharedActivitiesView
+                activities={activities}
+                travelers={travelers}
+                currentUser={currentUser}
+                selectedDestination={selectedDestination}
+                onJoinActivity={handleJoinActivity}
+                onLeaveActivity={handleLeaveActivity}
+                onOpenActivityChat={(activityId) => setActiveChatActivityId(activityId)}
+                onCreateNewActivity={handleCreateNewActivity}
+                onDeleteActivity={(id) => setActivities((prev) => prev.filter((a) => a.id !== id))}
+              />
+            )}
 
-        {activeTab === 'activities' && (
-          <SharedActivitiesView
-            activities={activities}
-            travelers={travelers}
-            currentUser={currentUser}
-            selectedDestination={selectedDestination}
-            onJoinActivity={handleJoinActivity}
-            onLeaveActivity={handleLeaveActivity}
-            onOpenActivityChat={(activityId) => setActiveChatActivityId(activityId)}
-            onCreateNewActivity={handleCreateNewActivity}
-            onDeleteActivity={(id) => setActivities((prev) => prev.filter((a) => a.id !== id))}
-          />
+            {activeTab === 'stories' && (
+              <TravelStoriesHubView
+                currentUser={currentUser}
+                onGoToDestination={(dest) => {
+                  setSelectedDestination(dest);
+                  setActiveTab('explore');
+                }}
+              />
+            )}
+          </div>
         )}
 
         {activeTab === 'costs' && (
