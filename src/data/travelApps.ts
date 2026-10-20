@@ -9,6 +9,8 @@ export interface TravelApp {
   purpose: string;
 }
 
+import { countryNameFor } from '../utils/countryInfo';
+
 const A = (name: string, purpose: string): TravelApp => ({ name, purpose });
 
 /** Universal apps included for every destination. */
@@ -48,7 +50,7 @@ const APP_PACKS: Array<{ match: string[]; apps: TravelApp[] }> = [
     ]
   },
   {
-    match: ['thailand', 'bangkok', 'chiang mai', 'phuket', 'krabi', 'pattaya', 'koh samui', 'pai'],
+    match: ['thailand', 'bangkok', 'chiang mai', 'phuket', 'krabi', 'pattaya', 'koh samui', 'pai district', 'mae hong son'],
     apps: [
       A('Grab', 'Rides, food delivery & upfront prices — the SEA super-app'),
       A('Bolt', 'Usually cheaper than Grab for scooters & cars in Thai cities'),
@@ -608,12 +610,27 @@ const APP_PACKS: Array<{ match: string[]; apps: TravelApp[] }> = [
 
 /**
  * Recommended travel apps for a destination text (city or country).
- * Country-specific pack first, then universal apps — always concrete names.
+ * Matching is country-aware: the country's canonical name is resolved FIRST
+ * (so "Madrid & Seville, Spain" can never collide with a lookalike substring
+ * like "pai" or "usa"), then exact city tokens, then the generic pack.
  */
 export function travelAppsFor(destinationText: string, limit = 5): TravelApp[] {
-  const t = (destinationText || '').toLowerCase();
+  const raw = (destinationText || '').toLowerCase();
+  const tokenRe = (m: string) => new RegExp(`(^|[^a-z])${m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z]|$)`, 'i');
+
+  // 1. Country first — canonical name resolution beats substring luck
+  const country = countryNameFor(destinationText);
+  if (country) {
+    const cn = country.toLowerCase();
+    for (const pack of APP_PACKS) {
+      if (pack.match.some((m) => m === cn)) {
+        return [...pack.apps, ...UNIVERSAL].slice(0, Math.max(limit, pack.apps.length));
+      }
+    }
+  }
+  // 2. Whole-token matches only (never substrings inside other words)
   for (const pack of APP_PACKS) {
-    if (pack.match.some((m) => t.includes(m))) {
+    if (pack.match.some((m) => tokenRe(m).test(raw))) {
       return [...pack.apps, ...UNIVERSAL].slice(0, Math.max(limit, pack.apps.length));
     }
   }

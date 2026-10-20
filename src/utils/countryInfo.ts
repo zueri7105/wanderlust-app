@@ -4245,6 +4245,34 @@ export function currencyForCountry(text: string): CountryCurrency | null {
   return countryInfoFor(text)?.currency || null;
 }
 
+/**
+ * Whether a {nationality} passport is part of the same free-movement bloc as
+ * the destination (Schengen/EU, CTA, USMCA neighbours). Used to sharpen the
+ * one-line visa verdicts on trip cards.
+ */
+export function isSameBlocTraveler(nationality: string, destText: string): boolean {
+  const nat = norm(nationality || '');
+  if (!nat) return false;
+  const info = countryInfoFor(destText);
+  if (!info) return false;
+  const EU_SET = ['austria','belgium','bulgaria','croatia','cyprus','czechia','czech republic','denmark','estonia','finland','france','germany','greece','hungary','ireland','italy','latvia','lithuania','luxembourg','malta','netherlands','poland','portugal','romania','slovakia','slovenia','spain','sweden'];
+  const CTA_SET = ['united kingdom','uk','britain','great britain','ireland'];
+  const NA_SET = ['united states','usa','canada','mexico'];
+  const inSet = (set: string[]) => set.some((c) => nat === c || nat.includes(c));
+  switch (info.visaRegime) {
+    case 'schengen':
+    case 'euNonSchengen':
+      return inSet(EU_SET);
+    case 'cta':
+      return inSet(CTA_SET);
+    case 'usEsta':
+    case 'canadaEta':
+      return inSet(NA_SET);
+    default:
+      return false;
+  }
+}
+
 export function phrasesForCountry(text: string): CountryPhraseSet[] {
   const info = countryInfoFor(text);
   const raw = (info && PHRASE_SETS[info.language]) || PHRASE_SETS.english;

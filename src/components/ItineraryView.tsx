@@ -39,7 +39,9 @@ import {
 import { generateDestinationTravelGuide } from '../services/geminiService';
 import { formatTemperature } from '../utils/units';
 import { lookupCountryGuide, visaAdviceFor, tippingAdviceFor } from '../utils/countryGuides';
-import { cardAcceptanceForCountry, tippingForCountry, countryInfoFor, visaVerdictFor } from '../utils/countryInfo';
+import { cardAcceptanceForCountry, tippingForCountry, countryInfoFor, countryNameFor, visaVerdictFor, isSameBlocTraveler } from '../utils/countryInfo';
+import { taxInfoFor } from '../utils/taxInfo';
+import ActivityImage from './ActivityImage';
 import { travelAppsFor } from '../data/travelApps';
 import { emergencyNumbersFor } from '../data/emergencyNumbers';
 import { getFxRates, refreshFxRates, benchmarkString, rateFor, type FxState } from '../utils/currency';
@@ -342,10 +344,11 @@ interface SwipeableDayCardProps {
   isLast: boolean;
   canDelete: boolean;
   onDelete: () => void;
+  destination?: string;
 }
 
 // Timeline day card with swipe-left-to-delete (pointer-driven, works on touch + mouse)
-const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDelete, onDelete }) => {
+const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDelete, onDelete, destination = '' }) => {
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
@@ -397,14 +400,22 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDel
         onPointerLeave={endDrag}
       >
         <div className="p-4 sm:p-5 flex gap-4">
-          {/* Timeline rail — a single continuous gradient line from the day circle to the very
-              bottom of THIS card, fading lighter as it descends. It never pokes outside the card,
-              and because it's drawn for every day, newly added days connect seamlessly. */}
+          {/* Timeline rail — a gradient line from the day circle to the bottom of
+              THIS card, fading as it descends. Every day gets one, including the
+              last day (shorter tail), so newly added days never look detached. */}
           <div className="relative flex flex-col items-center shrink-0 w-10 self-stretch">
             <div className="relative z-10 w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-display font-extrabold text-sm shadow-md shadow-orange-500/30 shrink-0">
               {day.dayNumber}
             </div>
-            {!isLast && (
+            {isLast ? (
+              <div
+                className="w-[3px] h-6 rounded-full mt-1"
+                style={{
+                  background:
+                    'linear-gradient(to bottom, rgba(251,113,133,0.9), rgba(254,205,170,0.12))'
+                }}
+              />
+            ) : (
               <div
                 className="flex-1 w-[3px] rounded-full mt-1"
                 style={{
@@ -450,14 +461,16 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, isLast, canDel
                     {/* Dotted task list: one dot per task, connected by a dashed string */}
                     <div className="flex-1 min-w-0">
                       {tasks.map((task, taskIdx) => (
-                        <div key={taskIdx} className="relative pl-4 pb-2 last:pb-0">
+                        <div key={taskIdx} className="relative pl-4 pb-2 last:pb-0 flex items-start">
                           {taskIdx < tasks.length - 1 && (
                             <span
                               aria-hidden="true"
                               className="absolute left-[2.5px] top-[13px] bottom-0 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
                             />
                           )}
-                          <span className={`absolute left-0 top-[5px] w-1.5 h-1.5 rounded-full ${dot} ring-2 ring-white dark:ring-slate-900`} />
+                          <span className={`absolute left-0 top-[5px] w-1.5 h-1.5 rounded-full ${dot} ring-2 ring-white dark:ring-slate-900 z-10`} />
+                          {/* key-term image sits in front of the words, behind the bullet dot */}
+                          <ActivityImage text={task} destination={destination} />
                           <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{task}</span>
                         </div>
                       ))}
@@ -603,6 +616,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [editTripDays, setEditTripDays] = useState<ItineraryDay[]>([]);
   const [editTripNotes, setEditTripNotes] = useState('');
 
+  // Visa details popup — full visa paragraph + entry customs, on demand
+  const [visaPopupItinId, setVisaPopupItinId] = useState<string | null>(null);
+
+  // Tax-refund tips popup — the country name whose tax guide is open
+  const [taxTipsCountry, setTaxTipsCountry] = useState<string | null>(null);
+
   // Visibility toggle popup ("open to public" / "private")
   const [visibilityToast, setVisibilityToast] = useState<{ isPublic: boolean; text: string } | null>(null);
   const visibilityToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -643,6 +662,23 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
   const handleUpdateEditDay = (index: number, field: keyof ItineraryDay, val: string) => {
     setEditTripDays((prev) => prev.map((d, i) => (i === index ? { ...d, [field]: val } : d)));
+  };
+
+  // "+" button on a morning/afternoon/evening slot in the trip editor —
+  // appends a fresh activity line to that slot (one activity per line).
+  const handleAddEditDayActivity = (
+    index: number,
+    field: 'morningActivity' | 'afternoonActivity' | 'eveningActivity'
+  ) => {
+    const next = prompt('Add an activity (e.g. "Fushimi Inari at sunrise"):');
+    if (!next || !next.trim()) return;
+    setEditTripDays((prev) =>
+      prev.map((d, i) => {
+        if (i !== index) return d;
+        const cur = (d[field] || '').trim();
+        return { ...d, [field]: cur ? `${cur}\n${next.trim()}` : next.trim() };
+      })
+    );
   };
 
   const handleAddEditDay = () => {
@@ -1182,6 +1218,35 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         <span className="font-mono text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                           {itinerary.startDate} – {itinerary.endDate}
                         </span>
+                        {/* Visa chip — does the traveller's passport need a visa for this country? */}
+                        {(() => {
+                          const destText = `${itinerary.country || ''} ${itinerary.destination}`;
+                          const v = visaVerdictFor(guideNat, destText);
+                          if (v.verdict === 'Check requirements') return null;
+                          const sameBloc = isSameBlocTraveler(guideNat, destText);
+                          const isHome = v.verdict.startsWith('Home country');
+                          const label = isHome
+                            ? 'Home country'
+                            : v.tone === 'free'
+                            ? (sameBloc ? 'Visa-free · free movement' : 'Visa-free likely')
+                            : v.tone === 'online'
+                            ? 'E-visa / on arrival'
+                            : 'Embassy visa likely';
+                          const cls = isHome || v.tone === 'free'
+                            ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/80 dark:border-emerald-800'
+                            : v.tone === 'online'
+                            ? 'text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border-amber-200/80 dark:border-amber-800'
+                            : 'text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 border-rose-200/80 dark:border-rose-800';
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border ${cls}`}
+                              title={v.verdict}
+                            >
+                              <Stamp className="w-3 h-3" />
+                              {label}
+                            </span>
+                          );
+                        })()}
                         {/* Eye icon visibility toggle — tap to open to public / make private */}
                         {(() => {
                           const isPublic = (itinerary.visibility || 'public') === 'public';
@@ -1341,6 +1406,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             isLast={dayIdx === itinerary.days.length - 1}
                             canDelete={itinerary.days.length > 1}
                             onDelete={() => handleDeleteDayFromSchedule(itinerary, day.dayNumber)}
+                            destination={`${itinerary.destination} ${itinerary.country || ''}`}
                           />
                         ))}
                       </div>
@@ -1368,6 +1434,44 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           <span className="text-xs text-emerald-800 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md self-start sm:self-auto">
                             {getTranslation('verifiedGuide')}
                           </span>
+                        </div>
+
+                        {/* Visa & Entry — short verdict strip; details live in a popup */}
+                        <div className="p-4 sm:p-5 bg-violet-50/70 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-lg bg-violet-500 flex items-center justify-center shrink-0">
+                              <Stamp className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                                Visa & Entry · {guideKb.name}
+                              </div>
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400">
+                                For a {guideNat} passport
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
+                                visaVerdict.tone === 'free'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                  : visaVerdict.tone === 'online'
+                                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                              }`}
+                            >
+                              {visaVerdict.tone === 'free' ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                              <span>{visaVerdict.verdict}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setVisaPopupItinId(itinerary.id)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold text-violet-700 dark:text-violet-300 bg-white dark:bg-slate-900 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer"
+                            >
+                              More details
+                            </button>
+                          </div>
                         </div>
 
                         {/* Top Highlights: City Weather Outlook & Checklist */}
@@ -1626,22 +1730,21 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                       n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 })
                                       : n >= 10 ? n.toFixed(1)
                                       : n.toFixed(2);
-                                    const usdLine = tgt === 'USD'
-                                      ? '1 USD = $1.00 USD (base)'
-                                      : `1 USD ≈ ${curr.symbol}${fmtRateN(rateFor(tgt, fx))} ${tgt}`;
+                                    const same = tgt === 'USD';
+                                    const usdLine = same ? '—' : `1 USD ≈ ${curr.symbol}${fmtRateN(rateFor(tgt, fx))} ${tgt}`;
                                     const natCode = natCurrency.code;
                                     const natLine = natCode === tgt
-                                      ? `Your home currency is already ${tgt} — no conversion needed`
+                                      ? '—'
                                       : `1 ${natCode} ≈ ${curr.symbol}${fmtRateN(rateFor(tgt, fx) / rateFor(natCode, fx))} ${tgt}`;
                                     return (
                                       <div className="mt-1 space-y-1">
                                         <div className="flex items-center justify-between gap-2 font-mono text-xs">
                                           <span className="text-slate-500 dark:text-slate-400 font-sans text-[10px] font-semibold uppercase tracking-wide">USD → {tgt}</span>
-                                          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">{usdLine}</span>
+                                          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums" title={same ? 'Same currency — no conversion' : undefined}>{usdLine}</span>
                                         </div>
                                         <div className="flex items-center justify-between gap-2 font-mono text-xs">
                                           <span className="text-slate-500 dark:text-slate-400 font-sans text-[10px] font-semibold uppercase tracking-wide">{natCode} ({guideNat}) → {tgt}</span>
-                                          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">{natLine}</span>
+                                          <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums" title={natCode === tgt ? 'Same currency — no conversion' : undefined}>{natLine}</span>
                                         </div>
                                       </div>
                                     );
@@ -1652,6 +1755,28 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                   <span className="text-slate-800 dark:text-slate-200 text-xs mt-0.5 block">
                                     {curr.cardAcceptance}
                                   </span>
+                                  {/* Sales tax awareness — included/excluded in displayed prices + rate */}
+                                  {(() => {
+                                    const tax = taxInfoFor(`${itinerary.country || ''} ${itinerary.destination}`);
+                                    if (!tax) return null;
+                                    return (
+                                      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex items-start justify-between gap-2">
+                                        <span className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                          <strong className="text-slate-800 dark:text-slate-200">Tax:</strong>{' '}
+                                          prices are usually shown <strong>{tax.included ? 'with tax included' : 'before tax — it is added at checkout'}</strong> ({tax.rate})
+                                          — unless the store states otherwise.
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setTaxTipsCountry(countryNameFor(`${itinerary.country || ''} ${itinerary.destination}`))}
+                                          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-100 transition-colors cursor-pointer shrink-0"
+                                          title="How to claim the tourist tax refund"
+                                        >
+                                          Tax tips
+                                        </button>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </div>
 
@@ -1702,56 +1827,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             </div>
                           </div>
 
-                          {/* Entry regulations */}
-                          <div>
-                            <div className="font-semibold text-slate-900 dark:text-slate-100 text-xs mb-1">
-                              Entry Customs & Regulations:
-                            </div>
-                            <ul className="space-y-1 text-slate-700 dark:text-slate-300">
-                              {(guideKb.key !== 'generic'
-                                ? guideKb.entryRules
-                                : itinerary.travelGuide.arrivalRulesAndApps?.entryRegulations || []
-                              ).map((reg, idx) => (
-                                <li key={idx} className="flex items-start gap-1.5">
-                                  <span className="text-slate-400 font-bold">•</span>
-                                  <span>{reg}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-
-                        {/* Visa & Entry — tailored to the traveler's nationality */}
-                        <div className="p-4 sm:p-5 bg-gradient-to-r from-violet-50 to-fuchsia-50 dark:from-violet-950/30 dark:to-fuchsia-950/20 border border-violet-200 dark:border-violet-800 rounded-xl">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shrink-0 shadow-md shadow-violet-500/30">
-                              <Stamp className="w-5 h-5 text-white" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                                Visa & Entry Requirements
-                              </div>
-                              <div className="text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400 mt-0.5 mb-1.5">
-                                {guideKb.name} · For a {guideNat} Passport
-                              </div>
-                              {/* Clear verdict: visa-free / e-visa / embassy visa for the traveler's nationality */}
-                              <div
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold mb-2 border ${
-                                  visaVerdict.tone === 'free'
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                                    : visaVerdict.tone === 'online'
-                                    ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
-                                }`}
-                              >
-                                {visaVerdict.tone === 'free' ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                                <span>{visaVerdict.verdict}</span>
-                              </div>
-                              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                                {visaAdviceFor(guideNat, guideKb)}
-                              </p>
-                            </div>
-                          </div>
                         </div>
 
                         {/* Local Customs & Cultural Etiquette */}
@@ -1903,6 +1978,107 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Visa details popup — full visa paragraph on top, entry customs & regulations below */}
+      {visaPopupItinId && (() => {
+        const itin = itineraries.find((x) => x.id === visaPopupItinId);
+        if (!itin) return null;
+        const kb = lookupCountryGuide(`${itin.destination} ${itin.country || ''}`);
+        const nat = itin.travelGuide?.travelerNationality || currentUser.country || 'Germany';
+        const rules = kb.key !== 'generic'
+          ? kb.entryRules
+          : itin.travelGuide?.arrivalRulesAndApps?.entryRegulations || [];
+        return (
+          <div
+            className="fixed inset-0 z-[90] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+            onClick={() => setVisaPopupItinId(null)}
+          >
+            <div
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 shadow-xl max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
+                    Visa & Entry · {kb.name}
+                  </h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400 mt-0.5">
+                    For a {nat} passport
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVisaPopupItinId(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-4">
+                {visaAdviceFor(nat, kb)}
+              </p>
+
+              <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-2">
+                  Entry Customs & Regulations
+                </div>
+                <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                  {rules.map((reg, idx) => (
+                    <li key={idx} className="flex items-start gap-1.5">
+                      <span className="text-violet-400 font-bold">•</span>
+                      <span>{reg}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Tax tips popup — tourist tax-refund procedure for the destination */}
+      {taxTipsCountry && (() => {
+        const tax = taxInfoFor(taxTipsCountry);
+        if (!tax) return null;
+        return (
+          <div
+            className="fixed inset-0 z-[90] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+            onClick={() => setTaxTipsCountry(null)}
+          >
+            <div
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
+                    Tax in {taxTipsCountry}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Standard rate {tax.rate} · displayed prices {tax.included ? 'include' : 'exclude'} tax (unless the store states otherwise)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTaxTipsCountry(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="pt-4 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                <div className="font-bold text-slate-900 dark:text-slate-100 mb-1.5">Getting the tax back</div>
+                {tax.refund ? (
+                  <p>{tax.refund}</p>
+                ) : (
+                  <p>{taxTipsCountry} has no general tourist tax-refund scheme — the price you pay is final. Keep receipts anyway: business travellers may reclaim through their company.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Plan New Itinerary Modal with Dynamic Multi-Day Builder */}
       {isAddModalOpen && (
@@ -2327,6 +2503,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             placeholder={`${label} tasks — one per line`}
                             className="flex-1 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 resize-y"
                           />
+                          <button
+                            type="button"
+                            onClick={() => handleAddEditDayActivity(idx, key)}
+                            className="mt-0.5 w-6 h-6 shrink-0 inline-flex items-center justify-center rounded-full border border-dashed border-rose-300 dark:border-rose-800 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                            title={`Add a ${label.toLowerCase()} activity`}
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       ))}
                     </div>
