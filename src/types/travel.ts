@@ -133,6 +133,10 @@ export interface ItineraryDay {
   afternoonActivity: string;
   eveningActivity: string;
   companionGoal?: string;
+  /** Optional clock time per activity box, keyed "slotKey:taskIndex" (e.g. "morningActivity:0") */
+  activityTimes?: Record<string, string>;
+  /** Chosen transport per route leg, keyed "fromLabel→toLabel" (walk/taxi/train/bus/ferry/flight…) */
+  legModes?: Record<string, string>;
 }
 
 export interface CityWeatherOutlook {

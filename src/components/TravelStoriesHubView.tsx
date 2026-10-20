@@ -354,7 +354,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
       {/* Header — minimal */}
       <div className="pb-6 border-b border-stone-200/80 dark:border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-lime-600 dark:text-lime-400 flex items-center gap-1.5 mb-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-violet-600 dark:text-violet-400 flex items-center gap-1.5 mb-2">
             <BookOpen className="w-3.5 h-3.5" />
             Field Notes
           </p>
@@ -454,7 +454,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                 <div className="space-y-3">
                   {/* Category & Destination Badges */}
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-lime-100 dark:bg-lime-950/40 text-lime-800 dark:text-lime-300 border border-lime-300/60 dark:border-lime-800">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-violet-100 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 border border-violet-300/60 dark:border-violet-800">
                       {art.category}
                     </span>
                     <span className="inline-flex items-center gap-1 text-[11px] font-mono text-stone-500 dark:text-stone-400">
@@ -588,7 +588,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
 
             {/* Badges */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-lime-100 dark:bg-lime-950/50 text-lime-800 dark:text-lime-300 border border-lime-300/60">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-violet-100 dark:bg-violet-950/50 text-violet-800 dark:text-violet-300 border border-violet-300/60">
                 {activeArticle.category}
               </span>
               <span className="text-xs text-stone-500 flex items-center gap-1 font-mono">
@@ -639,7 +639,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                       key={idx}
                       className="font-display text-base font-bold text-stone-950 dark:text-stone-50 pt-3 flex items-center gap-2"
                     >
-                      <span className="w-1 h-4 rounded-full bg-stone-950 dark:bg-lime-400 shrink-0" />
+                      <span className="w-1 h-4 rounded-full bg-stone-950 dark:bg-violet-400 shrink-0" />
                       {para.slice(3)}
                     </h3>
                   );
@@ -650,7 +650,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
                   return (
                     <div key={idx}>
                       <h3 className="font-display text-base font-bold text-stone-950 dark:text-stone-50 flex items-center gap-2 mb-1">
-                        <span className="w-1 h-4 rounded-full bg-stone-950 dark:bg-lime-400 shrink-0" />
+                        <span className="w-1 h-4 rounded-full bg-stone-950 dark:bg-violet-400 shrink-0" />
                         {lead[1]}
                       </h3>
                       <p>{lead[2]}</p>

@@ -54,8 +54,8 @@ export const Navigation: React.FC<NavigationProps> = ({
       onClick={() => onSelectTab('profile')}
       className={`rounded-full transition-all cursor-pointer ${
         activeTab === 'profile' || activeTab === 'settings'
-          ? 'ring-2 ring-lime-400 ring-offset-2 ring-offset-white dark:ring-offset-stone-950'
-          : 'hover:ring-2 hover:ring-lime-300 hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-stone-950'
+          ? 'ring-2 ring-violet-400 ring-offset-2 ring-offset-white dark:ring-offset-stone-950'
+          : 'hover:ring-2 hover:ring-violet-300 hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-stone-950'
       }`}
       title={getTranslation('profile')}
     >
@@ -66,7 +66,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           className="w-9 h-9 rounded-full object-cover border border-stone-200 dark:border-stone-700"
         />
       ) : (
-        <span className="w-9 h-9 rounded-full bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 flex items-center justify-center text-[11px] font-bold">
+        <span className="w-9 h-9 rounded-full bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center text-[11px] font-bold">
           {initials}
         </span>
       )}
@@ -90,7 +90,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         {/* Brand mark */}
         <button
           onClick={() => onSelectTab('itinerary')}
-          className="w-10 h-10 rounded-2xl bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 flex items-center justify-center font-display font-extrabold text-base tracking-tight shadow-sm hover:scale-105 transition-transform cursor-pointer"
+          className="w-10 h-10 rounded-2xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center font-display font-extrabold text-base tracking-tight shadow-sm hover:scale-105 transition-transform cursor-pointer"
           title="WanderLust"
         >
           W
@@ -106,7 +106,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 onClick={() => onSelectTab(tab)}
                 className={`w-14 py-2 rounded-2xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
                   active
-                    ? 'bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 shadow-md'
+                    ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 shadow-md'
                     : 'text-stone-400 dark:text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800'
                 }`}
               >
@@ -137,7 +137,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 onClick={() => onSelectTab(tab)}
                 className={`flex-1 max-w-[92px] py-1.5 rounded-2xl flex flex-col items-center gap-0.5 transition-all cursor-pointer ${
                   active
-                    ? 'bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950'
+                    ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'
                     : 'text-stone-400 dark:text-stone-500'
                 }`}
               >

@@ -867,7 +867,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
       {!embedded && (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-200 dark:border-stone-800">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-lime-100 dark:bg-lime-950/50 text-lime-800 dark:text-lime-300 rounded-full mb-2 border border-lime-300/70 dark:border-lime-800/40">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-violet-100 dark:bg-violet-950/50 text-violet-800 dark:text-violet-300 rounded-full mb-2 border border-violet-300/70 dark:border-violet-800/40">
             <Globe className="w-3.5 h-3.5" />
             <span>Nomad Radar & Scratchpad</span>
           </div>
@@ -901,7 +901,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               setSelectedItineraryId('');
               setIsAddMemoryModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg"
           >
             <Plus className="w-4 h-4" />
             <span>{getTranslation('recordMemory')}</span>

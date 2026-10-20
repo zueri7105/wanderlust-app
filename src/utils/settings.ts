@@ -21,7 +21,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
-  theme: 'light',
+  theme: 'dark', // galaxy theme is the default look
   language: 'en',
   unitSystem: 'metric',
   femaleSafetyPriority: false,

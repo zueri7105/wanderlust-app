@@ -266,7 +266,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl text-xs font-semibold cursor-pointer hover:brightness-105 transition-colors shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl text-xs font-semibold cursor-pointer hover:brightness-105 transition-colors shadow-2xs"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>Upload Your Own Photo</span>
@@ -423,7 +423,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
             </div>
 
             {/* Social links — Instagram & personal site */}
-            <div className="p-4 rounded-2xl bg-lime-50 dark:bg-lime-950/20 border border-lime-200/70 dark:border-lime-900/40 space-y-3">
+            <div className="p-4 rounded-2xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200/70 dark:border-violet-900/40 space-y-3">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-pink-700 dark:text-pink-300 uppercase tracking-wider">
                 <Instagram className="w-3.5 h-3.5" />
                 <span>Show off your adventures</span>
@@ -476,7 +476,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-xl hover:brightness-105"
+                className="px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-xl hover:brightness-105"
               >
                 Save Profile
               </button>
@@ -539,7 +539,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                           href={`https://instagram.com/${instagramHandle}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-white bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 shadow-sm hover:scale-105 transition-all"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-white bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 shadow-sm hover:scale-105 transition-all"
                           title="Open Instagram profile"
                         >
                           <Instagram className="w-3 h-3" />
@@ -699,7 +699,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
               <button
                 type="button"
                 onClick={handleAddMoreEmergencyContact}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:brightness-105 cursor-pointer shadow-xs"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:brightness-105 cursor-pointer shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add More Emergency Contact</span>
@@ -831,7 +831,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-xl hover:brightness-105 flex items-center gap-1 shadow-xs"
+                  className="px-4 py-1.5 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-xl hover:brightness-105 flex items-center gap-1 shadow-xs"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>Save Emergency Contacts</span>
@@ -850,7 +850,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                   key={contact.id || idx}
                   className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-800/60 border border-stone-200/80 dark:border-stone-700 rounded-2xl text-xs"
                 >
-                  <div className="w-9 h-9 rounded-2xl bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 flex items-center justify-center shrink-0 shadow-2xs font-bold text-xs">
+                  <div className="w-9 h-9 rounded-2xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center shrink-0 shadow-2xs font-bold text-xs">
                     <Phone className="w-4 h-4" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -904,7 +904,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
 
           <button
             onClick={handleSendPing}
-            className="px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 hover:scale-105 rounded-2xl transition-colors cursor-pointer shrink-0 shadow-xs"
+            className="px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 hover:scale-105 rounded-2xl transition-colors cursor-pointer shrink-0 shadow-xs"
           >
             {justPinged ? 'Check-in Recorded ✓' : 'Send "I am Safe" Check-in'}
           </button>

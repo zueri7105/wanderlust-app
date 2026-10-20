@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, CalendarDays, MapPin, Wallet, Route as RouteIcon, Pencil } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, Wallet, Route as RouteIcon, BookOpen } from 'lucide-react';
 import {
   TravelItinerary,
   SoloTraveler,
@@ -11,6 +11,7 @@ import { getTranslation } from '../utils/i18n';
 import { getFxRates, convertAmount } from '../utils/currency';
 import { ItineraryView } from './ItineraryView';
 import { TripCostView } from './TripCostView';
+import { TravelGuidePanel } from './TravelGuidePanel';
 
 interface TripDetailViewProps {
   itinerary: TravelItinerary;
@@ -49,8 +50,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   onDeleteSoloExpense,
   onDeleteSharedExpense
 }) => {
-  // The costs ledger is the default tab — the old Trip Costs experience, per trip
-  const [tab, setTab] = useState<'costs' | 'plan'>('costs');
+  // Tabs in order: Trips (the plan) → Trip costs → Travel Guide
+  const [tab, setTab] = useState<'plan' | 'costs' | 'guide'>('plan');
 
   // Per-trip spend (destination-prefix match, converted to USD for the chip)
   const fx = getFxRates();
@@ -73,13 +74,13 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     0
   );
 
-  const tabPill = (key: 'costs' | 'plan', label: string, Icon: React.FC<{ className?: string }>) => (
+  const tabPill = (key: 'plan' | 'costs' | 'guide', label: string, Icon: React.FC<{ className?: string }>) => (
     <button
       type="button"
       onClick={() => setTab(key)}
       className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
         tab === key
-          ? 'bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 shadow-md'
+          ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 shadow-md'
           : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 bg-stone-100 dark:bg-stone-800'
       }`}
     >
@@ -95,13 +96,13 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 hover:scale-[1.03] transition-all cursor-pointer shadow-md"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 hover:scale-[1.03] transition-all cursor-pointer shadow-md"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>{getTranslation('backToTrips').replace('← ', '')}</span>
         </button>
 
-        <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-lime-600 dark:text-lime-400">
+        <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-600 dark:text-violet-400">
           {getTranslation('myTripsTitle')} · {itinerary.country || itinerary.destination.split(',').pop()?.trim()}
         </div>
         <h1 className="font-display text-4xl sm:text-6xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 leading-[1.05]">
@@ -118,21 +119,34 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
             {itinerary.days.length} days · {placesCount} places
           </span>
           {tripExpenses.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-lime-200 dark:bg-lime-300 border border-lime-400/60 font-bold text-stone-900 tabular-nums">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-200 dark:bg-violet-300 border border-violet-400/60 font-bold text-stone-900 tabular-nums">
               <Wallet className="w-3.5 h-3.5" />
               ${Math.round(totalUSD).toLocaleString()}
             </span>
           )}
         </div>
 
-        {/* Page tabs: Costs (default) / Plan */}
-        <div className="flex items-center gap-2 pt-1">
-          {tabPill('costs', getTranslation('tripCostsTitle'), Wallet)}
+        {/* Page tabs: Trips (default) / Trip costs / Travel Guide */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {tabPill('plan', getTranslation('navTrips'), RouteIcon)}
+          {tabPill('costs', getTranslation('tripCostsTitle'), Wallet)}
+          {tabPill('guide', getTranslation('travelGuideTab'), BookOpen)}
         </div>
       </div>
 
-      {tab === 'costs' ? (
+      {tab === 'guide' ? (
+        /* Travel Guide — visa, weather, checklist, currency, customs, safety */
+        itinerary.travelGuide ? (
+          <TravelGuidePanel itinerary={itinerary} currentUser={currentUser} />
+        ) : (
+          <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+            <BookOpen className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+              {getTranslation('travelGuideEmpty')}
+            </p>
+          </div>
+        )
+      ) : tab === 'costs' ? (
         /* Full trip costs — currency basket, budget, split ledger, locked to this trip */
         <TripCostView
           soloExpenses={soloExpenses}

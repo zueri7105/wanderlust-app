@@ -196,7 +196,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
 
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:brightness-105 transition-colors cursor-pointer shrink-0 self-start sm:self-auto shadow-xs"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:brightness-105 transition-colors cursor-pointer shrink-0 self-start sm:self-auto shadow-xs"
         >
           <Plus className="w-4 h-4" />
           <span>Propose Activity</span>
@@ -229,7 +229,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
                   selectedCategory === cat
-                    ? 'bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 font-semibold shadow-xs'
+                    ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 font-semibold shadow-xs'
                     : 'bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
                 }`}
               >
@@ -279,7 +279,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
             )}
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 rounded-2xl hover:brightness-105 cursor-pointer"
+              className="inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:brightness-105 cursor-pointer"
             >
               Propose First Activity
             </button>

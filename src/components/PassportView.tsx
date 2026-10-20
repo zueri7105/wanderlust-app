@@ -64,7 +64,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
 
   const statCard = (icon: React.ReactNode, value: string, label: string) => (
     <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-4 sm:p-5 flex flex-col gap-2 shadow-xs">
-      <div className="w-8 h-8 rounded-xl bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 flex items-center justify-center">
+      <div className="w-8 h-8 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center">
         {icon}
       </div>
       <div className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 tabular-nums">
@@ -80,12 +80,12 @@ export const PassportView: React.FC<PassportViewProps> = ({
       <div className="relative overflow-hidden rounded-[2rem] bg-stone-950 dark:bg-black text-stone-100 shadow-xl">
         {/* faint globe watermark */}
         <Globe className="absolute -right-10 -top-10 w-56 h-56 text-stone-800/80 dark:text-stone-900" strokeWidth={0.6} />
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-lime-300 via-lime-400 to-emerald-400" />
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-300 via-violet-400 to-emerald-400" />
 
         <div className="relative p-6 sm:p-9">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
             <div>
-              <div className="flex items-center gap-2 text-lime-300">
+              <div className="flex items-center gap-2 text-violet-300">
                 <StampIcon className="w-4 h-4" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
                   {getTranslation('passportKicker')}
@@ -101,10 +101,10 @@ export const PassportView: React.FC<PassportViewProps> = ({
               <img
                 src={currentUser.avatar}
                 alt={currentUser.name}
-                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-lime-300/70 rotate-2 shadow-lg shrink-0"
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-violet-300/70 rotate-2 shadow-lg shrink-0"
               />
             ) : (
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-lime-300 text-stone-950 flex items-center justify-center font-display font-extrabold text-2xl rotate-2 shadow-lg shrink-0">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-violet-300 text-stone-950 flex items-center justify-center font-display font-extrabold text-2xl rotate-2 shadow-lg shrink-0">
                 {currentUser.name.split(' ').map((s) => s[0]).slice(0, 2).join('')}
               </div>
             )}
@@ -134,7 +134,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
             </div>
             <div>
               <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-stone-500">ID</div>
-              <div className="mt-1 font-mono font-semibold text-lime-300">
+              <div className="mt-1 font-mono font-semibold text-violet-300">
                 WL·{String(
                   currentUser.id.split('').reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) % 1000000, 7)
                 ).padStart(6, '0')}

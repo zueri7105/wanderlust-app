@@ -196,7 +196,50 @@ export const findPlaceGeo = (text: string): PlaceGeo | null => {
   return found;
 };
 
-export type TravelMode = 'walk' | 'transit' | 'drive';
+export type TravelMode =
+  | 'walk'
+  | 'transit'
+  | 'drive'
+  | 'taxi'
+  | 'train'
+  | 'bus'
+  | 'ferry'
+  | 'flight';
+
+/**
+ * How a leg of this mode is drawn on the route map:
+ *  - solid: land modes follow a straight solid line
+ *  - dotted: ferry hops (dotted straight line)
+ *  - curved-dotted: flights arc over the map as a curved dotted line
+ */
+export const TRAVEL_MODE_LINE: Record<TravelMode, 'solid' | 'dotted' | 'curved-dotted'> = {
+  walk: 'solid',
+  transit: 'solid',
+  drive: 'solid',
+  taxi: 'solid',
+  train: 'solid',
+  bus: 'solid',
+  ferry: 'dotted',
+  flight: 'curved-dotted'
+};
+
+/** Average speed (km/h) + fixed overhead (min) used when a mode is hand-picked. */
+export const TRAVEL_MODE_SPEED: Record<TravelMode, { kmh: number; overheadMin: number }> = {
+  walk: { kmh: 5, overheadMin: 0 },
+  transit: { kmh: 23, overheadMin: 6 },
+  drive: { kmh: 42, overheadMin: 12 },
+  taxi: { kmh: 38, overheadMin: 6 },
+  train: { kmh: 90, overheadMin: 18 },
+  bus: { kmh: 24, overheadMin: 8 },
+  ferry: { kmh: 28, overheadMin: 25 },
+  flight: { kmh: 700, overheadMin: 120 }
+};
+
+/** Minutes for a leg with a traveller-chosen mode. */
+export const estimateLegForMode = (km: number, mode: TravelMode): number => {
+  const { kmh, overheadMin } = TRAVEL_MODE_SPEED[mode];
+  return Math.max(2, Math.round((km / kmh) * 60) + overheadMin);
+};
 
 export interface LegEstimate {
   km: number;

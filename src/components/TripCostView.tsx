@@ -426,7 +426,8 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
   const [sharedAmountStr, setSharedAmountStr] = useState('');
   const [sharedCurrency, setSharedCurrency] = useState<string>(activeCurrency);
   const [sharedCategory, setSharedCategory] = useState<ExpenseItem['category']>('Transport');
-  const [sharedPayer, setSharedPayer] = useState(currentUser.id);
+  // Paid upfront: free-text name box (no dropdown) — write whoever paid
+  const [sharedPayer, setSharedPayer] = useState('');
   const [sharedDest, setSharedDest] = useState(defaultDest);
   const [sharedMembers, setSharedMembers] = useState<string[]>(() => [
     currentUser.id,
@@ -434,7 +435,22 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
   ]);
   const [sharedNote, setSharedNote] = useState('');
 
-  const getTraveler = (id: string) => travelers.find((t) => t.id === id) || travelers[0];
+  // "Paid by" label — known traveller ids resolve to names; free-text names show as written
+  const payerDisplayName = (payerId: string) => {
+    const t = travelers.find((x) => x.id === payerId);
+    if (t) return t.id === currentUser.id ? `${t.name} (You)` : t.name;
+    return payerId;
+  };
+
+  // Resolve a typed payer name: own name / "me" → you; a traveller's name → their id;
+  // anything else is kept as the typed name so the ledger shows it verbatim.
+  const resolvePayerId = (name: string): string => {
+    const n = name.trim().toLowerCase();
+    if (!n) return currentUser.id;
+    if (n === 'me' || n === 'you' || n === currentUser.name.trim().toLowerCase()) return currentUser.id;
+    const t = travelers.find((x) => x.name.trim().toLowerCase() === n);
+    return t ? t.id : name.trim();
+  };
 
   // Filtered lists — in locked (trip detail) mode, match by destination prefix so
   // expenses recorded as "Kyoto, Japan" or "Kyoto" both land on the Kyoto trip
@@ -513,7 +529,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
     onAddSharedExpense({
       destination: sharedDest,
       title: sharedTitle,
-      payerId: sharedPayer,
+      payerId: resolvePayerId(sharedPayer),
       amount: parsedAmount,
       currency: sharedCurrency,
       splitBetweenIds: sharedMembers.length > 0 ? sharedMembers : [currentUser.id],
@@ -972,7 +988,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
           ) : (
             <div className="space-y-2.5">
               {sortedShared.map((exp) => {
-                const payer = getTraveler(exp.payerId);
+                const payerName = payerDisplayName(exp.payerId);
                 const splitCount = Math.max(1, exp.splitBetweenIds.length);
                 const convertedTotal = convertCurrency(exp.amount, exp.currency || 'USD', activeCurrency);
                 const convertedPerPerson = convertedTotal / splitCount;
@@ -1049,7 +1065,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                       {/* Bottom: paid-by line + roomy action buttons (stack full-width on phones) */}
                       <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div className="text-[11px] text-slate-600 dark:text-slate-400">
-                          Paid by <strong>{payer.name}</strong> · Split {splitCount} ways (
+                          Paid by <strong>{payerName}</strong> · Split {splitCount} ways (
                           {formatMoney(convertedPerPerson, activeCurrency)}/person)
                         </div>
 
@@ -1443,17 +1459,16 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Paid Upfront By
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={sharedPayer}
                     onChange={(e) => setSharedPayer(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  >
-                    {travelers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} {t.id === currentUser.id ? '(You)' : ''}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Write a name (e.g. Elena)"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  />
+                  <span className="block text-[10px] text-slate-400 mt-1">
+                    Leave blank if you paid — or write any name.
+                  </span>
                 </div>
 
                 <div>

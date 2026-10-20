@@ -143,12 +143,21 @@ export default function App() {
     const applyTheme = () => {
       try {
         const saved = localStorage.getItem('wanderlust_app_settings');
-        const theme = saved ? JSON.parse(saved).theme : 'light';
+        // One-time migration: existing sessions move to the new galaxy (dark) look
+        if (!localStorage.getItem('wanderlust_galaxy_v1')) {
+          localStorage.setItem('wanderlust_galaxy_v1', '1');
+          const prev = saved ? JSON.parse(saved) : {};
+          if (!prev.theme || prev.theme === 'light') {
+            localStorage.setItem('wanderlust_app_settings', JSON.stringify({ ...prev, theme: 'dark' }));
+          }
+        }
+        const fresh = localStorage.getItem('wanderlust_app_settings');
+        const theme = fresh ? JSON.parse(fresh).theme : 'dark';
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
         document.documentElement.classList.toggle('dark', isDark);
       } catch {
-        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('dark');
       }
       // Right-to-left layout for Arabic
       const lang = localStorage.getItem('wanderlust_app_lang') || 'en';
@@ -465,7 +474,7 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex flex-col text-slate-900 dark:text-slate-100 transition-colors md:pl-[76px]">
+    <div className="min-h-screen bg-stone-50 dark:bg-transparent flex flex-col text-slate-900 dark:text-slate-100 transition-colors md:pl-[76px]">
       {/* Navigation */}
       <Navigation
         activeTab={activeTab}

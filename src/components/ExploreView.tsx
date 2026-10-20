@@ -28,7 +28,7 @@ export const ExploreView: React.FC<ExploreViewProps> = (props) => {
       onClick={() => setTab(key)}
       className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
         tab === key
-          ? 'bg-stone-950 dark:bg-lime-400 text-lime-300 dark:text-stone-950 shadow-md'
+          ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 shadow-md'
           : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 bg-stone-100 dark:bg-stone-800'
       }`}
     >
@@ -42,7 +42,7 @@ export const ExploreView: React.FC<ExploreViewProps> = (props) => {
       {/* Editorial header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-lime-600 dark:text-lime-400 mb-2">
+          <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-600 dark:text-violet-400 mb-2">
             {getTranslation('navExplore')}
           </div>
           <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50">
