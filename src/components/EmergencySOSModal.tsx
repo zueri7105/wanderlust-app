@@ -51,7 +51,7 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
     {
       id: 'em_1',
       name: 'Markus Rostova',
-      relationship: 'Brother / Next of Kin',
+      relationship: 'Brother',
       countryCode: '+49',
       phone: '170 555 4912'
     }
@@ -523,11 +523,11 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-slate-700" />
               <span className="text-xs font-bold text-slate-900">
-                Linked Emergency Contacts & Next of Kin ({emergencyContacts.length})
+                Linked Emergency Contacts ({emergencyContacts.length})
               </span>
             </div>
             <span className="text-[11px] text-slate-500">
-              Verified Next of Kin broadcast
+              Verified emergency contact broadcast
             </span>
           </div>
 
@@ -540,9 +540,11 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
                 <div>
                   <div className="font-semibold text-slate-900 flex items-center gap-1.5">
                     <span>{contact.name || 'Emergency Contact'}</span>
-                    <span className="text-[11px] text-slate-500 font-normal">
-                      ({contact.relationship || 'Next of Kin'})
-                    </span>
+                    {contact.relationship && (
+                      <span className="text-[11px] text-slate-500 font-normal">
+                        ({contact.relationship})
+                      </span>
+                    )}
                   </div>
                   <div className="font-mono text-slate-600 text-[11px] mt-0.5">
                     {contact.countryCode} {contact.phone}

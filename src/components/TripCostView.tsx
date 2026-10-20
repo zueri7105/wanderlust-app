@@ -12,11 +12,9 @@ import {
   Receipt,
   CreditCard,
   PieChart,
-  DollarSign,
   TrendingDown,
   Sparkles,
   ArrowRightLeft,
-  Coins,
   Trash2,
   X,
   Search,
@@ -363,26 +361,6 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
     }
   };
 
-  // Touch tracking for swipe left to delete
-  const [swipedItemId, setSwipedItemId] = useState<string | null>(null);
-  const touchStartXRef = useRef<number>(0);
-
-  const handleTouchStart = (e: React.TouchEvent, id: string) => {
-    touchStartXRef.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent, id: string) => {
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = touchStartXRef.current - touchEndX;
-    if (diff > 50) {
-      // Swiped left
-      setSwipedItemId(id);
-    } else if (diff < -30) {
-      // Swiped right - close
-      if (swipedItemId === id) setSwipedItemId(null);
-    }
-  };
-
   // User-defined target budget in USD
   const [targetBudgetUSD, setTargetBudgetUSD] = useState<number>(() => {
     const saved = localStorage.getItem('wanderlust_target_budget_usd');
@@ -555,14 +533,11 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
               {getTranslation('costsTitle')}
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              {getTranslation('costsSub')}
-            </p>
           </div>
 
           {/* Destination Filter — itinerary destinations + search any place in the world */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">Destination (itinerary or search any place):</span>
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Destination:</span>
             <DestinationCombobox
               value={filterDestination}
               onChange={setFilterDestination}
@@ -577,8 +552,8 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                <Coins className="w-3.5 h-3.5" />
+              <div className="w-7 h-7 rounded-full border-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
+                ¥
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -587,9 +562,6 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     Active: {activeCurrency} ({activeCurrencyDef.symbol})
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Tap any currency button to instantly convert all personal budgets and split expenses.
-                </p>
               </div>
             </div>
 
@@ -617,9 +589,6 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
           {/* Row 1: 6 Primary Currencies (USD, EUR, CNY, JPY, GBP, CHF) */}
           <div className="space-y-1">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Row 1: Primary Currencies
-            </div>
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               {TOP_5_CURRENCIES.map((c) => {
                 const isActive = activeCurrency === c.code;
@@ -648,20 +617,6 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
           {/* Row 2: User Added Currencies (max 6) + Add Currency Button */}
           <div className="space-y-1 pt-2 border-t border-slate-200/70 dark:border-slate-700">
-            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              <span>Row 2: Custom Currencies ({customCurrencies.length}/6)</span>
-              {customCurrencies.length < 6 && (
-                <button
-                  type="button"
-                  onClick={() => setIsAddCurrencyModalOpen(true)}
-                  className="text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer flex items-center gap-1 normal-case font-semibold"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Add Currency (max 6)</span>
-                </button>
-              )}
-            </div>
-
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               {customCurrencies.map((c) => {
                 const isActive = activeCurrency === c.code;
@@ -737,9 +692,6 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50 mt-0.5">
               Personal Solo Trip Budget ({activeCurrency})
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Individual flight, hotel, and transit costs. Swipe left or click trash to delete any accidentally added row.
-            </p>
           </div>
 
           <button
@@ -855,10 +807,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
         {/* Solo Personal Expenses List with Swipe Left to Delete */}
         <div className="space-y-3">
           <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-            <span>Solo Expense Breakdown (Swipe left to delete)</span>
-            <span className="text-[11px] text-slate-500 font-mono">
-              Normalized to {activeCurrency}
-            </span>
+            <span>Solo Expense Breakdown</span>
           </div>
 
           {filteredSolo.length === 0 ? (
@@ -869,20 +818,13 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
               {filteredSolo.map((exp) => {
                 const converted = convertCurrency(exp.amount, exp.currency || 'USD', activeCurrency);
-                const isSwiped = swipedItemId === exp.id;
 
                 return (
                   <div
                     key={exp.id}
-                    onTouchStart={(e) => handleTouchStart(e, exp.id)}
-                    onTouchEnd={(e) => handleTouchEnd(e, exp.id)}
                     className="relative overflow-hidden group bg-white dark:bg-slate-900 hover:bg-slate-50/70 dark:hover:brightness-105/50 transition-colors"
                   >
-                    <div
-                      className={`p-3.5 flex items-center justify-between text-xs gap-3 transition-transform ${
-                        isSwiped ? '-translate-x-16' : 'translate-x-0'
-                      }`}
-                    >
+                    <div className="p-3.5 flex items-center justify-between text-xs gap-3">
                       <div className="min-w-0">
                         <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">
                           {exp.title}
@@ -925,17 +867,6 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                         </button>
                       </div>
                     </div>
-
-                    {/* Revealed Delete Action on Swipe Left */}
-                    {isSwiped && (
-                      <button
-                        type="button"
-                        onClick={() => onDeleteSoloExpense && onDeleteSoloExpense(exp.id)}
-                        className="absolute right-0 top-0 bottom-0 w-16 bg-red-600 text-white flex items-center justify-center font-bold text-xs cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    )}
                   </div>
                 );
               })}
@@ -954,9 +885,6 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50 mt-0.5">
               Shared Activity & Transport Receipts
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Shared cabs, boat charters, and meals. Settled receipts strike through and move to the bottom.
-            </p>
           </div>
 
           <button
@@ -1022,10 +950,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
         {/* Shared Expenses Table with Strike-Through for Settled & Swipe to Delete */}
         <div className="space-y-3">
           <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center justify-between">
-            <span>Recorded Shared Receipts ({sortedShared.length} items · Swipe left to delete)</span>
-            <span className="text-[11px] text-slate-500 font-mono">
-              Unsettled on top · Settled on bottom
-            </span>
+            <span>Recorded Shared Receipts</span>
           </div>
 
           {sortedShared.length === 0 ? (
@@ -1041,24 +966,17 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                 const convertedPerPerson = convertedTotal / splitCount;
                 const amISplit = exp.splitBetweenIds.includes(currentUser.id);
                 const isDifferentCurrency = (exp.currency || 'USD').toUpperCase() !== activeCurrency;
-                const isSwiped = swipedItemId === exp.id;
 
                 return (
                   <div
                     key={exp.id}
-                    onTouchStart={(e) => handleTouchStart(e, exp.id)}
-                    onTouchEnd={(e) => handleTouchEnd(e, exp.id)}
                     className={`relative overflow-hidden group transition-colors rounded-xl border ${
                       exp.settled
                         ? 'bg-slate-50/80 dark:bg-slate-900/40 opacity-70 border-slate-200 dark:border-slate-800'
                         : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 shadow-xs hover:border-slate-300 dark:hover:border-slate-600'
                     }`}
                   >
-                    <div
-                      className={`p-3.5 sm:p-4 transition-transform ${
-                        isSwiped ? '-translate-x-16' : 'translate-x-0'
-                      }`}
-                    >
+                    <div className="p-3.5 sm:p-4">
                       {/* Top: title + meta chips on the left, amount on the right */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -1147,17 +1065,6 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                         </div>
                       </div>
                     </div>
-
-                    {/* Revealed Delete Action on Swipe Left */}
-                    {isSwiped && (
-                      <button
-                        type="button"
-                        onClick={() => onDeleteSharedExpense && onDeleteSharedExpense(exp.id)}
-                        className="absolute right-0 top-0 bottom-0 w-16 bg-red-600 text-white flex items-center justify-center font-bold text-xs cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    )}
                   </div>
                 );
               })}
@@ -1403,7 +1310,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Destination (itinerary or search any place)
+                    Destination
                   </label>
                   <DestinationCombobox
                     value={soloDest}
@@ -1550,7 +1457,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Destination (itinerary or search any place)
+                  Destination
                 </label>
                 <DestinationCombobox
                   value={sharedDest}

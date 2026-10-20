@@ -236,6 +236,77 @@ const geoKeyFor = (countryText: string) => {
   return GEO_NAME_ALIASES[n] || n;
 };
 
+/* --------------------------------------------------------------------------
+ * Four-colour-theorem country colouring.
+ * Countries of the same status (e.g. two Visited countries like Italy and
+ * Croatia) used to all get one flat colour, so neighbouring trips blurred
+ * together. Instead we assign each country one of 4 shades of its status
+ * colour, greedy-graph-coloured so no two neighbours share a shade.
+ * "Neighbours" = shared land border (common border vertices in the GeoJSON)
+ * OR very close across water (bounding-box gap < 1.5°, e.g. Italy ⇄ Croatia
+ * across the Adriatic). A 5th shade exists as a safety fallback.
+ * ------------------------------------------------------------------------ */
+const FOUR_COLOR_PALETTES: Record<TravelMemory['status'], string[]> = {
+  'Visited': ['#0ea5e9', '#3b82f6', '#6366f1', '#06b6d4', '#8b5cf6'],
+  'Dream Next': ['#f59e0b', '#f97316', '#eab308', '#c2410c', '#fbbf24'],
+  'Current Location': ['#10b981', '#059669', '#34d399', '#047857', '#6ee7b7']
+};
+/** Bounding boxes closer than this (degrees) count as "across the water" neighbours. */
+const MARITIME_NEIGHBOUR_GAP_DEG = 1.5;
+
+interface CountryGeoMeta {
+  pointKeys: Set<string>;
+  minLng: number;
+  maxLng: number;
+  minLat: number;
+  maxLat: number;
+}
+
+const geoMetaCache = new Map<string, CountryGeoMeta | null>();
+
+/** Boundary point set + bounding box for a country (cached; data is rounded to 0.1°). */
+const geoMetaFor = (geoKey: string): CountryGeoMeta | null => {
+  if (geoMetaCache.has(geoKey)) return geoMetaCache.get(geoKey) || null;
+  const feature = COUNTRIES_GEO.features.find((f) => normCountry(f.properties.name) === geoKey);
+  let meta: CountryGeoMeta | null = null;
+  if (feature) {
+    const rings =
+      feature.geometry.type === 'Polygon'
+        ? (feature.geometry.coordinates as number[][][])
+        : (feature.geometry.coordinates as number[][][][]).flat();
+    meta = { pointKeys: new Set(), minLng: 180, maxLng: -180, minLat: 90, maxLat: -90 };
+    rings.forEach((ring) =>
+      ring.forEach((p) => {
+        meta!.pointKeys.add(`${p[0].toFixed(1)},${p[1].toFixed(1)}`);
+        if (p[0] < meta!.minLng) meta!.minLng = p[0];
+        if (p[0] > meta!.maxLng) meta!.maxLng = p[0];
+        if (p[1] < meta!.minLat) meta!.minLat = p[1];
+        if (p[1] > meta!.maxLat) meta!.maxLat = p[1];
+      })
+    );
+  }
+  geoMetaCache.set(geoKey, meta);
+  return meta;
+};
+
+/** Minimum gap between two bounding boxes (0 when they overlap). */
+const bboxGapDeg = (a: CountryGeoMeta, b: CountryGeoMeta) => {
+  const dx = Math.max(0, Math.max(a.minLng - b.maxLng, b.minLng - a.maxLng));
+  const dy = Math.max(0, Math.max(a.minLat - b.maxLat, b.minLat - a.maxLat));
+  return Math.hypot(dx, dy);
+};
+
+/** Two countries are adjacent if they share border vertices or sit very close across water. */
+const countriesAreNeighbours = (a: CountryGeoMeta, b: CountryGeoMeta) => {
+  if (bboxGapDeg(a, b) < MARITIME_NEIGHBOUR_GAP_DEG) return true;
+  const [small, large] = a.pointKeys.size <= b.pointKeys.size ? [a.pointKeys, b.pointKeys] : [b.pointKeys, a.pointKeys];
+  let shared = 0;
+  for (const pk of small) {
+    if (large.has(pk) && ++shared >= 2) return true;
+  }
+  return false;
+};
+
 type TravelerViewMode = 'all' | 'nearby' | 'buddies';
 /** "People nearby" radius for the My View traveler filter */
 const NEARBY_RADIUS_KM = 1500;
@@ -700,13 +771,54 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     [countryStatusMap]
   );
 
+  // Four-colour-theorem assignment: each country gets one of 4 shades of its
+  // status colour so neighbouring countries (Italy ⇄ Croatia) never match.
+  const countryColorMap = useMemo(() => {
+    const keys = [...countryStatusMap.keys()];
+    const adj = new Map<string, Set<string>>(keys.map((k) => [k, new Set<string>()]));
+    for (let i = 0; i < keys.length; i++) {
+      const a = geoMetaFor(keys[i]);
+      if (!a) continue;
+      for (let j = i + 1; j < keys.length; j++) {
+        const b = geoMetaFor(keys[j]);
+        if (!b) continue;
+        if (countriesAreNeighbours(a, b)) {
+          adj.get(keys[i])!.add(keys[j]);
+          adj.get(keys[j])!.add(keys[i]);
+        }
+      }
+    }
+    // Greedy colouring, most-constrained country first. Only same-status
+    // neighbours conflict (different statuses already use different hues).
+    const order = [...keys].sort((x, y) => adj.get(y)!.size - adj.get(x)!.size);
+    const colorIdx = new Map<string, number>();
+    order.forEach((k) => {
+      const status = countryStatusMap.get(k)!;
+      const used = new Set(
+        [...adj.get(k)!]
+          .filter((n) => colorIdx.has(n) && countryStatusMap.get(n) === status)
+          .map((n) => colorIdx.get(n)!)
+      );
+      let ci = 0;
+      while (used.has(ci)) ci++;
+      colorIdx.set(k, ci);
+    });
+    const out = new Map<string, string>();
+    colorIdx.forEach((ci, k) => {
+      const palette = FOUR_COLOR_PALETTES[countryStatusMap.get(k)!];
+      out.set(k, palette[ci % palette.length]);
+    });
+    return out;
+  }, [countryStatusMap]);
+
   const styleCountryFeature = (feature?: { properties?: { name?: string } }) => {
     const name = feature?.properties?.name;
-    const status = name ? countryStatusMap.get(normCountry(name)) : undefined;
+    const geoKey = name ? normCountry(name) : '';
+    const status = geoKey ? countryStatusMap.get(geoKey) : undefined;
     if (!status) {
       return { fillColor: 'transparent', fillOpacity: 0, color: 'transparent', weight: 0 };
     }
-    const color = STATUS_STYLES[status].dot;
+    const color = countryColorMap.get(geoKey) || STATUS_STYLES[status].dot;
     return {
       fillColor: color,
       fillOpacity: status === 'Current Location' ? 0.4 : 0.3,

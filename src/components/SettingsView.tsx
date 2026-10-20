@@ -14,7 +14,8 @@ import {
   HeartHandshake,
   CircleDot,
   Info,
-  Languages
+  Languages,
+  ArrowLeft
 } from 'lucide-react';
 import { AppSettings, DEFAULT_APP_SETTINGS, PRESENCE_META, PresenceStatus } from '../utils/settings';
 
@@ -38,7 +39,7 @@ const LANGUAGES = [
   { code: 'pl', name: 'Polish', native: 'Polski', flag: '🇵🇱' }
 ] as const;
 
-export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) => {
+export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }> = ({ userGender, onBack }) => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('wanderlust_app_settings');
     if (saved) {
@@ -83,6 +84,16 @@ export const SettingsView: React.FC<{ userGender?: string }> = ({ userGender }) 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer mb-3"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Profile</span>
+            </button>
+          )}
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400 mb-2">
             <Sliders className="w-3.5 h-3.5" />
             <span>Preferences</span>

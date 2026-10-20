@@ -6,7 +6,7 @@ export type TravelerGender = 'female' | 'male' | 'non-binary' | 'prefer-not-to-s
 export interface EmergencyContact {
   id: string;
   name: string;
-  relationship: string; // Relationship to the NOC (Next of Kin / traveler) e.g. Mother, Spouse, Sibling, Friend
+  relationship: string; // Relationship to the traveler e.g. Mother, Spouse, Sibling, Friend
   countryCode: string; // e.g. +49, +1, +81, +44, +86
   phone: string; // e.g. 170 555 4912
 }
@@ -31,6 +31,7 @@ export interface SoloTraveler {
   currentDestination?: string;
   instagram?: string; // Instagram handle (without @) shown as a social chip on the profile
   website?: string;   // Personal website / blog / portfolio link
+  travelGoals?: string[]; // What the traveller hopes to share/find — shown on their bio
   isStarred?: boolean;
   reviews?: CompanionReview[];
   isConfirmedBuddy?: boolean;

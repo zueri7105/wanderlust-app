@@ -206,34 +206,37 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
       {/* Filter Tabs & Free Activity Filter Switch */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
-                selectedCategory === cat
-                  ? 'bg-rose-600 text-white font-semibold shadow-xs'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              {cat}
-            </button>
+          {CATEGORIES.map((cat, idx) => (
+            <React.Fragment key={cat}>
+              {idx === 1 && (
+                /* Hidden tab — pinned right behind "All Categories" so it's always easy to find */
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('Hidden')}
+                  className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
+                    selectedCategory === 'Hidden'
+                      ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white font-semibold shadow-xs'
+                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                  }`}
+                  title="Activities you hid from your feed"
+                >
+                  <EyeOff className="w-3 h-3" />
+                  <span>Hidden</span>
+                  <span className="font-mono text-[10px] opacity-80">({hiddenActivities.length})</span>
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer ${
+                  selectedCategory === cat
+                    ? 'bg-rose-600 text-white font-semibold shadow-xs'
+                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                {cat}
+              </button>
+            </React.Fragment>
           ))}
-          {/* Hidden tab — restore activities you hid from your feed */}
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('Hidden')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
-              selectedCategory === 'Hidden'
-                ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white font-semibold shadow-xs'
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-            title="Activities you hid from your feed"
-          >
-            <EyeOff className="w-3 h-3" />
-            <span>Hidden</span>
-            <span className="font-mono text-[10px] opacity-80">({hiddenActivities.length})</span>
-          </button>
         </div>
 
         {/* Free Activities Filter Toggle as requested */}

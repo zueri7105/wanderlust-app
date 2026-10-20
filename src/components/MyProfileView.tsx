@@ -18,16 +18,19 @@ import {
   Trash2,
   X,
   Instagram,
-  Link2
+  Link2,
+  Settings
 } from 'lucide-react';
 import { PresenceBadge } from './MessagesView';
 import { presenceForTraveler } from '../utils/settings';
+import { COUNTRY_DIAL_CODES, resolveDialCode } from '../utils/countryDialCodes';
 
 interface MyProfileViewProps {
   currentUser: SoloTraveler;
   safetyRecord: SafeCheckinRecord;
   onUpdateProfile: (updated: Partial<SoloTraveler>) => void;
   onUpdateSafetyRecord: (updated: Partial<SafeCheckinRecord>) => void;
+  onOpenSettings?: () => void;
 }
 
 const PACE_OPTIONS: TravelPace[] = ['Chill & Scenic', 'Moderate Explorer', 'Brisk & Fast-Paced'];
@@ -49,7 +52,8 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
   currentUser,
   safetyRecord,
   onUpdateProfile,
-  onUpdateSafetyRecord
+  onUpdateSafetyRecord,
+  onOpenSettings
 }) => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -67,6 +71,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
   const [budgetTier, setBudgetTier] = useState<BudgetTier>(currentUser.budgetTier);
   const [languagesStr, setLanguagesStr] = useState(currentUser.languages.join(', '));
   const [interestsStr, setInterestsStr] = useState(currentUser.interests.join(', '));
+  const [goalsStr, setGoalsStr] = useState((currentUser.travelGoals || []).join(', '));
   const [instagram, setInstagram] = useState(currentUser.instagram || '');
   const [website, setWebsite] = useState(currentUser.website || '');
 
@@ -90,7 +95,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
           {
             id: 'em_1',
             name: 'Markus Rostova',
-            relationship: 'Brother / Next of Kin',
+            relationship: 'Brother',
             countryCode: '+49',
             phone: '170 555 4912'
           }
@@ -178,6 +183,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
       budgetTier,
       languages: languagesStr.split(',').map((s) => s.trim()).filter(Boolean),
       interests: interestsStr.split(',').map((s) => s.trim()).filter(Boolean),
+      travelGoals: goalsStr.split(',').map((s) => s.trim()).filter(Boolean),
       instagram: instagram.replace(/^@/, '').trim(),
       website: website.trim()
     });
@@ -192,18 +198,27 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
           <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
             {getTranslation('profileTitle')}
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {getTranslation('profileSub')}
-          </p>
         </div>
 
-        <button
-          onClick={() => setIsEditingProfile(!isEditingProfile)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer self-start sm:self-auto"
-        >
-          <Edit3 className="w-3.5 h-3.5" />
-          <span>{isEditingProfile ? 'Cancel Editing' : 'Edit Profile'}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setIsEditingProfile(!isEditingProfile)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>{isEditingProfile ? 'Cancel Editing' : 'Edit Profile'}</span>
+          </button>
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              title={getTranslation('settingsTitle')}
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Main Profile Card */}
@@ -389,6 +404,22 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Travel Goals (comma separated)
+              </label>
+              <input
+                type="text"
+                placeholder="Shared local dinners, Split cabs to temples"
+                value={goalsStr}
+                onChange={(e) => setGoalsStr(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Shown on your profile so companions can see what you'd like to share on the road.
+              </p>
             </div>
 
             {/* Social links — Instagram & personal site */}
@@ -591,6 +622,23 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
               </span>
             </div>
 
+            {/* Travel goals — what this traveller hopes to share */}
+            {(currentUser.travelGoals || []).length > 0 && (
+              <div>
+                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Compass className="w-3 h-3" />
+                  <span>Looking to share</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(currentUser.travelGoals || []).map((g) => (
+                    <span key={g} className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 font-medium text-[11px]">
+                      {g}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Languages & Interests */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="p-3.5 rounded-xl bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/40 dark:to-cyan-950/30 border border-sky-200/70 dark:border-sky-900/50">
@@ -630,7 +678,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
           <div>
             <h3 className="font-display font-bold text-base text-slate-950 dark:text-slate-50">
-              Emergency Contacts & Next of Kin (NOC)
+              Emergency Contact
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Notified automatically if an emergency SOS is triggered or if a check-in is overdue.
@@ -686,7 +734,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                     {/* Name of Emergency Contact */}
-                    <div className="sm:col-span-4">
+                    <div className="sm:col-span-3">
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Name of Emergency Contact
                       </label>
@@ -700,15 +748,15 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                       />
                     </div>
 
-                    {/* Relationship to the NOC (optional, free text) */}
-                    <div className="sm:col-span-4">
+                    {/* Relationship to the traveller (optional, free text) */}
+                    <div className="sm:col-span-3">
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Relationship to the NOC / Traveller <span className="font-normal text-slate-400">(optional)</span>
+                        Relationship to traveller <span className="font-normal text-slate-400">(optional)</span>
                       </label>
                       <input
                         type="text"
                         list={`rel_list_${idx}`}
-                        placeholder="e.g. Brother, Mother, Best Friend — or leave blank"
+                        placeholder="e.g. Brother, Mother — or leave blank"
                         value={contact.relationship}
                         onChange={(e) => handleUpdateContactDraft(idx, 'relationship', e.target.value)}
                         className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
@@ -720,23 +768,32 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                       </datalist>
                     </div>
 
-                    {/* Country Code */}
-                    <div className="sm:col-span-2">
+                    {/* Country Code — type a country name (e.g. Germany) to auto-fill +49 */}
+                    <div className="sm:col-span-3">
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Country Code
                       </label>
                       <input
                         type="text"
                         required
-                        placeholder="+49 or +1"
+                        list={`dial_list_${idx}`}
+                        placeholder="+49 or Germany"
                         value={contact.countryCode}
-                        onChange={(e) => handleUpdateContactDraft(idx, 'countryCode', e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          handleUpdateContactDraft(idx, 'countryCode', resolveDialCode(raw) ?? raw);
+                        }}
                         className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
                       />
+                      <datalist id={`dial_list_${idx}`}>
+                        {COUNTRY_DIAL_CODES.map((c) => (
+                          <option key={c.name} value={c.name}>{c.code}</option>
+                        ))}
+                      </datalist>
                     </div>
 
                     {/* Number */}
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-3">
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                         Phone Number
                       </label>
@@ -801,9 +858,11 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                       <span className="font-bold text-slate-900 dark:text-slate-100 truncate">
                         {contact.name || 'Emergency Contact'}
                       </span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-200/70 dark:bg-slate-700 px-1.5 py-0.2 rounded">
-                        {contact.relationship || 'Next of Kin'}
-                      </span>
+                      {contact.relationship && (
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-200/70 dark:bg-slate-700 px-1.5 py-0.2 rounded">
+                          {contact.relationship}
+                        </span>
+                      )}
                     </div>
                     <div className="text-slate-600 dark:text-slate-300 font-mono font-medium text-xs mt-0.5">
                       ({contact.countryCode}) {contact.phone}

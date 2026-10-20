@@ -50,6 +50,7 @@ interface ExploreTripsViewProps {
   onGoToMatcher: (destination?: string) => void;
   onGoToActivities: (destination?: string) => void;
   onGoToItinerary: (destination: string) => void;
+  onGoToCosts?: () => void;
   onOpenCreateTrip: () => void;
   onToggleStarTraveler: (travelerId: string) => void;
   onOpenChatWithTraveler: (traveler: SoloTraveler, destination: string) => void;
@@ -84,6 +85,7 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
   onGoToMatcher,
   onGoToActivities,
   onGoToItinerary,
+  onGoToCosts,
   onOpenCreateTrip,
   onToggleStarTraveler,
   onOpenChatWithTraveler,
@@ -418,9 +420,34 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             {getTranslation('heroTitle')}
           </h1>
 
-          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
-            {getTranslation('heroSubtitle')}
-          </p>
+          {/* Natural flow: discover here → shape the route → price it → find your people */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 pt-0.5">
+            <span className="font-semibold text-rose-600 dark:text-rose-400">{getTranslation('explore')}</span>
+            {onGoToItinerary && (
+              <>
+                <ChevronRight className="w-3 h-3" />
+                <button type="button" onClick={() => onGoToItinerary('')} className="hover:text-slate-700 dark:hover:text-slate-200 font-medium cursor-pointer transition-colors">
+                  {getTranslation('itineraryTitle')}
+                </button>
+              </>
+            )}
+            {onGoToCosts && (
+              <>
+                <ChevronRight className="w-3 h-3" />
+                <button type="button" onClick={onGoToCosts} className="hover:text-slate-700 dark:hover:text-slate-200 font-medium cursor-pointer transition-colors">
+                  {getTranslation('costsTitle')}
+                </button>
+              </>
+            )}
+            {onGoToMatcher && (
+              <>
+                <ChevronRight className="w-3 h-3" />
+                <button type="button" onClick={() => onGoToMatcher('')} className="hover:text-slate-700 dark:hover:text-slate-200 font-medium cursor-pointer transition-colors">
+                  {getTranslation('matcherTitle')}
+                </button>
+              </>
+            )}
+          </div>
 
           {/* Search Bar Input with all-countries suggestions */}
           <div className="pt-3 flex flex-col sm:flex-row items-stretch sm:items-start gap-2 max-w-xl">
@@ -606,10 +633,6 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
               {getTranslation('popularSoloDestinations')}
             </h2>
-            <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-500" />
-              The five most-searched places right now · Google travel trends
-            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -823,9 +846,6 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             <h2 className="font-display text-2xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
               {getTranslation('upcomingTrips')}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              {getTranslation('upcomingTripsSub')}
-            </p>
           </div>
 
           {/* Month Selector — tap the month to open a full month/year picker */}
@@ -1033,9 +1053,6 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
             <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
               {getTranslation('interactiveMeetups')}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              {getTranslation('interactiveMeetupsSubtitle')}
-            </p>
           </div>
         </div>
 

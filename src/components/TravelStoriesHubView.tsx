@@ -336,35 +336,38 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
 
         {/* Category Pills */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer font-medium ${
-                selectedCategory === cat
-                  ? 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white font-semibold shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              {cat}
-            </button>
+          {CATEGORIES.map((cat, idx) => (
+            <React.Fragment key={cat}>
+              {idx === 1 && (
+                /* Hidden Posts tab — pinned right behind "All Articles" so it's always easy to find */
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('Hidden Posts')}
+                  className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer font-medium inline-flex items-center gap-1.5 ${
+                    selectedCategory === 'Hidden Posts'
+                      ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white font-semibold shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200'
+                  }`}
+                  title="Posts you hid from your feed"
+                >
+                  <EyeOff className="w-3 h-3" />
+                  <span>Hidden</span>
+                  <span className="font-mono text-[10px] opacity-80">({hiddenArticles.length})</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer font-medium ${
+                  selectedCategory === cat
+                    ? 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900 text-white font-semibold shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                {cat}
+              </button>
+            </React.Fragment>
           ))}
-          {/* Hidden Posts tab — restore stories you hid from your feed */}
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('Hidden Posts')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors cursor-pointer font-medium inline-flex items-center gap-1.5 ${
-              selectedCategory === 'Hidden Posts'
-                ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white font-semibold shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200'
-            }`}
-            title="Posts you hid from your feed"
-          >
-            <EyeOff className="w-3 h-3" />
-            <span>Hidden</span>
-            <span className="font-mono text-[10px] opacity-80">({hiddenArticles.length})</span>
-          </button>
         </div>
       </div>
 

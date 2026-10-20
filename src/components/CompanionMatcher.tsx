@@ -490,9 +490,6 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
           <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
             {getTranslation('matcherTitle')}
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-2xl leading-relaxed">
-            {getTranslation('matcherSub')}
-          </p>
           <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700">
               <Users className="w-3 h-3" />
@@ -813,6 +810,25 @@ export const CompanionMatcher: React.FC<CompanionMatcherProps> = ({
                   {activeTravelerModal.bio}
                 </p>
               </div>
+
+              {/* Travel goals — what they'd love to share or find on the road */}
+              {activeTravelerModal.travelGoals && activeTravelerModal.travelGoals.length > 0 && (
+                <div>
+                  <div className="text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
+                    Looking to Share
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeTravelerModal.travelGoals.map((goal) => (
+                      <span
+                        key={goal}
+                        className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-900/50 rounded-full"
+                      >
+                        {goal}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Trust & Safety Attributes */}
               <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg space-y-2">

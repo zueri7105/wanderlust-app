@@ -503,9 +503,10 @@ export default function App() {
               setActiveTab('activities');
             }}
             onGoToItinerary={(dest) => {
-              setSelectedDestination(dest);
+              if (dest) setSelectedDestination(dest);
               setActiveTab('itinerary');
             }}
+            onGoToCosts={() => setActiveTab('costs')}
             onOpenCreateTrip={() => setIsCreateTripOpen(true)}
             onToggleStarTraveler={handleToggleStarTraveler}
             onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
@@ -702,11 +703,14 @@ export default function App() {
             safetyRecord={safetyRecord}
             onUpdateProfile={handleUpdateProfile}
             onUpdateSafetyRecord={handleUpdateSafetyRecord}
+            onOpenSettings={() => setActiveTab('settings')}
           />
         )}
 
-        {/* Settings Tab for Design Customization (Light/Dark mode, Language, etc.) */}
-        {activeTab === 'settings' && <SettingsView userGender={currentUser.gender} />}
+        {/* Settings lives inside Profile — reached via the gear button on the profile page */}
+        {activeTab === 'settings' && (
+          <SettingsView userGender={currentUser.gender} onBack={() => setActiveTab('profile')} />
+        )}
       </main>
 
       {/* Active Trip Activity Chat Modal (For Activity Pods) */}

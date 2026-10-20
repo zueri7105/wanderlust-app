@@ -102,6 +102,26 @@ export const TravelerProfilePopup: React.FC<TravelerProfilePopupProps> = ({
             </p>
           )}
 
+          {/* Travel goals — what they'd love to share or find on the road */}
+          {traveler.travelGoals && traveler.travelGoals.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                Looking to share
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {traveler.travelGoals.map((goal) => (
+                  <span
+                    key={goal}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-900/50 rounded-full"
+                  >
+                    <Compass className="w-3 h-3" />
+                    {goal}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Quick stats */}
           <div className="flex items-center gap-2 flex-wrap text-[11px] font-semibold">
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/50">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, Settings, X } from 'lucide-react';
+import { ShieldAlert, X } from 'lucide-react';
 import { getTranslation } from '../utils/i18n';
 
 export type NavTab =
@@ -119,10 +119,6 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button onClick={() => onSelectTab('profile')} className={desktopBtn('profile')}>
               {getTranslation('profile')}
             </button>
-            <button onClick={() => onSelectTab('settings')} className={`${desktopBtn('settings')} flex items-center gap-1.5`}>
-              <Settings className="w-3.5 h-3.5" />
-              <span>{getTranslation('settings')}</span>
-            </button>
           </nav>
 
           {/* SOS */}
@@ -177,9 +173,6 @@ export const Navigation: React.FC<NavigationProps> = ({
         </button>
         <button onClick={() => onSelectTab('profile')} className={mobileBtn('profile')}>
           {getTranslation('profile')}
-        </button>
-        <button onClick={() => onSelectTab('settings')} className={mobileBtn('settings')}>
-          {getTranslation('settings')}
         </button>
       </div>
     </header>
