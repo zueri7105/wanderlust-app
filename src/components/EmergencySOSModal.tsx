@@ -47,15 +47,7 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
   onClose,
   currentUser,
   activeDestination,
-  emergencyContacts = [
-    {
-      id: 'em_1',
-      name: 'Markus Rostova',
-      relationship: 'Brother',
-      countryCode: '+49',
-      phone: '170 555 4912'
-    }
-  ]
+  emergencyContacts = []
 }) => {
   const [gpsStatus, setGpsStatus] = useState<'locating' | 'locked' | 'fallback'>('locating');
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
@@ -74,8 +66,8 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
       : `Auto-refresh: every ${emergencyInterval.replace('min', ' min').replace('hour', ' hour')}`;
 
   // Extract country from activeDestination or user's destination
-  const destStr = activeDestination !== 'All Destinations' ? activeDestination : currentUser.currentDestination || 'Kyoto, Japan';
-  const country = destStr.includes(',') ? destStr.split(',')[1].trim() : 'Japan';
+  const destStr = activeDestination !== 'All Destinations' ? activeDestination : currentUser.currentDestination || 'Unknown location';
+  const country = destStr.includes(',') ? destStr.split(',')[1].trim() : '';
 
   // Determine local emergency dispatch numbers by destination country
   const getEmergencyServices = (destCountry: string): LocalEmergencyServices => {
@@ -458,7 +450,7 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-slate-100">
             <div>
               <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
-                Consular Protection for Nationality: {currentUser.country}
+                Consular Protection for Nationality: {currentUser.country || '—'}
               </div>
               <h4 className="font-display font-bold text-base text-slate-950 mt-0.5">
                 {embassyInfo.name}
@@ -495,7 +487,7 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
                 {embassyInfo.email}
               </div>
               <a
-                href={`mailto:${embassyInfo.email}?subject=EMERGENCY ASSISTANCE REQUEST - ${currentUser.name}&body=URGENT CITIZEN ASSISTANCE REQUIRED.%0D%0A%0D%0AName: ${currentUser.name}%0D%0ANationality: ${currentUser.country}%0D%0ALocation: ${locationName} (${coordString})%0D%0AContact Phone: +49 170 555 4912`}
+                href={`mailto:${embassyInfo.email}?subject=EMERGENCY ASSISTANCE REQUEST - ${currentUser.name}&body=URGENT CITIZEN ASSISTANCE REQUIRED.%0D%0A%0D%0AName: ${currentUser.name}%0D%0ANationality: ${currentUser.country}%0D%0ALocation: ${locationName} (${coordString})${emergencyContacts[0] ? `%0D%0AEmergency Contact: ${emergencyContacts[0].name} ${emergencyContacts[0].countryCode} ${emergencyContacts[0].phone}` : ''}`}
                 className="inline-block text-emerald-800 font-semibold hover:underline text-[11px] pt-0.5"
               >
                 Compose Emergency Email →
@@ -562,7 +554,11 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
             ))}
           </div>
 
-          {sosSentToContact ? (
+          {emergencyContacts.length === 0 ? (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+              No emergency contacts linked yet — add one in your Profile → Safety so SOS alerts have someone to reach.
+            </div>
+          ) : sosSentToContact ? (
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>

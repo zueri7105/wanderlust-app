@@ -312,7 +312,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
                       Departure
                     </div>
                     <div className="mt-1 font-mono font-semibold text-stone-200 truncate">
-                      {currentUser.country || currentUser.homeCity}
+                      {currentUser.country || currentUser.homeCity || '—'}
                     </div>
                   </div>
                   <div>

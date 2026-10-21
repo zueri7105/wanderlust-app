@@ -97,10 +97,10 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
       : [
           {
             id: 'em_1',
-            name: 'Markus Rostova',
-            relationship: 'Brother',
-            countryCode: '+49',
-            phone: '170 555 4912'
+            name: '',
+            relationship: '',
+            countryCode: '',
+            phone: ''
           }
         ];
   });
@@ -382,11 +382,9 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
           </form>
         ) : (
           <div className="space-y-2.5">
+            {safetyRecord.emergencyContacts && safetyRecord.emergencyContacts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(safetyRecord.emergencyContacts && safetyRecord.emergencyContacts.length > 0
-                ? safetyRecord.emergencyContacts
-                : contactsDraft
-              ).map((contact, idx) => (
+              {safetyRecord.emergencyContacts.map((contact, idx) => (
                 <div
                   key={contact.id || idx}
                   className="flex items-center gap-3 p-3.5 bg-stone-50 dark:bg-stone-800/60 border border-stone-200/80 dark:border-stone-700 rounded-2xl text-xs"
@@ -412,6 +410,11 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                 </div>
               ))}
             </div>
+            ) : (
+              <div className="p-5 text-center border border-dashed border-stone-300 dark:border-stone-700 rounded-2xl text-xs text-stone-500 dark:text-stone-400">
+                No emergency contact yet — add someone we can reach if you ever need help on the road.
+              </div>
+            )}
 
             <div className="pt-2 flex justify-start">
               <button
@@ -436,10 +439,10 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
               Active Trip Safety Ping:
             </div>
             <div className="text-stone-600 dark:text-stone-300 mt-0.5">
-              Current Destination: <strong>{safetyRecord.activeDestination}</strong>
+              Current Destination: <strong>{safetyRecord.activeDestination || '—'}</strong>
             </div>
             <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 font-mono tabular-nums">
-              Last Ping: {safetyRecord.lastCheckinTime}
+              Last Ping: {safetyRecord.lastCheckinTime || '—'}
             </div>
           </div>
 

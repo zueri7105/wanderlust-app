@@ -114,8 +114,6 @@ const CITY_GEO: Record<string, { lat: number; lng: number }> = {
 
 const geoFor = (city: string) => CITY_GEO[city.trim().toLowerCase()];
 
-const MY_DESTINATION = 'Kyoto, Japan';
-
 interface TravelerPin {
   id: string;
   name: string;
@@ -139,7 +137,7 @@ const mkPin = (
 };
 
 const MAP_TRAVELER_PINS: TravelerPin[] = [
-  mkPin('user_current', 'You (Elena)', 'kyoto', MY_DESTINATION, true, '#f43f5e'),
+  mkPin('user_current', 'You', 'kyoto', '', true, '#f43f5e'),
 ];
 
 
@@ -154,83 +152,7 @@ const legacyPercentToLatLng = (x: number, y: number) => {
   return { lat: 90 - rawY * 1.8, lng: rawX * 3.6 - 180 };
 };
 
-const INITIAL_MEMORIES: TravelMemory[] = [
-  {
-    id: 'mem_kyoto_1',
-    destination: 'Kyoto',
-    country: 'Japan',
-    coordinates: { x: 0, y: 0, lat: CITY_GEO.kyoto.lat, lng: CITY_GEO.kyoto.lng },
-    date: 'Oct 2026',
-    photos: [
-      U('photo-1493976040374-85c8e12f0c0e'),
-      U('photo-1545569341-9eb8b30979d9'),
-      U('photo-1528360983277-13d401cdc186')
-    ],
-    memoryNote: 'Met Kenji at 6:30 AM before the Fushimi Inari torii gates got crowded. Unforgettable crisp autumn morning mist, quiet bamboo groves, and hot matcha soba noodles afterwards!',
-    companionsTagged: ['Kenji Sato'],
-    status: 'Current Location'
-  },
-  {
-    id: 'mem_dubrovnik_1',
-    destination: 'Dubrovnik',
-    country: 'Croatia',
-    coordinates: { x: 0, y: 0, lat: CITY_GEO.dubrovnik.lat, lng: CITY_GEO.dubrovnik.lng },
-    date: 'Sep 2026',
-    photos: [
-      U('photo-1533105079780-92b9be482077'),
-      U('photo-1507525428034-b723cf961d3e'),
-      U('photo-1519046904884-53103b34b206')
-    ],
-    memoryNote: 'Walked the ancient polished limestone fortress walls with Sofia. We discovered the secret cliffside hole leading to Buža bar and swam directly into the turquoise Adriatic Sea at sunset.',
-    companionsTagged: ['Sofia Morales'],
-    status: 'Visited'
-  },
-  {
-    id: 'mem_oaxaca_1',
-    destination: 'Oaxaca',
-    country: 'Mexico',
-    coordinates: { x: 0, y: 0, lat: CITY_GEO.oaxaca.lat, lng: CITY_GEO.oaxaca.lng },
-    date: 'Aug 2026',
-    photos: [
-      U('photo-1518638150340-f706e86654de'),
-      U('photo-1512813195386-6cf811ad3542'),
-      U('photo-1469854523086-cc02fe5d8800')
-    ],
-    memoryNote: 'Feasted on 7 varieties of authentic mole in Mercado 20 de Noviembre, explored Hierve el Agua calcified waterfalls, and visited a traditional agave distillery with Maya.',
-    companionsTagged: ['Maya Lin'],
-    status: 'Visited'
-  },
-  {
-    id: 'mem_amalfi_1',
-    destination: 'Amalfi Coast',
-    country: 'Italy',
-    coordinates: { x: 0, y: 0, lat: CITY_GEO.amalfi.lat, lng: CITY_GEO.amalfi.lng },
-    date: 'Jul 2026',
-    photos: [
-      U('photo-1516483638261-f4dbaf036963'),
-      U('photo-1533676802871-eca1ae998cd5'),
-      U('photo-1523906834658-6e24ef2386f9')
-    ],
-    memoryNote: 'Hiked the Path of the Gods (Sentiero degli Dei) high above the cliffs with Liam. Shared a wooden boat rental to Capri and ate fresh lemon pasta by the harbour.',
-    companionsTagged: ['Liam O\'Connor'],
-    status: 'Visited'
-  },
-  {
-    id: 'mem_barcelona_1',
-    destination: 'Barcelona',
-    country: 'Spain',
-    coordinates: { x: 0, y: 0, lat: CITY_GEO.barcelona.lat, lng: CITY_GEO.barcelona.lng },
-    date: 'Planned May 2027',
-    photos: [
-      U('photo-1539037116277-4db20889f2d4'),
-      U('photo-1583422409516-2895a77efded'),
-      U('photo-1523531294919-4bcd7c65e216')
-    ],
-    memoryNote: 'Dreaming of a Gothic Quarter tapas marathon, Park Güell sunset photography, and a day trip carpool to the Costa Brava rocky coves.',
-    companionsTagged: ['Lucas Silva'],
-    status: 'Dream Next'
-  }
-];
+const INITIAL_MEMORIES: TravelMemory[] = [];
 
 const STATUS_STYLES: Record<TravelMemory['status'], { dot: string; badge: string }> = {
   'Current Location': { dot: '#10b981', badge: 'bg-emerald-500 text-white' },
@@ -554,7 +476,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   };
 
   const handleShareLocation = () => {
-    const shareText = `📍 ${currentUser.name}'s Live Travel Location: ${MY_DESTINATION} · Safe & Active · Shared via WanderLust`;
+    const shareText = `📍 ${currentUser.name}'s Live Travel Location: ${myDestination || 'Somewhere new'} · Safe & Active · Shared via WanderLust`;
     if (navigator.share) {
       navigator.share({ title: 'WanderLust Location', text: shareText }).catch(() => {});
     } else if (navigator.clipboard) {
@@ -796,8 +718,20 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     };
   };
 
-  const activePinInfo = MAP_TRAVELER_PINS.find((p) => p.id === selectedPinId) || MAP_TRAVELER_PINS[0];
-  const myPin = MAP_TRAVELER_PINS[0];
+  /** Fresh accounts have no destination yet — no hardcoded pin until they set one. */
+  const myDestination = (currentUser.currentDestination || '').trim();
+  const myCityGeo = myDestination
+    ? geoFor(myDestination.split(',')[0].trim()) || geoFor(myDestination)
+    : null;
+  const activePinInfo = myDestination
+    ? {
+        ...(MAP_TRAVELER_PINS.find((p) => p.id === selectedPinId) || MAP_TRAVELER_PINS[0]),
+        destination: myDestination,
+        lat: myCityGeo?.lat ?? MAP_TRAVELER_PINS[0].lat,
+        lng: myCityGeo?.lng ?? MAP_TRAVELER_PINS[0].lng
+      }
+    : null;
+  const myPin = activePinInfo;
 
   // Which of MY memory dots render depends on the layer toggles
   const visibleMemoryDots = memories.filter((m) => {
@@ -912,8 +846,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
             
 
-            {/* My avatar pin — hideable for a clean map */}
-            {myPinOn && (
+            {/* My avatar pin — hideable for a clean map (only once you have a destination) */}
+            {myPinOn && myPin && (
             <Marker
               key={myPin.id}
               position={[myPin.lat, myPin.lng]}
@@ -1058,7 +992,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           </div>
 
           {/* Active Pin Overlay Card — you only (hideable for a clean map) */}
-          {profileCardOn && (
+          {profileCardOn && activePinInfo && (
           <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-white/60 dark:border-stone-700 rounded-2xl p-3.5 shadow-2xl z-[500]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -1085,7 +1019,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => onGoToItinerary(MY_DESTINATION)}
+                onClick={() => onGoToItinerary(myDestination)}
                 className="shrink-0 px-3 py-1.5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl text-xs font-bold hover:bg-stone-700 transition-colors cursor-pointer"
               >
                 My Itinerary
@@ -1101,7 +1035,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             </div>
           </div>
           )}
-          {!profileCardOn && (
+          {!profileCardOn && activePinInfo && (
             <button
               type="button"
               onClick={() => setProfileCardOn(true)}
