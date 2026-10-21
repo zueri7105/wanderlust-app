@@ -192,9 +192,24 @@ const normText = (s: string): string =>
   s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 /**
+ * Substring match that still respects word boundaries — "gion" must NOT light
+ * up inside "region" or "religion" (that bug pinned Kyoto onto unrelated trips).
+ */
+const indexWithBoundaries = (haystack: string, needle: string): number => {
+  let idx = haystack.indexOf(needle);
+  while (idx >= 0) {
+    const before = idx === 0 ? '' : haystack[idx - 1];
+    const after = idx + needle.length >= haystack.length ? '' : haystack[idx + needle.length];
+    if (!/[a-z]/.test(before) && !/[a-z]/.test(after)) return idx;
+    idx = haystack.indexOf(needle, idx + 1);
+  }
+  return -1;
+};
+
+/**
  * Resolve free text (an activity line, a destination, "City, Country") to
- * coordinates. Matches known place names as substrings; falls back to any
- * comma-separated segment that is itself a known place.
+ * coordinates. Matches known place names with word boundaries; falls back to
+ * any comma-separated segment that is itself a known place.
  */
 export const findPlaceGeo = (text: string): PlaceGeo | null => {
   const raw = normText((text || '').trim());
@@ -204,7 +219,7 @@ export const findPlaceGeo = (text: string): PlaceGeo | null => {
 
   let found: PlaceGeo | null = null;
   for (const { alias, entry } of SORTED_ALIASES) {
-    if (raw.includes(alias)) {
+    if (indexWithBoundaries(raw, alias) >= 0) {
       found = { lat: entry.lat, lng: entry.lng, name: alias };
       break;
     }

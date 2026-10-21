@@ -119,7 +119,14 @@ export const PassportView: React.FC<PassportViewProps> = ({
   );
   const languages = currentUser.languages || [];
   const hobbies = currentUser.interests || [];
-  const memberSince = String(2024 + ((currentUser.id.length + currentUser.name.length) % 2)); // stable pseudo year
+  // Year the traveller registered with WanderLust — persisted on first launch
+  const memberSince = (() => {
+    try {
+      const ts = localStorage.getItem('wanderlust_registered_at');
+      if (ts) return String(new Date(ts).getFullYear());
+    } catch { /* fall through */ }
+    return String(new Date().getFullYear());
+  })();
 
   // ── Edit profile (passport identity page fields) ──
   const [isEditing, setIsEditing] = useState(false);

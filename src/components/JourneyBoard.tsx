@@ -10,7 +10,13 @@ import {
   Route as RouteIcon,
   ImagePlus,
   X,
-  Check
+  Check,
+  ChevronUp,
+  ChevronDown,
+  BedDouble,
+  Utensils,
+  Camera,
+  Compass
 } from 'lucide-react';
 import { TravelItinerary, ItineraryDay } from '../types/travel';
 import { TripRouteMap } from './TripRouteMap';
@@ -49,6 +55,7 @@ const splitTasks = (text: string): string[] =>
 interface StopItem {
   label: string;
   slotLabelKey: string;
+  slotKey: (typeof SLOT_KEYS)[number]['key'];
   lat?: number;
   lng?: number;
 }
@@ -58,7 +65,7 @@ const stopsOf = (day: ItineraryDay): StopItem[] => {
   SLOT_KEYS.forEach(({ key, labelKey }) => {
     splitTasks(day[key]).forEach((task) => {
       const geo = findPlaceGeo(task);
-      out.push({ label: task, slotLabelKey: labelKey, lat: geo?.lat, lng: geo?.lng });
+      out.push({ label: task, slotLabelKey: labelKey, slotKey: key, lat: geo?.lat, lng: geo?.lng });
     });
   });
   return out;
@@ -80,26 +87,31 @@ const categorize = (label: string): StopCategory => {
   return 'sights';
 };
 
-const CAT_META: Record<StopCategory, { key: string; cls: string }> = {
+const CAT_META: Record<StopCategory, { key: string; cls: string; Icon: typeof Camera }> = {
   transport: {
     key: 'jdCatTransport',
-    cls: 'text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border-sky-200/80 dark:border-sky-800'
+    cls: 'text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border-sky-200/80 dark:border-sky-800',
+    Icon: TramFront
   },
   sights: {
     key: 'jdCatSights',
-    cls: 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/80 dark:border-emerald-800'
+    cls: 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/80 dark:border-emerald-800',
+    Icon: Camera
   },
   food: {
     key: 'jdCatFood',
-    cls: 'text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border-amber-200/80 dark:border-amber-800'
+    cls: 'text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border-amber-200/80 dark:border-amber-800',
+    Icon: Utensils
   },
   lodging: {
     key: 'jdCatLodging',
-    cls: 'text-violet-800 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/60 border-violet-200/80 dark:border-violet-800'
+    cls: 'text-violet-800 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/60 border-violet-200/80 dark:border-violet-800',
+    Icon: BedDouble
   },
   other: {
     key: 'jdCatOther',
-    cls: 'text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800/70 border-stone-200 dark:border-stone-700'
+    cls: 'text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800/70 border-stone-200 dark:border-stone-700',
+    Icon: Compass
   }
 };
 
@@ -120,13 +132,16 @@ const modeIcon = (mode: string) => {
   }
 };
 
-/** Photo with a graceful gradient fallback when the photo service hiccups. */
+/** Photo with a graceful activity-symbol tile when the photo service hiccups —
+ *  named places still get real photos; generic activities get a simple drawing
+ *  of what they are (a bed for a hotel stay, utensils for dinner…). */
 const SmartImage: React.FC<{
   src: string;
   color: string;
   className: string;
   iconCls?: string;
-}> = ({ src, color, className, iconCls = 'w-6 h-6' }) => {
+  Icon?: typeof Camera;
+}> = ({ src, color, className, iconCls = 'w-6 h-6', Icon = Camera }) => {
   const [failed, setFailed] = useState(false);
   return (
     <span
@@ -134,7 +149,7 @@ const SmartImage: React.FC<{
       style={{ background: `linear-gradient(135deg, ${color}40, ${color}14)` }}
     >
       {failed ? (
-        <Footprints className={iconCls} aria-hidden style={{ color }} />
+        <Icon className={iconCls} aria-hidden style={{ color }} />
       ) : (
         <img
           src={src}
@@ -245,6 +260,62 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     });
   };
 
+  /* Inline stop editing + reorder: positions are flattened across the day's
+     three slots, so moving past a slot boundary naturally reassigns the slot. */
+  const slotsOfDay = (d: ItineraryDay): string[][] => SLOT_KEYS.map(({ key }) => splitTasks(d[key]));
+  const flatPositions = (d: ItineraryDay): Array<[number, number]> => {
+    const out: Array<[number, number]> = [];
+    SLOT_KEYS.forEach(({ key }, s) => splitTasks(d[key]).forEach((_, t) => out.push([s, t])));
+    return out;
+  };
+  const commitSlots = (dayNumber: number, slots: string[][]) =>
+    updateDay(dayNumber, {
+      morningActivity: slots[0].join(' · '),
+      afternoonActivity: slots[1].join(' · '),
+      eveningActivity: slots[2].join(' · ')
+    });
+
+  const moveStop = (flatIdx: number, dir: -1 | 1) => {
+    if (!day) return;
+    const slots = slotsOfDay(day);
+    const flat = flatPositions(day);
+    const a = flat[flatIdx];
+    const b = flat[flatIdx + dir];
+    if (!a || !b) return;
+    const tmp = slots[a[0]][a[1]];
+    slots[a[0]][a[1]] = slots[b[0]][b[1]];
+    slots[b[0]][b[1]] = tmp;
+    commitSlots(day.dayNumber, slots);
+  };
+
+  const renameStop = (flatIdx: number, newLabel: string) => {
+    if (!day) return;
+    const slots = slotsOfDay(day);
+    const pos = flatPositions(day)[flatIdx];
+    if (!pos) return;
+    const v = newLabel.trim();
+    if (!v) slots[pos[0]].splice(pos[1], 1); // clearing the text removes the stop
+    else if (slots[pos[0]][pos[1]] === v) return; // unchanged
+    else slots[pos[0]][pos[1]] = v;
+    commitSlots(day.dayNumber, slots);
+  };
+
+  /** "+ day" pill on the tab bar — appends a blank day and extends the trip. */
+  const addDay = () => {
+    const n = itinerary.days.length + 1;
+    const end = new Date(itinerary.endDate);
+    if (!isNaN(end.getTime())) end.setDate(end.getDate() + 1);
+    onUpdateItinerary?.({
+      ...itinerary,
+      endDate: isNaN(end.getTime()) ? itinerary.endDate : end.toISOString().slice(0, 10),
+      days: [
+        ...itinerary.days,
+        { dayNumber: n, title: '', morningActivity: '', afternoonActivity: '', eveningActivity: '' }
+      ]
+    });
+    setActiveDay(n);
+  };
+
   const addStop = () => {
     const label = draft.trim();
     if (!label || !onUpdateItinerary || !day) return;
@@ -297,6 +368,14 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
             </span>
           </button>
         ))}
+        <button
+          type="button"
+          onClick={addDay}
+          title={getTranslation('addAnotherDay')}
+          className="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-2xl text-xs font-bold border border-dashed border-stone-300 dark:border-stone-600 text-stone-400 hover:text-violet-500 hover:border-violet-400 transition-colors cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* The route map is always here — it follows the selected day and every
@@ -464,7 +543,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
       ) : (
         /* ── Single day: hero photo, editable heading, stops, notes & photos ── */
         <div className="space-y-3 min-w-0">
-          {/* Hero photo — auto-generated from the day's own places */}
+          {/* Hero photo — auto-generated from the day's own places (or a simple
+              drawing of the day's main activity when no place is named) */}
           <div className="relative">
             <SmartImage
               src={activityImageUrl(
@@ -475,6 +555,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
               color={dayColor}
               className="w-full h-36 sm:h-44 rounded-2xl"
               iconCls="w-8 h-8"
+              Icon={stops[0] ? CAT_META[categorize(stops[0].label)].Icon : Camera}
             />
             <span
               className="absolute top-3 left-3 w-8 h-8 rounded-full text-white text-sm font-bold flex items-center justify-center shadow-lg"
@@ -482,14 +563,6 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
             >
               {day.dayNumber}
             </span>
-            <button
-              type="button"
-              onClick={onEditTrip}
-              className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm text-stone-700 dark:text-stone-200 rounded-xl shadow-md transition-colors cursor-pointer"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              <span>{getTranslation('editTrip')}</span>
-            </button>
           </div>
 
           {/* Heading — straight-away editable, no edit button needed */}
@@ -531,7 +604,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                     )}
                   </div>
                 )}
-                <div className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs hover:shadow-sm transition-shadow">
+                <div className="flex items-center gap-2.5 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs hover:shadow-sm transition-shadow">
                   <span
                     className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-sm"
                     style={{ backgroundColor: dayColor }}
@@ -543,11 +616,20 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                     color={dayColor}
                     className="w-14 h-14 rounded-xl shrink-0"
                     iconCls="w-5 h-5"
+                    Icon={meta.Icon}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-stone-900 dark:text-stone-50 leading-snug">
-                      {stop.label}
-                    </div>
+                    {/* straight-away editable: tap the name and rewrite it; clear it to remove the stop */}
+                    <input
+                      key={`${day.dayNumber}_${idx}_${stop.label}`}
+                      type="text"
+                      defaultValue={stop.label}
+                      onBlur={(e) => renameStop(idx, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                      }}
+                      className="w-full bg-transparent text-sm font-semibold text-stone-900 dark:text-stone-50 leading-snug border-b border-dashed border-transparent hover:border-stone-300 dark:hover:border-stone-600 focus:border-violet-400 focus:outline-none transition-colors"
+                    />
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       <span
                         className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${meta.cls}`}
@@ -559,6 +641,27 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                       </span>
                     </div>
                   </div>
+                  {/* move the activity up / down (across slots too) */}
+                  <span className="flex flex-col shrink-0 -my-1">
+                    <button
+                      type="button"
+                      onClick={() => moveStop(idx, -1)}
+                      disabled={idx === 0}
+                      className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
+                      aria-label="Move up"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveStop(idx, 1)}
+                      disabled={idx === stops.length - 1}
+                      className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
+                      aria-label="Move down"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </span>
                 </div>
               </React.Fragment>
             );

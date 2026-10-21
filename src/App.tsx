@@ -62,6 +62,13 @@ export default function App() {
     }
   });
 
+  // "Traveler since" on the passport = the year this account was created here
+  useEffect(() => {
+    if (!localStorage.getItem('wanderlust_registered_at')) {
+      localStorage.setItem('wanderlust_registered_at', new Date().toISOString());
+    }
+  }, []);
+
   // Persistence in localStorage
   const [currentUser, setCurrentUser] = useState<SoloTraveler>(() => {
     const saved = localStorage.getItem('roamtogether_current_user');
