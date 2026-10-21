@@ -172,7 +172,7 @@ export const COUNTRY_GUIDES: CountryGuideData[] = [
     aliases: ['barcelona', 'madrid', 'seville', 'sevilla', 'valencia', 'granada', 'mallorca', 'ibiza', 'bilbao', 'costa brava'],
     currencyCode: 'EUR', currencyName: 'Euro', currencySymbol: '€', region: 'Schengen',
     entryRules: [
-      'Schengen rules: visa-exempt passports get 90 days in any 180; ETIAS pre-authorization applies to visa-exempt nationals.',
+      'Schengen rules: visa-exempt passports get 90 days in any 180; EES biometric registration is live at the border, ETIAS pre-authorisation is not in operation yet.',
       'Passport or EU ID required for hotel check-in and sometimes card payments.',
       'Pickpocketing is the main risk in Barcelona/Madrid tourist zones — use cross-body bags and never leave phones on café tables.',
       'Many sights (Sagrada Família, Alhambra, Park Güell) require timed tickets booked days ahead.',
@@ -259,7 +259,7 @@ export const COUNTRY_GUIDES: CountryGuideData[] = [
     aliases: ['paris', 'nice', 'lyon', 'marseille', 'bordeaux', 'provence', 'cote d\'azur', 'chamonix'],
     currencyCode: 'EUR', currencyName: 'Euro', currencySymbol: '€', region: 'Schengen',
     entryRules: [
-      'Schengen rules: visa-exempt passports get 90 days in any 180; ETIAS applies to visa-exempt nationals.',
+      'Schengen rules: visa-exempt passports get 90 days in any 180; EES biometric registration is live at the border, ETIAS pre-authorisation is not in operation yet.',
       'Carry ID — French police can request identification at any time.',
       'Metro tickets: keep your ticket until you exit; inspectors fine on the spot.',
       'Smoking is banned on restaurant terraces where covered; rules are enforced.',
@@ -885,36 +885,14 @@ export function isSameRegionTraveler(nationality: string, dest: CountryGuideData
 }
 
 /**
- * Nationality-aware visa & entry summary.
+ * Nationality-aware visa & entry summary. ALWAYS resolves (passport country) ×
+ * (destination country) through the official-sources visa matrix — never a
+ * region-generic guess. Unknown pairs produce a "check the official source"
+ * passage with the destination's government link.
  */
 export function visaAdviceFor(travelerNationality: string, dest: CountryGuideData): string {
   const nat = travelerNationality.trim() || 'your nationality';
-  // Info-built guides carry a fixed, fully country-specific visa passage.
-  if (dest.visaCountry) return visaPassageFor(nat, dest.visaCountry);
-  if (isSameRegionTraveler(nat, dest)) {
-    if (dest.region === 'Schengen') {
-      return `As a ${nat} traveler, you enjoy free movement within the Schengen area — no visa needed for ${dest.name}. Carry your passport or national ID card, and respect the 90-days-in-180 rule if you are not an EU citizen.`;
-    }
-    if (dest.region === 'USMCA') {
-      return `As a ${nat} traveler, entry to ${dest.name} is straightforward under regional agreements — typically no visa is needed for short tourism stays. Carry your passport and proof of onward travel.`;
-    }
-  }
-  if (dest.region === 'Schengen') {
-    return `${dest.name} follows Schengen rules: many passports (US, UK, CA, AU, JP and others) get 90 days visa-free in any 180-day period; ETIAS pre-authorization may apply. As a ${nat} traveler, verify your status on the official EU/consulate portal before booking.`;
-  }
-  if (dest.region === 'UK') {
-    return `As a ${nat} traveler, you will most likely need the UK ETA (Electronic Travel Authorisation) applied for online before departure. The UK is not in Schengen.`;
-  }
-  if (dest.region === 'Oceania') {
-    return `As a ${nat} traveler, apply for the electronic travel authorization (ETA / NZeTA) before flying to ${dest.name}; biosecurity declarations on arrival are strict.`;
-  }
-  if (dest.region === 'EastAsia') {
-    return `Visa rules for ${dest.name} differ strongly by passport — several Western passports enjoy visa-free short stays, others need a visa or e-visa in advance. As a ${nat} traveler, confirm with the official ${dest.name} embassy or consulate site before booking.`;
-  }
-  if (dest.region === 'SEAsia') {
-    return `${dest.name} typically offers visa-free entry or Visa-on-Arrival/e-visa for many passports. As a ${nat} traveler, check the latest entry rules — policies changed frequently in recent years.`;
-  }
-  return `Entry rules for ${dest.name} depend on your passport. As a ${nat} traveler, check the official consulate portal for visa requirements and passport-validity rules before departure.`;
+  return visaPassageFor(nat, dest.visaCountry || dest.name);
 }
 
 /**

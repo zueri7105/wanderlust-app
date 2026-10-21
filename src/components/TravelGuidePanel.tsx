@@ -14,7 +14,8 @@ import {
   DollarSign,
   Smartphone,
   ShieldCheck,
-  Languages
+  Languages,
+  ExternalLink
 } from 'lucide-react';
 import { TravelItinerary, SoloTraveler } from '../types/travel';
 import { formatTemperature } from '../utils/units';
@@ -264,6 +265,21 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
   // Traveller nationality's home currency (for the dual exchange-rate display)
   const natCurrency = countryInfoFor(guideNat)?.currency || { code: 'EUR', symbol: '€', name: 'Euro' };
   const visaVerdict = visaVerdictFor(guideNat, `${itinerary.country || ''} ${itinerary.destination}`);
+  // Localized chip label from the matrix status (never a guessed regime text)
+  const visaDaysStr = visaVerdict.days ? tv('visaDaysShort', { n: visaVerdict.days }) : '';
+  const visaChipLabel = visaVerdict.status === 'home'
+    ? getTranslation('visaChipHome')
+    : visaVerdict.status === 'free'
+    ? `${getTranslation('visaChipFree')}${visaVerdict.days ? ` · ${visaDaysStr}` : ''}`
+    : visaVerdict.status === 'eta'
+    ? (visaVerdict.etaName || getTranslation('visaChipEta'))
+    : visaVerdict.status === 'evisa'
+    ? (visaVerdict.etaName || getTranslation('visaChipEvisa'))
+    : visaVerdict.status === 'voa'
+    ? `${getTranslation('visaChipVoa')}${visaVerdict.days ? ` · ${visaDaysStr}` : ''}`
+    : visaVerdict.status === 'required'
+    ? getTranslation('visaChipRequired')
+    : getTranslation('visaChipCheck');
 
   // Visa details popup — full visa paragraph + entry customs, on demand
   const [visaPopupOpen, setVisaPopupOpen] = useState(false);
@@ -331,12 +347,26 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
                   ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                   : visaVerdict.tone === 'online'
                   ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                  : visaVerdict.tone === 'embassy'
+                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                  : 'bg-stone-100 dark:bg-stone-800/60 text-stone-600 dark:text-stone-300 border-stone-300/80 dark:border-stone-700'
               }`}
+              title={visaVerdict.note || visaVerdict.verdict}
             >
               {visaVerdict.tone === 'free' ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-              <span>{visaVerdict.verdict}</span>
+              <span>{visaChipLabel}</span>
             </span>
+            {visaVerdict.official && (
+              <a
+                href={visaVerdict.official}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors"
+              >
+                <ExternalLink className="w-3 h-3" />
+                {getTranslation('visaOfficialBtn')}
+              </a>
+            )}
             <button
               type="button"
               onClick={() => setVisaPopupOpen(true)}
@@ -747,6 +777,18 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
               <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-4">
                 {visaAdviceFor(nat, kb)}
               </p>
+
+              {visaVerdict.official && (
+                <a
+                  href={visaVerdict.official}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-lg hover:bg-sky-100 dark:hover:bg-sky-950/60 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  {getTranslation('visaOfficialBtn')}
+                </a>
+              )}
 
               <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
                 <div className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-2">
