@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { TravelItinerary, SoloTraveler, ItineraryDay, TravelGuideInfo, TripScope, SoloPersonalExpense, ExpenseItem } from '../types/travel';
 import {
   Calendar,
+  CalendarDays,
   MapPin,
   Users,
   Compass,
@@ -14,13 +15,11 @@ import {
   DollarSign,
   CloudSun,
   Luggage,
-  ChevronDown,
-  ChevronUp,
   Trash2,
   CheckSquare,
   Square,
   MessageSquare,
-  FileText,
+  NotebookPen,
   X,
   Edit2,
   Check,
@@ -59,6 +58,7 @@ import { WORLD_COUNTRIES } from './DestinationSelector';
 import { TripRouteMap } from './TripRouteMap';
 import { JourneyBoard } from './JourneyBoard';
 import { findPlaceGeo, estimateLeg, optimizeStopOrder, suggestPlacesFor, type TravelMode } from '../utils/placeGeo';
+import { getTripCover } from '../utils/tripCovers';
 
 interface ItineraryViewProps {
   itineraries: TravelItinerary[];
@@ -406,6 +406,57 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     ? itineraries.filter((it) => it.id === detailTripId)
     : [...itineraries]
   ).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+  /* Countdown from today to the travel date. kind: future (>0 days out),
+     today (departure day), now (trip under way), past (trip ended). */
+  const countdownFor = (start: string, end: string): { kind: 'future' | 'today' | 'now' | 'past'; days: number } => {
+    const s = new Date(start);
+    if (isNaN(s.getTime())) return { kind: 'past', days: 0 };
+    const e = new Date(end || start);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    s.setHours(0, 0, 0, 0);
+    if (!isNaN(e.getTime())) e.setHours(0, 0, 0, 0);
+    const days = Math.round((s.getTime() - today.getTime()) / 86400000);
+    if (days > 0) return { kind: 'future', days };
+    if (days === 0) return { kind: 'today', days: 0 };
+    if (!isNaN(e.getTime()) && today.getTime() <= e.getTime()) return { kind: 'now', days: 0 };
+    return { kind: 'past', days: 0 };
+  };
+
+  const countdownLabel = (cd: { kind: 'future' | 'today' | 'now' | 'past'; days: number }): string => {
+    if (cd.kind === 'today') return getTranslation('cdToday');
+    if (cd.kind === 'now') return getTranslation('cdNow');
+    if (cd.kind === 'past') return getTranslation('cdPast');
+    if (cd.days === 1) return getTranslation('cdInDay');
+    if (cd.days < 45) return tv('cdInDays', { n: cd.days });
+    if (cd.days < 320) return tv('cdInMonths', { n: Math.max(2, Math.round(cd.days / 30.44)) });
+    if (cd.days < 550) return getTranslation('cdInYear');
+    const yrs = Math.round((cd.days / 365.25) * 10) / 10;
+    return tv('cdInYears', { n: yrs });
+  };
+
+  // One-off celebration on the departure day: plane flyover + fireworks over
+  // the trip card. Fires once per trip per day (sessionStorage flag).
+  const todayStamp = new Date().toISOString().slice(0, 10);
+  const [celebrating, setCelebrating] = useState<Record<string, boolean>>(() => {
+    const out: Record<string, boolean> = {};
+    sortedItineraries.forEach((it) => {
+      const cd = countdownFor(it.startDate, it.endDate);
+      const flag = `wl_celebrated_${it.id}_${todayStamp}`;
+      if (cd.kind === 'today' && !sessionStorage.getItem(flag)) {
+        sessionStorage.setItem(flag, '1');
+        out[it.id] = true;
+      }
+    });
+    return out;
+  });
+  useEffect(() => {
+    if (!Object.keys(celebrating).length) return;
+    const t = setTimeout(() => setCelebrating({}), 5200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Do not automatically expand any trip box on open; only expand when tapped as
   // requested — except in trip detail mode, where the one trip is always expanded
@@ -1234,7 +1285,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             <button
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="text-xs font-semibold text-stone-500 dark:text-stone-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl border border-dashed border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-500 dark:text-stone-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-400 dark:hover:border-violet-500 transition-colors cursor-pointer"
             >
               {getTranslation('manualCreateLink')}
             </button>
@@ -1301,9 +1352,42 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 />
               ) : (
               <div
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md overflow-hidden transition-all"
+                className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md overflow-hidden transition-all"
               >
-                {/* Trip Itinerary Box Header (Clickable to Expand / Collapse) */}
+                {/* Departure-day celebration: one-off plane flyover + fireworks */}
+                {celebrating[itinerary.id] && (
+                  <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-2xl" aria-hidden>
+                    <div className="absolute left-[6%] right-[6%] top-8 border-t-2 border-dashed border-violet-400/90 wl-trail" />
+                    <Plane className="absolute top-5 w-6 h-6 text-violet-500 dark:text-violet-300 wl-plane-fly" />
+                    {[
+                      { left: '12%', top: '18%', color: '#f59e0b', delay: '0.2s' },
+                      { left: '78%', top: '12%', color: '#8b5cf6', delay: '0.7s' },
+                      { left: '55%', top: '30%', color: '#ec4899', delay: '1.1s' },
+                      { left: '32%', top: '8%', color: '#10b981', delay: '1.5s' }
+                    ].map((p, i) => (
+                      <Sparkles
+                        key={i}
+                        className="absolute w-6 h-6 wl-burst"
+                        style={{ left: p.left, top: p.top, color: p.color, animationDelay: p.delay }}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Trip card — the whole card is tappable and opens the trip page */}
+                {(() => {
+                  const cover = getTripCover(itinerary.id);
+                  const dur = computeStayDuration(itinerary.startDate, itinerary.endDate);
+                  const cd = countdownFor(itinerary.startDate, itinerary.endDate);
+                  const cdCls =
+                    cd.kind === 'today'
+                      ? 'bg-violet-600 text-white border-violet-500'
+                      : cd.kind === 'now'
+                      ? 'bg-emerald-500 text-white border-emerald-400'
+                      : cd.kind === 'past'
+                      ? 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 border-stone-200 dark:border-stone-700'
+                      : 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800';
+                  return (
                 <div
                   onClick={() => {
                     if (!detailTripId && onOpenTripDetail) {
@@ -1315,9 +1399,21 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       [itinerary.id]: !prev[itinerary.id]
                     }));
                   }}
-                  className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer bg-gradient-to-r from-stone-100/80 via-stone-50/50 to-transparent dark:from-stone-800/40 dark:via-stone-800/20 dark:to-transparent hover:from-stone-100 dark:hover:from-stone-800/60 transition-colors border-b border-slate-100 dark:border-slate-800"
+                  className={`relative p-5 sm:p-6 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800 ${
+                    cover
+                      ? ''
+                      : 'bg-gradient-to-r from-stone-100/80 via-stone-50/50 to-transparent dark:from-stone-800/40 dark:via-stone-800/20 dark:to-transparent hover:from-stone-100 dark:hover:from-stone-800/60'
+                  }`}
                 >
-                  <div className="flex items-start gap-4">
+                  {/* Cover picture background (chosen inside the trip) */}
+                  {cover && (
+                    <>
+                      <img src={cover} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-stone-950/85 via-stone-950/60 to-stone-950/35" />
+                    </>
+                  )}
+
+                  <div className="relative flex items-start gap-4">
                     <div className="w-11 h-11 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex flex-col items-center justify-center shrink-0 shadow-xs">
                       <span className="text-[10px] font-bold uppercase font-mono tracking-wider">
                         {itinerary.days.length}
@@ -1327,19 +1423,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                       </span>
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-1.5 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
+                        <h3 className={`font-display font-bold text-lg ${cover ? 'text-white' : 'text-slate-950 dark:text-slate-50'}`}>
                           {itinerary.destination}
                         </h3>
-                        <span className="font-mono text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                          {itinerary.startDate} – {itinerary.endDate}
-                        </span>
-                        {/* Total planned stops, Pi-Travel card style */}
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-2 py-0.5 rounded">
-                          <MapPin className="w-3 h-3" />
-                          {tv('placesCount', { n: placesCount })}
-                        </span>
                         {/* Visa chip — does the traveller's passport need a visa for this country? */}
                         {(() => {
                           const destText = `${itinerary.country || ''} ${itinerary.destination}`;
@@ -1369,16 +1457,45 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             </span>
                           );
                         })()}
-
                       </div>
 
-                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-1">
-                        {itinerary.notes}
-                      </p>
+                      {/* Date row — calendar symbol + days/nights worked out from the dates */}
+                      <div className={`flex items-center gap-1.5 text-xs font-semibold ${cover ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>
+                        <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                        <span className="font-mono tabular-nums">{itinerary.startDate} – {itinerary.endDate}</span>
+                        <span className={cover ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}>
+                          ({tv('stayNights', { d: dur.days, n: dur.nights })})
+                        </span>
+                      </div>
+
+                      {/* Location row — country · countdown to the travel date · planned places */}
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className={`inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded border ${
+                          cover
+                            ? 'text-white bg-white/15 border-white/25'
+                            : 'text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                        }`}>
+                          <MapPin className="w-3 h-3" />
+                          {itinerary.country || itinerary.destination}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded border ${cdCls}`}>
+                          {cd.kind === 'today' ? <Sparkles className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                          {countdownLabel(cd)}
+                        </span>
+                        <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-2 py-0.5 rounded">
+                          {tv('placesCount', { n: placesCount })}
+                        </span>
+                      </div>
+
+                      {itinerary.notes && (
+                        <p className={`text-xs mt-0.5 line-clamp-1 ${cover ? 'text-white/75' : 'text-slate-600 dark:text-slate-400'}`}>
+                          {itinerary.notes}
+                        </p>
+                      )}
 
                       {/* Multi-city route chips */}
                       {itinerary.cities && itinerary.cities.length > 1 && (
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px]">
+                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
                           <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
                           {itinerary.cities.map((c, i) => (
                             <span key={c} className="inline-flex items-center gap-1">
@@ -1390,7 +1507,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               )}
                             </span>
                           ))}
-                          <span className="text-slate-400 ml-1">{getTranslation('multiCityTrip')}</span>
+                          <span className={`ml-1 ${cover ? 'text-white/60' : 'text-slate-400'}`}>{getTranslation('multiCityTrip')}</span>
                         </div>
                       )}
 
@@ -1398,28 +1515,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           traveller's bio to see what they're looking for. */}
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenEditTrip(itinerary);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors cursor-pointer"
-                      title="Edit this trip — all days at once, or delete the trip"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      <span>{getTranslation('editTrip')}</span>
-                    </button>
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                      {isExpanded ? getTranslation('hideDetails') : getTranslation('tapToView')}
-                    </span>
-                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
-                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </div>
-                  </div>
                 </div>
+                  );
+                })()}
 
                 {/* Expanded Detailed Journey, Day Schedule Editing & Travel Guide */}
                 {isExpanded && (
@@ -1524,7 +1622,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             {/* Editable Personal Notes Textarea */}
                             <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-1">
                               <label className="flex items-center gap-1 font-semibold text-slate-900 dark:text-slate-100 text-[11px]">
-                                <FileText className="w-3 h-3 text-slate-500" />
+                                <NotebookPen className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                                 <span>{getTranslation('myNotes')}</span>
                               </label>
                               <AutoGrowTextarea

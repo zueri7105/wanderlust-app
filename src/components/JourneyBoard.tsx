@@ -16,7 +16,9 @@ import {
   BedDouble,
   Utensils,
   Camera,
-  Compass
+  Compass,
+  NotebookPen,
+  Image as ImageIcon
 } from 'lucide-react';
 import { TravelItinerary, ItineraryDay } from '../types/travel';
 import { TripRouteMap } from './TripRouteMap';
@@ -37,6 +39,7 @@ import {
   loadChecked,
   toggleChecked
 } from '../utils/checklistStore';
+import { getTripCover, setTripCover } from '../utils/tripCovers';
 
 /* ── Stop parsing (mirrors TripRouteMap, but keeps non-geocodable tasks) ──── */
 
@@ -69,6 +72,21 @@ const stopsOf = (day: ItineraryDay): StopItem[] => {
     });
   });
   return out;
+};
+
+/** Legs between consecutive geocoded stops of a day (distance + travel mode). */
+const legsOf = (day: ItineraryDay) => {
+  const stops = stopsOf(day);
+  return stops.slice(1).map((to, i) => {
+    const from = stops[i];
+    if (from.lat == null || to.lat == null || from.lng == null || to.lng == null) return null;
+    const km = haversineKm(from.lat, from.lng, to.lat, to.lng);
+    const chosen = day.legModes?.[`${from.label}→${to.label}`] as TravelMode | undefined;
+    const est = chosen
+      ? { km, minutes: estimateLegForMode(km, chosen), mode: chosen }
+      : estimateLeg(km);
+    return { from: from.label, to: to.label, ...est };
+  });
 };
 
 /* ── Category chips — keyword inference, Pi-Travel style ───────────────────── */
@@ -193,8 +211,9 @@ interface JourneyBoardProps {
 
 /**
  * Day-by-day journey board. The route map is ALWAYS on top and follows the
- * selected day; below it: editable note + checklist (overview) or a per-day
- * hero photo, editable heading, stops with legs, notes & photos (day view).
+ * selected day. Overview: checklist first, then the notebook for penning
+ * notes, then the trip-cover picker. Day view: every day stacked as one
+ * dotted-line timeline — a heading + remark box per day, double-tap to edit.
  */
 export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   itinerary,
@@ -202,11 +221,28 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   onEditTrip
 }) => {
   const [activeDay, setActiveDay] = useState(0); // 0 = Overview, else 1-based day number
-  const [draft, setDraft] = useState('');
-  const [draftSlot, setDraftSlot] = useState<(typeof SLOT_KEYS)[number]['key']>('afternoonActivity');
 
   // Overview note — tap the box and pen straight away; saves on blur
   const [noteDraft, setNoteDraft] = useState<string | null>(null);
+
+  // Double-tap editing: which day card is currently in edit form
+  const [editingDay, setEditingDay] = useState<number | null>(null);
+  const [newStopDraft, setNewStopDraft] = useState('');
+
+  // Trip cover picker (rendered on the trip card back on the Trips list)
+  const [coverOpen, setCoverOpen] = useState(false);
+  const [coverVer, setCoverVer] = useState(0);
+  const coverFileRef = useRef<HTMLInputElement>(null);
+  const cover = getTripCover(itinerary.id); // eslint-disable-line react-hooks/exhaustive-deps -- coverVer forces re-read
+  const coverOptions = useMemo(
+    () =>
+      [
+        activityImageUrl(itinerary.destination, itinerary.destination, 'card'),
+        ...itinerary.days.flatMap((d) => d.photos || [])
+      ].slice(0, 8),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [itinerary.destination, itinerary.days, coverVer]
+  );
 
   // Checklist (shared store with the trips list)
   const [checklistVer, setChecklistVer] = useState(0);
@@ -219,6 +255,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   const checked = useMemo(() => loadChecked(), [checklistVer]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoDayRef = useRef<number>(0); // which day the open file picker belongs to
+  const dayRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const dayDate = (idx: number): string => {
     const d = new Date(itinerary.startDate);
@@ -226,27 +264,6 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     d.setDate(d.getDate() + idx);
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
-
-  const day: ItineraryDay | null =
-    activeDay >= 1 && activeDay <= itinerary.days.length ? itinerary.days[activeDay - 1] : null;
-
-  const stops = useMemo(() => (day ? stopsOf(day) : []), [day]);
-
-  const dayLegs = useMemo(() => {
-    if (!day) return [];
-    return stops.slice(1).map((to, i) => {
-      const from = stops[i];
-      if (from.lat == null || to.lat == null || from.lng == null || to.lng == null) return null;
-      const km = haversineKm(from.lat, from.lng, to.lat, to.lng);
-      const chosen = day.legModes?.[`${from.label}→${to.label}`] as TravelMode | undefined;
-      const est = chosen
-        ? { km, minutes: estimateLegForMode(km, chosen), mode: chosen }
-        : estimateLeg(km);
-      return { from: from.label, to: to.label, ...est };
-    });
-  }, [day, stops]);
-
-  const dayKm = dayLegs.reduce((n, l) => n + (l?.km || 0), 0);
 
   const totalStops = useMemo(
     () => itinerary.days.reduce((n, d) => n + stopsOf(d).length, 0),
@@ -260,8 +277,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     });
   };
 
-  /* Inline stop editing + reorder: positions are flattened across the day's
-     three slots, so moving past a slot boundary naturally reassigns the slot. */
+  /* Stop editing + reorder: positions are flattened across the day's three
+     slots, so moving past a slot boundary naturally reassigns the slot. */
   const slotsOfDay = (d: ItineraryDay): string[][] => SLOT_KEYS.map(({ key }) => splitTasks(d[key]));
   const flatPositions = (d: ItineraryDay): Array<[number, number]> => {
     const out: Array<[number, number]> = [];
@@ -275,29 +292,36 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
       eveningActivity: slots[2].join(' · ')
     });
 
-  const moveStop = (flatIdx: number, dir: -1 | 1) => {
-    if (!day) return;
-    const slots = slotsOfDay(day);
-    const flat = flatPositions(day);
+  const moveStop = (d: ItineraryDay, flatIdx: number, dir: -1 | 1) => {
+    const slots = slotsOfDay(d);
+    const flat = flatPositions(d);
     const a = flat[flatIdx];
     const b = flat[flatIdx + dir];
     if (!a || !b) return;
     const tmp = slots[a[0]][a[1]];
     slots[a[0]][a[1]] = slots[b[0]][b[1]];
     slots[b[0]][b[1]] = tmp;
-    commitSlots(day.dayNumber, slots);
+    commitSlots(d.dayNumber, slots);
   };
 
-  const renameStop = (flatIdx: number, newLabel: string) => {
-    if (!day) return;
-    const slots = slotsOfDay(day);
-    const pos = flatPositions(day)[flatIdx];
+  const renameStop = (d: ItineraryDay, flatIdx: number, newLabel: string) => {
+    const slots = slotsOfDay(d);
+    const pos = flatPositions(d)[flatIdx];
     if (!pos) return;
     const v = newLabel.trim();
     if (!v) slots[pos[0]].splice(pos[1], 1); // clearing the text removes the stop
     else if (slots[pos[0]][pos[1]] === v) return; // unchanged
     else slots[pos[0]][pos[1]] = v;
-    commitSlots(day.dayNumber, slots);
+    commitSlots(d.dayNumber, slots);
+  };
+
+  /** Append a new stop to the day (lands in the afternoon slot by default). */
+  const appendStop = (d: ItineraryDay, label: string) => {
+    const v = label.trim();
+    if (!v) return;
+    updateDay(d.dayNumber, {
+      afternoonActivity: d.afternoonActivity ? `${d.afternoonActivity} · ${v}` : v
+    });
   };
 
   /** "+ day" pill on the tab bar — appends a blank day and extends the trip. */
@@ -316,17 +340,10 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     setActiveDay(n);
   };
 
-  const addStop = () => {
-    const label = draft.trim();
-    if (!label || !onUpdateItinerary || !day) return;
-    updateDay(day.dayNumber, {
-      [draftSlot]: day[draftSlot] ? `${day[draftSlot]} · ${label}` : label
-    } as Partial<ItineraryDay>);
-    setDraft('');
-  };
-
   const addPhotos = async (files: FileList | null) => {
-    if (!files || !day) return;
+    if (!files) return;
+    const d = itinerary.days.find((x) => x.dayNumber === photoDayRef.current);
+    if (!d) return;
     const urls: string[] = [];
     for (const f of Array.from(files).slice(0, 6)) {
       try {
@@ -335,7 +352,25 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
         /* skip unreadable files */
       }
     }
-    if (urls.length) updateDay(day.dayNumber, { photos: [...(day.photos || []), ...urls] });
+    if (urls.length) updateDay(d.dayNumber, { photos: [...(d.photos || []), ...urls] });
+  };
+
+  const pickCover = async (files: FileList | null) => {
+    if (!files || !files[0]) return;
+    try {
+      const url = await fileToDataUrl(files[0]);
+      setTripCover(itinerary.id, url);
+      setCoverVer((v) => v + 1);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const focusDay = (n: number) => {
+    setActiveDay(n);
+    requestAnimationFrame(() => {
+      dayRefs.current[n]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const pillCls = (active: boolean) =>
@@ -344,8 +379,6 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
         ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 border-stone-950 dark:border-violet-400 shadow-md'
         : 'bg-white dark:bg-slate-900 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-violet-300 dark:hover:border-violet-600'
     }`;
-
-  const dayColor = day ? dayRouteColor(day.dayNumber) : '#8b5cf6';
 
   return (
     <div className="space-y-4 min-w-0">
@@ -359,7 +392,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
           <button
             key={d.dayNumber}
             type="button"
-            onClick={() => setActiveDay(d.dayNumber)}
+            onClick={() => focusDay(d.dayNumber)}
             className={pillCls(activeDay === d.dayNumber)}
           >
             <span>{tv('dayN', { n: d.dayNumber })}</span>
@@ -388,8 +421,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
         hideDayTabs
       />
 
-      {activeDay === 0 || !day ? (
-        /* ── Overview: note you pen inline + checklist with strike-through ── */
+      {activeDay === 0 ? (
+        /* ── Overview: checklist first, then the notebook for penning notes ── */
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
             <span className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 border border-stone-200 dark:border-stone-700">
@@ -400,30 +433,76 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
             </span>
             <button
               type="button"
+              onClick={() => setCoverOpen((v) => !v)}
+              className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-2xl transition-all cursor-pointer shadow-xs ${
+                coverOpen
+                  ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'
+                  : 'text-stone-600 dark:text-stone-300 bg-white dark:bg-slate-900 border border-stone-200 dark:border-stone-700 hover:border-violet-300'
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>{getTranslation('coverBtn')}</span>
+            </button>
+            <button
+              type="button"
               onClick={onEditTrip}
-              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:scale-[1.03] transition-all cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:scale-[1.03] transition-all cursor-pointer shadow-xs"
             >
               <Pencil className="w-3.5 h-3.5" />
               <span>{getTranslation('editTrip')}</span>
             </button>
           </div>
 
-          {/* Trip note — no edit button: tap the box and write */}
-          <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 p-4">
-            <textarea
-              value={noteDraft ?? itinerary.notes ?? ''}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              onBlur={() => {
-                if (noteDraft !== null && noteDraft !== itinerary.notes) {
-                  onUpdateItinerary?.({ ...itinerary, notes: noteDraft });
-                }
-                setNoteDraft(null);
-              }}
-              placeholder={getTranslation('jdNotePh')}
-              rows={Math.max(2, (noteDraft ?? itinerary.notes ?? '').split('\n').length)}
-              className="w-full bg-transparent text-xs text-amber-900 dark:text-amber-200 placeholder:text-amber-700/50 dark:placeholder:text-amber-300/40 leading-relaxed resize-none focus:outline-none"
-            />
-          </div>
+          {/* Cover picker — the chosen picture becomes the trip card background */}
+          {coverOpen && (
+            <div className="rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 p-4 space-y-3">
+              <div className="text-xs font-bold text-stone-900 dark:text-stone-100">
+                {getTranslation('coverChoose')}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {coverOptions.map((url, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setTripCover(itinerary.id, url);
+                      setCoverVer((v) => v + 1);
+                    }}
+                    className={`relative w-20 h-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                      cover === url
+                        ? 'border-violet-500 ring-2 ring-violet-300'
+                        : 'border-transparent hover:border-violet-300'
+                    }`}
+                  >
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    {cover === url && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-stone-950/30">
+                        <Check className="w-4 h-4 text-white" />
+                      </span>
+                    )}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => coverFileRef.current?.click()}
+                  className="w-20 h-14 rounded-xl border-2 border-dashed border-stone-300 dark:border-stone-600 text-stone-400 hover:text-violet-500 hover:border-violet-400 flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer"
+                >
+                  <ImagePlus className="w-4 h-4" />
+                  <span className="text-[9px] font-bold">{getTranslation('coverUpload')}</span>
+                </button>
+              </div>
+              <input
+                ref={coverFileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  pickCover(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+          )}
 
           {/* Checklist — add your own, tap to strike through when done */}
           <div className="rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 p-4 space-y-2.5">
@@ -507,6 +586,27 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
             </div>
           </div>
 
+          {/* Trip notebook — no edit button: tap the box and write */}
+          <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 p-4 space-y-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 dark:text-amber-300">
+              <NotebookPen className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span>{getTranslation('myNotes')}</span>
+            </div>
+            <textarea
+              value={noteDraft ?? itinerary.notes ?? ''}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onBlur={() => {
+                if (noteDraft !== null && noteDraft !== itinerary.notes) {
+                  onUpdateItinerary?.({ ...itinerary, notes: noteDraft });
+                }
+                setNoteDraft(null);
+              }}
+              placeholder={getTranslation('jdNotePh')}
+              rows={Math.max(2, (noteDraft ?? itinerary.notes ?? '').split('\n').length)}
+              className="w-full bg-transparent text-xs text-amber-900 dark:text-amber-200 placeholder:text-amber-700/50 dark:placeholder:text-amber-300/40 leading-relaxed resize-none focus:outline-none"
+            />
+          </div>
+
           {/* Day summary chips — tap to jump into that day */}
           <div className="grid gap-2 sm:grid-cols-2">
             {itinerary.days.map((d, i) => {
@@ -515,7 +615,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                 <button
                   key={d.dayNumber}
                   type="button"
-                  onClick={() => setActiveDay(d.dayNumber)}
+                  onClick={() => focusDay(d.dayNumber)}
                   className="flex items-center gap-3 p-3 text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-violet-300 dark:hover:border-violet-600 hover:shadow-sm transition-all cursor-pointer min-w-0"
                 >
                   <span
@@ -541,227 +641,276 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
           </div>
         </div>
       ) : (
-        /* ── Single day: hero photo, editable heading, stops, notes & photos ── */
-        <div className="space-y-3 min-w-0">
-          {/* Hero photo — auto-generated from the day's own places (or a simple
-              drawing of the day's main activity when no place is named) */}
+        /* ── All days on one dotted-line timeline: a heading + a remark box per
+             day. Double-tap a day card to edit its heading and activities. ── */
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium text-stone-400 dark:text-stone-500 mb-2 pl-11">
+            {getTranslation('dblTapHint')}
+          </p>
           <div className="relative">
-            <SmartImage
-              src={activityImageUrl(
-                stops[0]?.label || itinerary.destination,
-                itinerary.destination,
-                'card'
-              )}
-              color={dayColor}
-              className="w-full h-36 sm:h-44 rounded-2xl"
-              iconCls="w-8 h-8"
-              Icon={stops[0] ? CAT_META[categorize(stops[0].label)].Icon : Camera}
-            />
+            {/* the dotted line linking every day's heading */}
             <span
-              className="absolute top-3 left-3 w-8 h-8 rounded-full text-white text-sm font-bold flex items-center justify-center shadow-lg"
-              style={{ backgroundColor: dayColor }}
-            >
-              {day.dayNumber}
-            </span>
-          </div>
-
-          {/* Heading — straight-away editable, no edit button needed */}
-          <div className="flex items-baseline gap-2 min-w-0">
-            <input
-              type="text"
-              value={day.title}
-              onChange={(e) => updateDay(day.dayNumber, { title: e.target.value })}
-              placeholder={getTranslation('jdTitlePh')}
-              className="flex-1 min-w-0 bg-transparent font-display text-lg font-bold text-stone-950 dark:text-stone-50 placeholder:text-stone-400/70 placeholder:font-medium border-b border-dashed border-transparent hover:border-stone-300 dark:hover:border-stone-600 focus:border-violet-400 focus:outline-none transition-colors pb-0.5 truncate"
+              className="absolute left-[15px] top-4 bottom-4 border-l-2 border-dotted border-stone-300 dark:border-stone-600"
+              aria-hidden
             />
-            <span className="text-[11px] font-medium text-stone-400 shrink-0">
-              {dayDate(day.dayNumber - 1)} · {tv('jdStops', { n: stops.length })}
-              {dayKm > 0 && ` · ≈${dayKm.toFixed(1)} km`}
-            </span>
-          </div>
-
-          {stops.length === 0 && (
-            <div className="p-6 text-center text-xs text-stone-500 dark:text-stone-400 bg-white dark:bg-slate-900 border border-dashed border-stone-300 dark:border-stone-700 rounded-2xl">
-              {getTranslation('jdEmptyDay')}
-            </div>
-          )}
-
-          {stops.map((stop, idx) => {
-            const cat = categorize(stop.label);
-            const meta = CAT_META[cat];
-            const leg = idx > 0 ? dayLegs[idx - 1] : null;
-            const LegIcon = leg ? modeIcon(leg.mode) : null;
-            return (
-              <React.Fragment key={`${idx}_${stop.label}`}>
-                {idx > 0 && (
-                  <div className="flex items-center gap-2 pl-4 py-1">
-                    <span className="w-px h-4 border-l-2 border-dotted border-stone-300 dark:border-stone-600 ml-[15px]" />
-                    {leg && LegIcon && (
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-stone-500 dark:text-stone-400 bg-stone-100/80 dark:bg-stone-800/60 px-2 py-0.5 rounded-full">
-                        <LegIcon className="w-3 h-3" />
-                        {tv('jdLeg', { km: leg.km.toFixed(1), min: leg.minutes })}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <div className="flex items-center gap-2.5 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs hover:shadow-sm transition-shadow">
-                  <span
-                    className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-sm"
-                    style={{ backgroundColor: dayColor }}
+            <div className="space-y-4">
+              {itinerary.days.map((d, dayIdx) => {
+                const dayColor = dayRouteColor(d.dayNumber);
+                const stops = stopsOf(d);
+                const legs = legsOf(d);
+                const editing = editingDay === d.dayNumber;
+                return (
+                  <div
+                    key={d.dayNumber}
+                    ref={(el) => {
+                      dayRefs.current[d.dayNumber] = el;
+                    }}
+                    className="relative pl-11 scroll-mt-24"
                   >
-                    {idx + 1}
-                  </span>
-                  <SmartImage
-                    src={activityImageUrl(stop.label, itinerary.destination, 'thumb')}
-                    color={dayColor}
-                    className="w-14 h-14 rounded-xl shrink-0"
-                    iconCls="w-5 h-5"
-                    Icon={meta.Icon}
-                  />
-                  <div className="flex-1 min-w-0">
-                    {/* straight-away editable: tap the name and rewrite it; clear it to remove the stop */}
-                    <input
-                      key={`${day.dayNumber}_${idx}_${stop.label}`}
-                      type="text"
-                      defaultValue={stop.label}
-                      onBlur={(e) => renameStop(idx, e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                    {/* Day badge sitting on the dotted line — tap to focus the map */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveDay(d.dayNumber)}
+                      className="absolute left-0 top-3.5 w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shadow-md cursor-pointer hover:scale-110 transition-transform z-10"
+                      style={{ backgroundColor: dayColor }}
+                      aria-label={tv('dayN', { n: d.dayNumber })}
+                    >
+                      {d.dayNumber}
+                    </button>
+
+                    <div
+                      onDoubleClick={(e) => {
+                        const t = e.target as HTMLElement;
+                        if (t.closest('textarea, input, button, a, img')) return;
+                        setEditingDay(d.dayNumber);
+                        setNewStopDraft('');
                       }}
-                      className="w-full bg-transparent text-sm font-semibold text-stone-900 dark:text-stone-50 leading-snug border-b border-dashed border-transparent hover:border-stone-300 dark:hover:border-stone-600 focus:border-violet-400 focus:outline-none transition-colors"
-                    />
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${meta.cls}`}
-                      >
-                        {getTranslation(meta.key)}
-                      </span>
-                      <span className="text-[10px] font-medium text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700 px-2 py-0.5 rounded">
-                        {getTranslation(stop.slotLabelKey)}
-                      </span>
+                      className={`rounded-2xl border bg-white dark:bg-slate-900 p-4 space-y-3 min-w-0 [touch-action:manipulation] transition-shadow ${
+                        editing
+                          ? 'border-violet-400 dark:border-violet-500 ring-2 ring-violet-200 dark:ring-violet-900 shadow-md'
+                          : 'border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-sm cursor-pointer'
+                      }`}
+                    >
+                      {/* Heading — display, or editable in the double-tap form */}
+                      {editing ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={d.title}
+                            onChange={(e) => updateDay(d.dayNumber, { title: e.target.value })}
+                            placeholder={getTranslation('jdTitlePh')}
+                            autoFocus
+                            className="flex-1 min-w-0 px-2.5 py-1.5 border border-violet-300 dark:border-violet-700 rounded-lg bg-white dark:bg-slate-800 font-display text-base font-bold text-stone-950 dark:text-stone-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEditingDay(null)}
+                            className="w-8 h-8 shrink-0 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center hover:scale-105 transition-all cursor-pointer"
+                            title={getTranslation('saveAllChanges')}
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-baseline gap-2 min-w-0">
+                          <span className="flex-1 min-w-0 font-display text-base font-bold text-stone-950 dark:text-stone-50 truncate">
+                            {d.title || tv('dayN', { n: d.dayNumber })}
+                          </span>
+                          <span className="text-[11px] font-medium text-stone-400 shrink-0">
+                            {dayDate(dayIdx)} · {tv('jdStops', { n: stops.length })}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Per-day picture — auto-generated from the day's places,
+                          or a simple drawing of the activity when generic */}
+                      <SmartImage
+                        src={activityImageUrl(
+                          stops[0]?.label || d.title || itinerary.destination,
+                          itinerary.destination,
+                          'card'
+                        )}
+                        color={dayColor}
+                        className="w-full h-28 sm:h-36 rounded-xl"
+                        iconCls="w-7 h-7"
+                        Icon={stops[0] ? CAT_META[categorize(stops[0].label)].Icon : Camera}
+                      />
+
+                      {stops.length === 0 && !editing && (
+                        <div className="p-4 text-center text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-slate-800/50 border border-dashed border-stone-300 dark:border-stone-700 rounded-xl">
+                          {getTranslation('jdEmptyDay')}
+                        </div>
+                      )}
+
+                      {stops.map((stop, idx) => {
+                        const cat = categorize(stop.label);
+                        const meta = CAT_META[cat];
+                        const leg = idx > 0 ? legs[idx - 1] : null;
+                        const LegIcon = leg ? modeIcon(leg.mode) : null;
+                        return (
+                          <React.Fragment key={`${idx}_${stop.label}`}>
+                            {idx > 0 && (
+                              <div className="flex items-center gap-2 pl-4 py-0.5">
+                                <span className="w-px h-3.5 border-l-2 border-dotted border-stone-300 dark:border-stone-600 ml-[13px]" />
+                                {leg && LegIcon && (
+                                  <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-stone-500 dark:text-stone-400 bg-stone-100/80 dark:bg-stone-800/60 px-2 py-0.5 rounded-full">
+                                    <LegIcon className="w-3 h-3" />
+                                    {tv('jdLeg', { km: leg.km.toFixed(1), min: leg.minutes })}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2.5 p-2.5 bg-stone-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-xl">
+                              <span
+                                className="w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-sm"
+                                style={{ backgroundColor: dayColor }}
+                              >
+                                {idx + 1}
+                              </span>
+                              {editing ? (
+                                <input
+                                  key={`${d.dayNumber}_${idx}_${stop.label}`}
+                                  type="text"
+                                  defaultValue={stop.label}
+                                  onBlur={(e) => renameStop(d, idx, e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                  }}
+                                  className="flex-1 min-w-0 px-2 py-1 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-xs font-semibold text-stone-900 dark:text-stone-50 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                />
+                              ) : (
+                                <div className="flex-1 min-w-0">
+                                  <span className="block text-xs font-semibold text-stone-900 dark:text-stone-50 leading-snug">
+                                    {stop.label}
+                                  </span>
+                                  <span
+                                    className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded border ${meta.cls}`}
+                                  >
+                                    {getTranslation(meta.key)}
+                                  </span>
+                                </div>
+                              )}
+                              {/* move the activity up / down (across slots too) */}
+                              <span className="flex flex-col shrink-0 -my-1">
+                                <button
+                                  type="button"
+                                  onClick={() => moveStop(d, idx, -1)}
+                                  disabled={idx === 0}
+                                  className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
+                                  aria-label="Move up"
+                                >
+                                  <ChevronUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveStop(d, idx, 1)}
+                                  disabled={idx === stops.length - 1}
+                                  className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
+                                  aria-label="Move down"
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                              </span>
+                            </div>
+                          </React.Fragment>
+                        );
+                      })}
+
+                      {/* Inside the edit form: one blank row to add an activity */}
+                      {editing && (
+                        <div className="flex items-center gap-2.5 p-2.5 border border-dashed border-violet-300 dark:border-violet-700 rounded-xl">
+                          <span className="w-6 h-6 rounded-full border-2 border-dashed border-violet-300 dark:border-violet-600 text-violet-400 flex items-center justify-center shrink-0">
+                            <Plus className="w-3 h-3" />
+                          </span>
+                          <input
+                            type="text"
+                            value={newStopDraft}
+                            onChange={(e) => setNewStopDraft(e.target.value)}
+                            onBlur={() => {
+                              if (newStopDraft.trim()) {
+                                appendStop(d, newStopDraft);
+                                setNewStopDraft('');
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newStopDraft.trim()) {
+                                appendStop(d, newStopDraft);
+                                setNewStopDraft('');
+                              }
+                            }}
+                            placeholder={getTranslation('jdAddStopPh')}
+                            className="flex-1 min-w-0 px-2 py-1 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-xs text-stone-900 dark:text-stone-50 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                          />
+                        </div>
+                      )}
+
+                      {/* Remark box — notes for this day + photos */}
+                      <div className="rounded-xl border border-amber-200/70 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2.5">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                          <NotebookPen className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>{getTranslation('myNotes')}</span>
+                        </div>
+                        <textarea
+                          value={d.note ?? ''}
+                          onChange={(e) => updateDay(d.dayNumber, { note: e.target.value })}
+                          placeholder={getTranslation('jdDayNotePh')}
+                          rows={Math.max(2, (d.note ?? '').split('\n').length)}
+                          className="w-full bg-transparent text-xs text-amber-900 dark:text-amber-200 placeholder:text-amber-700/50 dark:placeholder:text-amber-300/40 leading-relaxed resize-none focus:outline-none"
+                        />
+                        {(d.photos || []).length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {(d.photos || []).map((url, i) => (
+                              <span key={i} className="relative group">
+                                <img
+                                  src={url}
+                                  alt=""
+                                  className="w-16 h-16 rounded-xl object-cover border border-stone-200 dark:border-stone-700"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateDay(d.dayNumber, {
+                                      photos: (d.photos || []).filter((_, j) => j !== i)
+                                    })
+                                  }
+                                  className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 w-[18px] h-[18px] rounded-full bg-stone-900 text-white items-center justify-center hidden group-hover:flex"
+                                  aria-label="Remove photo"
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            photoDayRef.current = d.dayNumber;
+                            fileInputRef.current?.click();
+                          }}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
+                        >
+                          <ImagePlus className="w-3.5 h-3.5" />
+                          <span>{getTranslation('jdAddPhoto')}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  {/* move the activity up / down (across slots too) */}
-                  <span className="flex flex-col shrink-0 -my-1">
-                    <button
-                      type="button"
-                      onClick={() => moveStop(idx, -1)}
-                      disabled={idx === 0}
-                      className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
-                      aria-label="Move up"
-                    >
-                      <ChevronUp className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveStop(idx, 1)}
-                      disabled={idx === stops.length - 1}
-                      className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
-                      aria-label="Move down"
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                  </span>
-                </div>
-              </React.Fragment>
-            );
-          })}
-
-          {/* Quick add stop — appended to the chosen slot of this day */}
-          <div className="pt-1">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') addStop();
-                }}
-                placeholder={getTranslation('jdAddStopPh')}
-                className="flex-1 min-w-0 px-4 py-2.5 text-xs border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
-              />
-              <button
-                type="button"
-                onClick={addStop}
-                disabled={!draft.trim()}
-                className="w-10 h-10 rounded-2xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center transition-all hover:scale-105 cursor-pointer shadow-md shrink-0 disabled:opacity-40 disabled:hover:scale-100"
-                title={getTranslation('jdAddStop')}
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex gap-1.5 mt-2">
-              {SLOT_KEYS.map(({ key, labelKey }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setDraftSlot(key)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
-                    draftSlot === key
-                      ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 border-stone-950 dark:border-violet-400'
-                      : 'text-stone-500 dark:text-stone-400 bg-transparent border-stone-200 dark:border-stone-700 hover:border-violet-300'
-                  }`}
-                >
-                  {getTranslation(labelKey)}
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
-
-          {/* Day note — pen anything; add photos from the day */}
-          <div className="rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 p-4 space-y-3">
-            <textarea
-              value={day.note ?? ''}
-              onChange={(e) => updateDay(day.dayNumber, { note: e.target.value })}
-              placeholder={getTranslation('jdDayNotePh')}
-              rows={Math.max(2, (day.note ?? '').split('\n').length)}
-              className="w-full bg-transparent text-xs text-stone-700 dark:text-stone-200 placeholder:text-stone-400 leading-relaxed resize-none focus:outline-none"
-            />
-            {(day.photos || []).length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {(day.photos || []).map((url, i) => (
-                  <span key={i} className="relative group">
-                    <img
-                      src={url}
-                      alt=""
-                      className="w-16 h-16 rounded-xl object-cover border border-stone-200 dark:border-stone-700"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateDay(day.dayNumber, {
-                          photos: (day.photos || []).filter((_, j) => j !== i)
-                        })
-                      }
-                      className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 w-[18px] h-[18px] rounded-full bg-stone-900 text-white items-center justify-center hidden group-hover:flex"
-                      aria-label="Remove photo"
-                    >
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                addPhotos(e.target.files);
-                e.target.value = '';
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
-            >
-              <ImagePlus className="w-3.5 h-3.5" />
-              <span>{getTranslation('jdAddPhoto')}</span>
-            </button>
-          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              addPhotos(e.target.files);
+              e.target.value = '';
+            }}
+          />
         </div>
       )}
     </div>
