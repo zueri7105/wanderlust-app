@@ -27,6 +27,8 @@ export const CURRENT_USER: SoloTraveler = {
   soloTripsCount: 14,
   safetyRating: 4.96,
   vouchedByCount: 22,
+  instagram: 'wander.elena',
+  website: 'wanderlust-elenarostova.com',
   currentDestination: 'Kyoto, Japan'
 };
 

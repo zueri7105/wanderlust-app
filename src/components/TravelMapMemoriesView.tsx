@@ -8,6 +8,7 @@ import COUNTRIES_GEO from '../data/countriesGeo';
 import { landmarkArtFor } from '../utils/landmarkArt';
 import {
   MapPin,
+  MapPinOff,
   Share2,
   Plus,
   Users,
@@ -461,6 +462,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   // The little "You are here" card on the map can be tucked away for a clean view
   const [profileCardOn, setProfileCardOn] = useState(true);
+  const [myPinOn, setMyPinOn] = useState(true);
   // Map fly-to target when a journal entry is tapped
   const [memoryFly, setMemoryFly] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -844,23 +846,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             <span>{shareCopied ? 'Location Copied!' : getTranslation('shareLocation')}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setEditingMemoryId(null);
-              setNewCity('');
-              setNewCountry('');
-              setNewNote('');
-              setNewTaggedCompanion('');
-              setNewPhotos([DEFAULT_MEMORY_PHOTO]);
-              setSelectedItineraryId('');
-              setIsAddMemoryModalOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{getTranslation('recordMemory')}</span>
-          </button>
         </div>
       </div>
       )}
@@ -926,13 +911,15 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
             
 
-            {/* My avatar pin */}
+            {/* My avatar pin — hideable for a clean map */}
+            {myPinOn && (
             <Marker
               key={myPin.id}
               position={[myPin.lat, myPin.lng]}
               icon={pinIcons[myPin.id]}
               eventHandlers={{ click: () => setSelectedPinId(myPin.id) }}
             />
+            )}
 
 
             
@@ -973,6 +960,15 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           </div>
 
           {/* Full-screen toggle */}
+          {/* Hide / show my avatar pinpoint */}
+          <button
+            type="button"
+            onClick={() => setMyPinOn((v) => !v)}
+            className="absolute top-3 right-12 z-[600] w-8 h-8 rounded-full bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-lg flex items-center justify-center text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer transition-colors"
+            title={myPinOn ? 'Hide my profile pin on the map' : 'Show my profile pin on the map'}
+          >
+            {myPinOn ? <MapPin className="w-4 h-4" /> : <MapPinOff className="w-4 h-4" />}
+          </button>
           <button
             type="button"
             onClick={() => setIsMapFullscreen((v) => !v)}
@@ -1218,8 +1214,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                             )}
                           </div>
                         </div>
-                        {/* hover actions */}
-                        <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        {/* card actions — own footer row so they never overlap the text */}
+                        <div className="mt-2 pt-1.5 border-t border-stone-100 dark:border-stone-800 flex items-center justify-end gap-0.5">
                           <button
                             type="button"
                             onClick={() => flyToMemory(mem)}
