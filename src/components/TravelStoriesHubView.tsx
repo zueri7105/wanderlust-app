@@ -327,7 +327,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
               type="button"
               onClick={() => onGoToDestination && onGoToDestination(d.name)}
               className={`group relative overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition-all text-left cursor-pointer ${
-                idx % 2 === 1 ? 'lg:transtone-y-5' : ''
+                idx % 2 === 1 ? 'lg:translate-y-5' : ''
               }`}
             >
               <img
@@ -380,7 +380,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
       <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-4 shadow-xs space-y-3">
         {/* Search Input on Top as requested */}
         <div className="relative">
-          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -transtone-y-1/2" />
+          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
@@ -391,7 +391,7 @@ export const TravelStoriesHubView: React.FC<TravelStoriesHubViewProps> = ({
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -transtone-y-1/2 text-stone-400 hover:text-stone-600 p-0.5 cursor-pointer"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>

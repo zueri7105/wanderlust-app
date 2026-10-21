@@ -1370,11 +1370,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           );
                         })()}
 
-                        {itinerary.tripScope && (
-                          <span className="text-[10px] font-semibold text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-800 px-2 py-0.5 rounded">
-                            {itinerary.tripScope}
-                          </span>
-                        )}
                       </div>
 
                       <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-1">

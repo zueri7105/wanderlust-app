@@ -678,7 +678,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                       Instagram Handle <span className="font-normal text-stone-400">(optional)</span>
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -transtone-y-1/2 text-stone-400 font-semibold">@</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-semibold">@</span>
                       <input
                         type="text"
                         placeholder="wander.anya"

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { ItineraryDay, TravelItinerary } from '../types/travel';
 import {
   findPlaceGeo,
@@ -167,6 +167,10 @@ interface PickedLeg {
 interface TripRouteMapProps {
   itinerary: TravelItinerary;
   onUpdateItinerary?: (itinerary: TravelItinerary) => void;
+  /** Controlled day selection (0 = overview). When set, the internal tabs can be hidden. */
+  activeDay?: number;
+  onActiveDayChange?: (day: number) => void;
+  hideDayTabs?: boolean;
 }
 
 /**
@@ -174,10 +178,22 @@ interface TripRouteMapProps {
  * symbol on every leg — solid lines on land, dotted for ferries, curved
  * dotted arcs for flights. Tap a symbol to choose how you travel that leg.
  */
-export const TripRouteMap: React.FC<TripRouteMapProps> = ({ itinerary, onUpdateItinerary }) => {
+export const TripRouteMap: React.FC<TripRouteMapProps> = ({
+  itinerary,
+  onUpdateItinerary,
+  activeDay: controlledDay,
+  onActiveDayChange,
+  hideDayTabs = false
+}) => {
   const { days, destination } = itinerary;
   // 0 = Overview (all days); otherwise a 1-based day number
-  const [activeDay, setActiveDay] = useState(0);
+  const [internalDay, setInternalDay] = useState(0);
+  const isControlled = controlledDay !== undefined;
+  const activeDay = isControlled ? controlledDay : internalDay;
+  const setActiveDay = (d: number) => {
+    if (!isControlled) setInternalDay(d);
+    onActiveDayChange?.(d);
+  };
   const [pickedLeg, setPickedLeg] = useState<PickedLeg | null>(null);
 
   const stopsByDay = useMemo(
@@ -186,9 +202,11 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ itinerary, onUpdateI
   );
   const totalStops = stopsByDay.reduce((n, x) => n + x.stops.length, 0);
 
-  // Auto-jump to the first day that actually has mappable stops
+  // Auto-jump to the first day that actually has mappable stops (uncontrolled
+  // mode only — a controlling parent may intentionally view an empty day)
   const firstDayWithStops = stopsByDay.find((x) => x.stops.length > 0)?.day.dayNumber ?? 0;
   useEffect(() => {
+    if (isControlled) return;
     if (activeDay !== 0 && !stopsByDay.some((x) => x.day.dayNumber === activeDay && x.stops.length > 0)) {
       setActiveDay(firstDayWithStops);
     }
@@ -238,6 +256,10 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ itinerary, onUpdateI
     const g = findPlaceGeo(destination);
     return g ? [g.lat, g.lng] : [20, 0];
   })();
+  // The map is ALWAYS on — with stops we zoom into them, without any we frame
+  // the destination itself (or a world view when the place is unknown).
+  const destGeo = findPlaceGeo(destination);
+  const baseZoom = allPoints.length ? 12 : destGeo ? 11 : 2;
 
   /** Mode for a leg: the traveller's saved choice, else a distance-based guess. */
   const modeForLeg = (day: ItineraryDay, from: RouteStop, to: RouteStop): { mode: TravelMode; km: number } => {
@@ -258,26 +280,12 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ itinerary, onUpdateI
     setPickedLeg(null);
   };
 
-  if (totalStops === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-6 text-center space-y-1.5">
-        <MapPin className="w-6 h-6 text-emerald-500 mx-auto" />
-        <div className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
-          {getTranslation('routeMapEmptyTitle')}
-        </div>
-        <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/70 max-w-md mx-auto leading-relaxed">
-          {getTranslation('routeMapEmptyHint')}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="rounded-2xl overflow-hidden border border-emerald-100 dark:border-emerald-900/60 bg-white dark:bg-slate-900 shadow-xs">
       <div className="relative">
         <MapContainer
           center={center}
-          zoom={12}
+          zoom={baseZoom}
           scrollWheelZoom
           className="h-72 sm:h-80 w-full z-0"
         >
@@ -285,7 +293,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ itinerary, onUpdateI
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <FitBounds points={allPoints} />
+          {allPoints.length > 0 && <FitBounds points={allPoints} />}
           {visible.map(({ day, stops }) => {
             const color = dayRouteColor(day.dayNumber);
             const focused = activeDay !== 0;
@@ -355,6 +363,18 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ itinerary, onUpdateI
           })}
         </MapContainer>
 
+        {/* Empty-trip hint floats over the map instead of replacing it */}
+        {totalStops === 0 && (
+          <div className="absolute left-1/2 top-3 -translate-x-1/2 z-[1000] max-w-[90%] rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-emerald-200 dark:border-emerald-800 shadow-md px-3.5 py-2 text-center">
+            <div className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
+              {getTranslation('routeMapEmptyTitle')}
+            </div>
+            <div className="text-[10px] text-emerald-700/80 dark:text-emerald-300/70 leading-snug">
+              {getTranslation('routeMapEmptyHint')}
+            </div>
+          </div>
+        )}
+
         {/* Transport picker — tap a leg's symbol to choose how you travel it */}
         {pickedLeg && (
           <div className="absolute inset-x-2 bottom-2 z-[1000] rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-xl p-3 space-y-2">
@@ -404,7 +424,9 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ itinerary, onUpdateI
       </div>
 
       {/* Legend: trip scope chips (Overview / each Day) + ordered stop pinpoints.
-          Overview paints the whole trip at once; a Day shows just that day's routes. */}
+          Overview paints the whole trip at once; a Day shows just that day's routes.
+          Tabs hidden when the parent (journey board) owns day selection. */}
+      {!hideDayTabs && (
       <div className="px-3.5 pt-2.5 pb-1 flex items-center gap-1.5 overflow-x-auto bg-white dark:bg-slate-900 border-t border-emerald-100 dark:border-emerald-900/60">
         <button
           type="button"
@@ -441,6 +463,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({ itinerary, onUpdateI
           );
         })}
       </div>
+      )}
       <div className="px-3.5 pb-2.5 pt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900">
         {visible.flatMap(({ day, stops }) =>
           stops.map((s) => (

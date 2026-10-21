@@ -126,6 +126,31 @@ const PLACE_TABLE: PlaceEntry[] = [
   P(41.0082, 28.9784, 'istanbul', 'hagia sophia', 'sultanahmet', 'grand bazaar'),
   P(64.1466, -21.9426, 'reykjavik', 'blue lagoon', 'golden circle', 'hallgrimskirkja'),
   P(31.6295, -7.9811, 'marrakech', 'marrakesh', 'medina', 'jemaa el-fnaa'),
+  // ── Switzerland & Central/Northern Europe ─────────────────────────────
+  P(47.3769, 8.5417, 'zurich', 'zürich', 'bahnhofstrasse', 'niederdorf', 'lake zurich'),
+  P(47.5596, 7.5886, 'basel'),
+  P(46.948, 7.4474, 'bern', 'berne', 'zytglogge'),
+  P(46.2044, 6.1432, 'geneva', 'genève', 'jet d\'eau', 'lake geneva'),
+  P(47.0502, 8.3093, 'lucerne', 'luzern', 'chapel bridge', 'kapellbrücke', 'mount pilatus'),
+  P(46.6863, 7.8632, 'interlaken', 'jungfrau', 'lauterbrunnen', 'grindelwald'),
+  P(46.0207, 7.7491, 'zermatt', 'matterhorn', 'gornergrat'),
+  P(47.3667, 8.55, 'uetliberg', 'lindenhof'),
+  P(47.498, 8.7286, 'rhine falls', 'rheinfall', 'stein am rhein'),
+  P(47.1415, 9.5215, 'liechtenstein', 'vaduz'),
+  P(47.6062, 13.0486, 'salzburg', 'hallstatt'),
+  P(47.2692, 11.4041, 'innsbruck'),
+  P(50.088, 14.4208, 'charles bridge', 'old town square'),
+  P(50.0619, 19.9369, 'krakow', 'kraków'),
+  P(52.2297, 21.0122, 'warsaw', 'warszawa'),
+  P(55.6761, 12.5683, 'copenhagen', 'nyhavn', 'tivoli'),
+  P(59.3293, 18.0686, 'stockholm', 'gamla stan'),
+  P(59.9139, 10.7522, 'oslo'),
+  P(60.1699, 24.9384, 'helsinki'),
+  P(53.3498, -6.2603, 'dublin', 'temple bar'),
+  P(55.9533, -3.1883, 'edinburgh', 'royal mile', 'arthur\'s seat'),
+  P(50.8503, 4.3517, 'brussels', 'grand place'),
+  P(53.4808, -2.2426, 'manchester'),
+  P(40.8518, 14.2681, 'naples', 'pompeii', 'amalfi'),
   // ── East Asia ──────────────────────────────────────────────────────────
   P(37.5665, 126.978, 'seoul', 'gyeongbokgung', 'myeongdong', 'hongdae', 'bukchon'),
   P(35.1796, 129.0756, 'busan'),
@@ -162,13 +187,17 @@ const SORTED_ALIASES: Array<{ alias: string; entry: PlaceEntry }> = PLACE_TABLE.
 
 const geoCache = new Map<string, PlaceGeo | null>();
 
+/** Lowercase + strip diacritics so "zürich" matches "zurich". */
+const normText = (s: string): string =>
+  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
 /**
  * Resolve free text (an activity line, a destination, "City, Country") to
  * coordinates. Matches known place names as substrings; falls back to any
  * comma-separated segment that is itself a known place.
  */
 export const findPlaceGeo = (text: string): PlaceGeo | null => {
-  const raw = (text || '').toLowerCase().trim();
+  const raw = normText((text || '').trim());
   if (!raw) return null;
   const cached = geoCache.get(raw);
   if (cached !== undefined) return cached;

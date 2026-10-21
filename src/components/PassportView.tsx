@@ -170,7 +170,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
       <div className="wl-book relative">
         {/* binding spine with stitching */}
         <div className="absolute inset-y-3 left-0 w-2.5 rounded-l-[2rem] bg-gradient-to-b from-violet-950 via-stone-950 to-violet-950 dark:from-black dark:via-violet-950 dark:to-black z-20" aria-hidden>
-          <div className="absolute inset-y-4 left-1/2 -transtone-x-1/2 border-l-2 border-dotted border-violet-300/40" />
+          <div className="absolute inset-y-4 left-1/2 -translate-x-1/2 border-l-2 border-dotted border-violet-300/40" />
         </div>
 
         <div

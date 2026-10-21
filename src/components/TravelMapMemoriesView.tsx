@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getTranslation } from '../utils/i18n';
+import { upsertMemoryFromItinerary } from '../utils/journalSync';
 import { SoloTraveler, TravelItinerary, TravelMemory } from '../types/travel';
 import { MapContainer, TileLayer, Marker, CircleMarker, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -345,6 +346,27 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
       return INITIAL_MEMORIES;
     }
   });
+
+  // Reconcile trip cards → journal memories every time the journal opens:
+  // every itinerary gets/updates its linked memory, and memories whose trip
+  // was deleted elsewhere disappear here too. Nothing can drift out of sync.
+  useEffect(() => {
+    itineraries.forEach((it) => upsertMemoryFromItinerary(it));
+    const itinIds = new Set(itineraries.map((it) => it.id));
+    try {
+      const saved = JSON.parse(localStorage.getItem('wanderlust_travel_memories') || '[]');
+      const cleaned = saved.filter(
+        (m: TravelMemory) => !m.id.startsWith('mem_itin_') || itinIds.has(m.id.replace('mem_itin_', ''))
+      );
+      if (cleaned.length !== saved.length) {
+        localStorage.setItem('wanderlust_travel_memories', JSON.stringify(cleaned));
+      }
+      setMemories(migrateMemories(cleaned));
+    } catch {
+      /* keep in-memory state */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'Visited' | 'Current Location' | 'Dream Next'>('all');
   const [selectedPinId, setSelectedPinId] = useState<string>('user_current');
@@ -735,6 +757,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
   // Which of MY memory dots render depends on the layer toggles
   const visibleMemoryDots = memories.filter((m) => {
+    if (typeof m.coordinates.lat !== 'number' || typeof m.coordinates.lng !== 'number') return false;
     if (m.status === 'Visited') return pinLayers.visited;
     if (m.status === 'Dream Next') return pinLayers.dream;
     return pinLayers.current;
@@ -862,7 +885,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
           {/* Full-screen controls row — compact layer toggles floating on the map */}
           {isMapFullscreen && (
-            <div className="absolute top-3 left-1/2 -transtone-x-1/2 z-[600] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-xl text-[10px] font-semibold max-w-[calc(100vw-7rem)] overflow-x-auto">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-xl text-[10px] font-semibold max-w-[calc(100vw-7rem)] overflow-x-auto">
               {([
                 ['current', 'bg-emerald-500', 'Current'],
                 ['visited', 'bg-sky-600', 'Visited'],
@@ -1094,12 +1117,12 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 {/* the galaxy star-trail line */}
                 <span
                   aria-hidden="true"
-                  className="wl-timeline-line absolute left-4 sm:left-1/2 top-0 bottom-0 sm:-transtone-x-1/2"
+                  className="wl-timeline-line absolute left-4 sm:left-1/2 top-0 bottom-0 sm:-translate-x-1/2"
                 />
                 {/* tiny plane riding the top of the trail */}
                 <Plane
                   aria-hidden="true"
-                  className="absolute left-4 sm:left-1/2 -top-1.5 w-3.5 h-3.5 -transtone-x-1/2 rotate-[135deg] text-violet-400/70 dark:text-violet-300 z-10"
+                  className="absolute left-4 sm:left-1/2 -top-1.5 w-3.5 h-3.5 -translate-x-1/2 rotate-[135deg] text-violet-400/70 dark:text-violet-300 z-10"
                 />
                 <div className="space-y-6">
                   {timelineMemories.map((mem, i) => {
@@ -1231,7 +1254,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                           {/* glowing node on the trail */}
                           <span
                             aria-hidden="true"
-                            className={`absolute left-4 sm:left-1/2 top-5 w-3 h-3 rounded-full -transtone-x-1/2 z-10 ${isCurrent ? 'wl-node-current' : ''}`}
+                            className={`absolute left-4 sm:left-1/2 top-5 w-3 h-3 rounded-full -translate-x-1/2 z-10 ${isCurrent ? 'wl-node-current' : ''}`}
                             style={{
                               background: statusColor,
                               boxShadow: `0 0 0 3px ${statusColor}33, 0 0 10px ${statusColor}88`
@@ -1254,7 +1277,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               {/* amber continuation of the star-trail */}
               <span
                 aria-hidden="true"
-                className="wl-timeline-line-dream absolute left-4 sm:left-1/2 top-0 bottom-24 sm:-transtone-x-1/2"
+                className="wl-timeline-line-dream absolute left-4 sm:left-1/2 top-0 bottom-24 sm:-translate-x-1/2"
               />
               <Reveal className="relative">
                 <div className="text-center py-2">
@@ -1274,7 +1297,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                         <div className="relative sm:grid sm:grid-cols-2 sm:gap-10 items-start">
                           <span
                             aria-hidden="true"
-                            className="absolute left-4 sm:left-1/2 top-4 w-3 h-3 rounded-full -transtone-x-1/2 z-10"
+                            className="absolute left-4 sm:left-1/2 top-4 w-3 h-3 rounded-full -translate-x-1/2 z-10"
                             style={{ background: '#f59e0b', boxShadow: '0 0 0 3px #f59e0b33, 0 0 10px #f59e0b88' }}
                           />
                           <div className={`pl-10 sm:pl-0 ${leftSide ? 'sm:col-start-1 sm:pr-2' : 'sm:col-start-2 sm:pl-2'}`}>
@@ -1284,7 +1307,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                                   {getTranslation('dreamBadge')}
                                 </span>
                                 <span className="font-bold text-xs text-stone-900 dark:text-stone-100">
-                                  {mem.destination}, {mem.country}
+                                  {mem.country ? `${mem.destination}, ${mem.country}` : mem.destination}
                                 </span>
                               </div>
                               <div className="text-[10px] font-mono text-amber-600/80 dark:text-amber-400/70 mt-0.5 flex items-center gap-1">
@@ -1426,7 +1449,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 type="button"
                 aria-label="Previous"
                 onClick={(e) => { e.stopPropagation(); lbStep(-1); }}
-                className="absolute left-3 top-1/2 -transtone-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -1434,7 +1457,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 type="button"
                 aria-label="Next"
                 onClick={(e) => { e.stopPropagation(); lbStep(1); }}
-                className="absolute right-3 top-1/2 -transtone-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center z-10 cursor-pointer"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -1478,7 +1501,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             />
           </div>
 
-          <p className="absolute bottom-4 left-1/2 -transtone-x-1/2 text-white/60 text-[11px] pointer-events-none">
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/60 text-[11px] pointer-events-none">
             Scroll or double-tap to zoom · drag to pan · tap outside to close
           </p>
         </div>

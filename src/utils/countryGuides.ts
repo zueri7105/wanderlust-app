@@ -809,12 +809,21 @@ export const GENERIC_GUIDE: Omit<CountryGuideData, 'key' | 'aliases' | 'name'> =
  * "Oaxaca", "South Korea", ...). Matches country name first, then aliases.
  */
 export function lookupCountryGuide(destinationText: string): CountryGuideData {
-  const t = destinationText.toLowerCase();
+  const t = destinationText
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
   for (const g of COUNTRY_GUIDES) {
     if (t.includes(g.key) || t.includes(g.name.toLowerCase())) return g;
   }
   for (const g of COUNTRY_GUIDES) {
-    if (g.aliases.some((a) => t.includes(a))) return g;
+    // Short aliases ("la", "us") need word boundaries or "atlantis" → Los Angeles
+    if (
+      g.aliases.some((a) =>
+        a.length <= 3 ? new RegExp(`\\b${a}\\b`, 'i').test(t) : t.includes(a)
+      )
+    )
+      return g;
   }
   // Full 197-country coverage: build a country-specific guide from countryInfo
   // so currency, greetings, entry rules and visa advice are ALWAYS for the

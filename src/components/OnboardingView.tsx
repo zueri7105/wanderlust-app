@@ -8,6 +8,7 @@ export interface OnboardingAnswers {
   dayCount: number;
   nationality: string;
   homeCity: string;
+  gender: string;
   birthday: string;
   languages: string[];
   hobbies: string[];
@@ -33,6 +34,13 @@ const HOBBY_CHIPS = [
 
 const DAY_OPTIONS = [2, 3, 5, 7, 10, 14];
 
+const GENDER_OPTIONS = [
+  { value: 'female', key: 'genderFemale' },
+  { value: 'male', key: 'genderMale' },
+  { value: 'non-binary', key: 'genderNonBinary' },
+  { value: 'prefer-not-to-say', key: 'genderPnts' }
+];
+
 const inputCls =
   'w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400';
 
@@ -48,6 +56,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
   const [dayCount, setDayCount] = useState(3);
   const [nationality, setNationality] = useState('');
   const [homeCity, setHomeCity] = useState('');
+  const [gender, setGender] = useState('');
   const [birthday, setBirthday] = useState('');
   const [languages, setLanguages] = useState<string[]>([]);
   const [hobbies, setHobbies] = useState<string[]>([]);
@@ -83,6 +92,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
         dayCount,
         nationality: nationality.trim(),
         homeCity: homeCity.trim(),
+        gender,
         birthday,
         languages,
         hobbies,
@@ -242,6 +252,23 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
                     placeholder="Berlin"
                     className={inputCls}
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-200 mb-1.5">
+                    {getTranslation('obGenderQ')}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {GENDER_OPTIONS.map(({ value, key }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setGender(gender === value ? '' : value)}
+                        className={chipCls(gender === value)}
+                      >
+                        {getTranslation(key)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

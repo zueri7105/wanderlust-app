@@ -105,7 +105,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-600 dark:text-violet-400">
           {getTranslation('myTripsTitle')} · {itinerary.country || itinerary.destination.split(',').pop()?.trim()}
         </div>
-        <h1 className="font-display text-4xl sm:text-6xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 leading-[1.05]">
+        <h1 className="font-display text-3xl sm:text-6xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 leading-[1.05] break-words">
           {itinerary.destination}
         </h1>
 

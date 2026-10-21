@@ -110,7 +110,7 @@ const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
         <div className="absolute z-50 mt-1 w-72 max-w-[85vw] bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-xl overflow-hidden right-0">
           <div className="p-2 border-b border-stone-100 dark:border-stone-800">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -transtone-y-1/2 w-3.5 h-3.5 text-stone-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
               <input
                 type="text"
                 autoFocus
@@ -1131,7 +1131,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
               </div>
 
               <div className="relative">
-                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -transtone-y-1/2" />
+                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search currency code (e.g. JPY, EUR), name, or country (e.g. Japan, Mexico, Switzerland)..."

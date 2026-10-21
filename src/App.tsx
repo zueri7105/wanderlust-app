@@ -35,6 +35,7 @@ import { TripDetailView } from './components/TripDetailView';
 import { OnboardingView, OnboardingAnswers } from './components/OnboardingView';
 import { buildBasicGuide } from './utils/guideBuilder';
 import { suggestPlacesFor } from './utils/placeGeo';
+import { resolveDestination } from './utils/resolveDestination';
 import { playAudioAlert, getTranslation } from './utils/i18n';
 import { getAppSettings } from './utils/settings';
 import { upsertMemoryFromItinerary, removeMemoryForItinerary } from './utils/journalSync';
@@ -469,15 +470,22 @@ export default function App() {
         ? Math.max(1, Math.floor((Date.now() - dob) / (365.25 * 24 * 3600 * 1000)))
         : currentUser.age;
 
+    // Resolve "zürich" → "Zürich, Switzerland", "japan" → "Japan" — the card
+    // always shows the canonical city + country (or just the country).
+    const resolved = resolveDestination(a.destination);
+    const display = resolved.display || a.destination.trim();
+
     handleUpdateProfile({
       ...(a.name ? { name: a.name } : {}),
       country: a.nationality,
       homeCity: a.homeCity,
       age,
+      ...(a.gender ? { gender: a.gender as SoloTraveler['gender'] } : {}),
       languages: a.languages,
       interests: a.hobbies,
       bio: a.motto,
-      travelGoals: a.motto ? [a.motto] : currentUser.travelGoals
+      travelGoals: a.motto ? [a.motto] : currentUser.travelGoals,
+      currentDestination: display // journal "You" pin + share card follow the trip
     });
 
     // Auto-plan the first trip: real sights near the destination fill the
@@ -490,8 +498,16 @@ export default function App() {
     const startDate = iso(start);
     const endDate = iso(end);
 
-    const guide = buildBasicGuide(a.destination, '', undefined, a.nationality, startDate, endDate);
-    const suggestions = suggestPlacesFor(a.destination, a.dayCount * 3);
+    const guide = buildBasicGuide(
+      display,
+      resolved.country,
+      resolved.city || undefined,
+      a.nationality,
+      startDate,
+      endDate
+    );
+    const anchor = resolved.city || resolved.country || display;
+    const suggestions = suggestPlacesFor(anchor, a.dayCount * 3);
     const dayPlans = Array.from({ length: a.dayCount }, (_, i) => {
       const picks = suggestions.slice(i * 3, i * 3 + 3);
       return {
@@ -512,17 +528,14 @@ export default function App() {
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,
       travelerId: currentUser.id,
-      destination: a.destination.includes(',')
-        ? a.destination
-        : `${a.destination}, ${guide.destinationCountry}`,
-      country: guide.destinationCountry,
+      destination: display,
+      country: resolved.country || guide.destinationCountry,
       startDate,
       endDate,
       companionPurpose: ['Solo Exploration'],
-      notes: a.motto || 'First adventure planned with WanderLust.',
+      notes: '', // trip notes are penned on the trip page — never the motto
       days: dayPlans,
       travelGuide: guide,
-      tripScope: 'Full Trip',
       visibility: 'public'
     };
 

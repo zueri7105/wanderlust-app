@@ -137,6 +137,10 @@ export interface ItineraryDay {
   activityTimes?: Record<string, string>;
   /** Chosen transport per route leg, keyed "fromLabel→toLabel" (walk/taxi/train/bus/ferry/flight…) */
   legModes?: Record<string, string>;
+  /** Free-form journal note the traveller pens for this specific day */
+  note?: string;
+  /** Photos attached to this day (data URLs or image links) */
+  photos?: string[];
 }
 
 export interface CityWeatherOutlook {
