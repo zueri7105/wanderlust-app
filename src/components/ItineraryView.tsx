@@ -195,6 +195,14 @@ interface SwipeableDayCardProps {
   onUpdateDay?: (day: ItineraryDay) => void;
 }
 
+
+/** Auto-split typed digits into HH:MM — "9" → "9", "930" → "9:30", "0945" → "09:45". */
+const formatTimeInput = (raw: string): string => {
+  const digits = raw.replace(/\D/g, '').slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, -2)}:${digits.slice(-2)}`;
+};
+
 // Timeline day card with swipe-left-to-delete (pointer-driven, works on touch + mouse)
 const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onDelete, destination = '', onOptimize, optimized, onUpdateDay }) => {
   const [offset, setOffset] = useState(0);
@@ -350,14 +358,14 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onD
                                     ...day,
                                     activityTimes: {
                                       ...(day.activityTimes || {}),
-                                      [`${key}:${taskIdx}`]: e.target.value
+                                      [`${key}:${taskIdx}`]: formatTimeInput(e.target.value)
                                     }
                                   })
                                 }
                                 onPointerDown={(e) => e.stopPropagation()}
                                 placeholder={getTranslation('timePh')}
                                 title={getTranslation('activityTimeTitle')}
-                                className="w-12 shrink-0 mt-0.5 mr-1.5 px-1 py-0.5 text-[10px] font-mono tabular-nums text-center text-slate-600 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-600 rounded-md placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:border-solid focus:border-violet-400"
+                                className="w-13 shrink-0 mt-0.5 mr-1.5 px-1 py-0.5 text-[10px] font-mono tabular-nums text-center text-slate-600 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-600 rounded-md placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:border-solid focus:border-violet-400"
                               />
                               {/* key-term photo sits in front of the words, behind the bullet dot — tap for a bigger view + intro */}
                               <ActivityImage text={task} destination={destination} />
@@ -380,75 +388,11 @@ const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onD
   );
 };
 
-// Whole-trip swipe-left-to-delete shell (pointer-driven, works on touch + mouse)
-const SwipeableTripShell: React.FC<{
-  canDelete: boolean;
-  onDelete: () => void;
-  children: React.ReactNode;
-}> = ({ canDelete, onDelete, children }) => {
-  const [offset, setOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const drag = useRef<{ startX: number; startY: number; startOffset: number; moved: boolean; horizontal: boolean } | null>(null);
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!canDelete) return;
-    drag.current = { startX: e.clientX, startY: e.clientY, startOffset: offset, moved: false, horizontal: false };
-  };
-
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return;
-    const dx = e.clientX - drag.current.startX;
-    const dy = e.clientY - drag.current.startY;
-    // Only hijack clearly-horizontal swipes so vertical page scrolling keeps working
-    if (!drag.current.moved) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      if (Math.abs(dy) > Math.abs(dx)) {
-        drag.current = null; // vertical scroll — bail out
-        return;
-      }
-      drag.current.moved = true;
-      drag.current.horizontal = true;
-    }
-    setDragging(true);
-    setOffset(Math.min(0, Math.max(-SWIPE_DELETE_WIDTH, drag.current.startOffset + dx)));
-  };
-
-  const endDrag = () => {
-    if (!drag.current) return;
-    drag.current = null;
-    setDragging(false);
-    setOffset((cur) => (cur < -SWIPE_DELETE_WIDTH / 2 ? -SWIPE_DELETE_WIDTH : 0));
-  };
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden group/trip">
-      {/* Red delete zone revealed behind the trip card when swiping left */}
-      {canDelete && (
-        <button
-          type="button"
-          onClick={onDelete}
-          className="absolute inset-y-0 right-0 w-[88px] bg-gradient-to-br from-red-500 to-rose-600 flex flex-col items-center justify-center gap-1 text-white cursor-pointer"
-          title="Delete this trip"
-        >
-          <Trash2 className="w-5 h-5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Delete</span>
-        </button>
-      )}
-
-      <div
-        style={{ transform: `translateX(${offset}px)` }}
-        className={`relative touch-pan-y bg-white dark:bg-slate-900 ${dragging ? '' : 'transition-transform'}`}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onPointerLeave={endDrag}
-      >
-        {children}
-      </div>
-    </div>
-  );
-};
+/** Default packing checklist — connectivity essentials only; travelers add their own items. */
+const DEFAULT_PACKING_ITEMS = [
+  'Pocket WiFi / eSIM (stay connected everywhere)',
+  'Power bank (10,000mAh+ for full-day exploring)'
+];
 
 export const ItineraryView: React.FC<ItineraryViewProps> = ({
   itineraries,
@@ -490,6 +434,59 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [optimizedDayKey, setOptimizedDayKey] = useState<string | null>(null);
   // Want-to-go pool: draft text of the add-place input, per trip
   const [wishlistDrafts, setWishlistDrafts] = useState<Record<string, string>>({});
+
+  // Track checked packing items per itinerary
+  const [checkedPackingItems, setCheckedPackingItems] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('wanderlust_checked_packing');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const togglePackingCheck = (key: string) => {
+    setCheckedPackingItems((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem('wanderlust_checked_packing', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Editable custom checklist items per itinerary
+  const [checklistByItin, setChecklistByItin] = useState<Record<string, string[]>>(() => {
+    const saved = localStorage.getItem('wanderlust_custom_checklists');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [newChecklistText, setNewChecklistText] = useState<Record<string, string>>({});
+
+  // Editable personal travel notes per itinerary
+  const [notesByItin, setNotesByItin] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('wanderlust_custom_notes');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const handleAddChecklistItem = (itinId: string, defaultItems: string[]) => {
+    const text = (newChecklistText[itinId] || '').trim();
+    if (!text) return;
+    const currentList = checklistByItin[itinId] || defaultItems || [];
+    const updated = [...currentList, text];
+    const newMap = { ...checklistByItin, [itinId]: updated };
+    setChecklistByItin(newMap);
+    localStorage.setItem('wanderlust_custom_checklists', JSON.stringify(newMap));
+    setNewChecklistText((prev) => ({ ...prev, [itinId]: '' }));
+  };
+
+  const handleRemoveChecklistItem = (itinId: string, idxToRemove: number, defaultItems: string[]) => {
+    const currentList = checklistByItin[itinId] || defaultItems || [];
+    const updated = currentList.filter((_, idx) => idx !== idxToRemove);
+    const newMap = { ...checklistByItin, [itinId]: updated };
+    setChecklistByItin(newMap);
+    localStorage.setItem('wanderlust_custom_checklists', JSON.stringify(newMap));
+  };
+
+  const handleUpdateNotes = (itinId: string, notes: string) => {
+    const newMap = { ...notesByItin, [itinId]: notes };
+    setNotesByItin(newMap);
+    localStorage.setItem('wanderlust_custom_notes', JSON.stringify(newMap));
+  };
 
   const handleOpenEditTrip = (itin: TravelItinerary) => {
     setEditingTripId(itin.id);
@@ -1298,10 +1295,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             );
 
             return (
-              <SwipeableTripShell
+              <div
                 key={itinerary.id}
-                canDelete={!!onDeleteItinerary}
-                onDelete={() => handleDeleteTripFromEdit(itinerary)}
               >
               <div
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md overflow-hidden transition-all"
@@ -1432,6 +1427,122 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 {/* Expanded Detailed Journey, Day Schedule Editing & Travel Guide */}
                 {isExpanded && (
                   <div className="p-6 space-y-8 bg-slate-50/40 dark:bg-slate-950/30">
+                    {/* Checklist and Notes (Removed 'fully editable' badge as requested) */}
+                    <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3.5 text-xs">
+                      <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Luggage className="w-4 h-4 text-emerald-700" />
+                          <span>{getTranslation('checklistNotes')}</span>
+                        </div>
+                      </div>
+
+                      {/* Checklist Items — starts with just WiFi & power bank; add your own */}
+                      {(() => {
+                        const defaultItems = DEFAULT_PACKING_ITEMS;
+                        const currentItems = checklistByItin[itinerary.id] || defaultItems;
+                        const packedCount = currentItems.filter(
+                          (item, idx) => checkedPackingItems[`${itinerary.id}_pack_${item}_${idx}`]
+                        ).length;
+
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                              <span>{getTranslation('essentialsHint')}</span>
+                              <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-300">
+                                {packedCount}/{currentItems.length} {getTranslation('packedWord')}
+                              </span>
+                            </div>
+                            <ul className="space-y-1.5 text-slate-700 dark:text-slate-300 max-h-48 overflow-y-auto pr-1">
+                              {currentItems.map((item, idx) => {
+                                const checkKey = `${itinerary.id}_pack_${item}_${idx}`;
+                                const isChecked = !!checkedPackingItems[checkKey];
+
+                                return (
+                                  <li
+                                    key={idx}
+                                    className={`flex items-center justify-between gap-2 group px-2.5 py-1.5 rounded-lg border transition-colors ${
+                                      isChecked
+                                        ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200/70 dark:border-emerald-900/50'
+                                        : 'bg-white dark:bg-slate-800 border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-800'
+                                    }`}
+                                  >
+                                    <div
+                                      onClick={() => togglePackingCheck(checkKey)}
+                                      className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
+                                    >
+                                      <span className="shrink-0 text-slate-600">
+                                        {isChecked ? (
+                                          <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+                                        ) : (
+                                          <Square className="w-3.5 h-3.5 text-slate-400" />
+                                        )}
+                                      </span>
+                                      <span className={`truncate text-xs ${isChecked ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                                        {item}
+                                      </span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveChecklistItem(itinerary.id, idx, defaultItems)}
+                                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-600 transition-opacity cursor-pointer rounded"
+                                      title="Delete item"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+
+                            {/* Add New Checklist Item Input */}
+                            <div className="flex items-center gap-1.5 pt-1.5">
+                              <input
+                                type="text"
+                                value={newChecklistText[itinerary.id] || ''}
+                                onChange={(e) =>
+                                  setNewChecklistText((prev) => ({
+                                    ...prev,
+                                    [itinerary.id]: e.target.value
+                                  }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddChecklistItem(itinerary.id, defaultItems);
+                                  }
+                                }}
+                                placeholder={getTranslation('addPackingPh')}
+                                className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleAddChecklistItem(itinerary.id, defaultItems)}
+                                className="px-2.5 py-1.5 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-xl hover:scale-[1.03] transition-all cursor-pointer shrink-0"
+                              >
+                                {getTranslation('addBtn')}
+                              </button>
+                            </div>
+
+                            {/* Editable Personal Notes Textarea */}
+                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-1">
+                              <label className="flex items-center gap-1 font-semibold text-slate-900 dark:text-slate-100 text-[11px]">
+                                <FileText className="w-3 h-3 text-slate-500" />
+                                <span>{getTranslation('myNotes')}</span>
+                              </label>
+                              <AutoGrowTextarea
+                                minRows={2}
+                                value={notesByItin[itinerary.id] ?? (itinerary.notes || '')}
+                                onChange={(e) => handleUpdateNotes(itinerary.id, e.target.value)}
+                                placeholder={getTranslation('notesPh')}
+                                className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-slate-900 leading-relaxed"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
                     {/* Want-to-go pool (圆周旅迹 待规划地点): stash places now, assign to a day slot later */}
                     <div className="bg-gradient-to-br from-emerald-50/80 to-teal-50/60 dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-200/70 dark:border-emerald-900/50 rounded-xl p-4 sm:p-5 space-y-3">
                       <div className="flex items-center gap-2">
@@ -1605,7 +1716,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   </div>
                 )}
               </div>
-              </SwipeableTripShell>
+              </div>
             );
           })}
         </div>

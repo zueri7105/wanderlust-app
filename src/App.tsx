@@ -551,7 +551,7 @@ export default function App() {
           />
         )}
 
-        {/* Passport — travel passport, entry stamps & footprints map */}
+        {/* Passport — travel passport, entry stamps & the traveller's profile */}
         {activeTab === 'map' && (
           <div className="space-y-8">
             <PassportView
@@ -560,33 +560,34 @@ export default function App() {
               soloExpenses={soloExpenses}
               sharedExpenses={sharedExpenses}
             />
-            <TravelMapMemoriesView
+            <MyProfileView
               embedded
               currentUser={currentUser}
-              travelers={travelers}
-              itineraries={itineraries}
-              onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
-              onGoToItinerary={(dest) => {
-                setSelectedDestination(dest);
-                setActiveTab('itinerary');
-              }}
+              safetyRecord={safetyRecord}
+              onUpdateProfile={handleUpdateProfile}
+              onUpdateSafetyRecord={handleUpdateSafetyRecord}
+              onOpenSettings={() => setActiveTab('settings')}
             />
           </div>
         )}
 
-        {activeTab === 'profile' && (
-          <MyProfileView
+        {/* My Journal — footprints map + memories timeline */}
+        {activeTab === 'journal' && (
+          <TravelMapMemoriesView
             currentUser={currentUser}
-            safetyRecord={safetyRecord}
-            onUpdateProfile={handleUpdateProfile}
-            onUpdateSafetyRecord={handleUpdateSafetyRecord}
-            onOpenSettings={() => setActiveTab('settings')}
+            travelers={travelers}
+            itineraries={itineraries}
+            onOpenChatWithTraveler={handleOpenDirectChatWithTraveler}
+            onGoToItinerary={(dest) => {
+              setSelectedDestination(dest);
+              setActiveTab('itinerary');
+            }}
           />
         )}
 
-        {/* Settings lives inside Profile — reached via the gear button on the profile page */}
+        {/* Settings lives inside the Passport panel — reached via its gear button */}
         {activeTab === 'settings' && (
-          <SettingsView userGender={currentUser.gender} onBack={() => setActiveTab('profile')} />
+          <SettingsView userGender={currentUser.gender} onBack={() => setActiveTab('map')} />
         )}
       </main>
 

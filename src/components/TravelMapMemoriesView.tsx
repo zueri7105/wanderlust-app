@@ -419,10 +419,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   // Full-screen map mode (viewport-filling overlay) — opens inline so the top nav stays
   // reachable; go full-screen with the maximise button (Esc / minimise to exit).
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
-  // On-map Memories Journal drawer (combined into the map)
-  const [isJournalOpen, setIsJournalOpen] = useState(false);
-  // Show journal memories as water-droplet photo pins on the map
-  const [memoryDropletsOn, setMemoryDropletsOn] = useState(true);
   // Map fly-to target when a journal entry is tapped
   const [memoryFly, setMemoryFly] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -652,10 +648,18 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lightbox]);
 
-  const filteredMemories = memories.filter((m) => {
-    if (activeFilter === 'all') return true;
-    return m.status === activeFilter;
-  });
+  // Timeline order: current location pinned to the top, then visited — newest trips first.
+  const parseMemDate = (d: string) => {
+    const t = Date.parse(d.replace('Planned ', ''));
+    return Number.isNaN(t) ? 0 : t;
+  };
+  const timelineMemories = memories
+    .filter((m) => m.status !== 'Dream Next')
+    .sort((a, b) => {
+      if (a.status === 'Current Location' && b.status !== 'Current Location') return -1;
+      if (b.status === 'Current Location' && a.status !== 'Current Location') return 1;
+      return parseMemDate(b.date) - parseMemDate(a.date);
+    });
 
   const getTravelerById = (id: string) => {
     if (id === 'user_current') return currentUser;
@@ -773,14 +777,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-200 dark:border-stone-800">
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-violet-100 dark:bg-violet-950/50 text-violet-800 dark:text-violet-300 rounded-full mb-2 border border-violet-300/70 dark:border-violet-800/40">
-            <Globe className="w-3.5 h-3.5" />
-            <span>Nomad Radar & Scratchpad</span>
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>{getTranslation('navJournal')}</span>
           </div>
           <h2 className="font-display text-2xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
-            {getTranslation('mapTitle')}
+            {getTranslation('navJournal')}
           </h2>
           <p className="text-sm text-stone-500 dark:text-stone-400 mt-0.5">
-            {getTranslation('mapSub')}
+            Your footprints on the map, and every memory pinned along the way.
           </p>
         </div>
 
@@ -817,50 +821,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
       {/* Map Card — wraps inline; in full-screen mode the map overlays escape the card */}
       <div className={isMapFullscreen ? 'contents' : 'bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl overflow-hidden shadow-sm'}>
-        {/* Map Top Bar: live counter + layer toggles (hidden in full-screen — controls float on the map) */}
-        {!isMapFullscreen && (
-        <div className="p-4 border-b border-stone-100 dark:border-stone-800 bg-stone-50 dark:bg-stone-900 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
-          {/* Layer toggles — tap to show/hide each dot type */}
-          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-semibold">
-            {([
-              ['current', 'bg-emerald-500', 'Current'],
-              ['visited', 'bg-sky-600', 'Visited'],
-              ['dream', 'bg-amber-500', 'Dream Next']
-            ] as const).map(([key, dotClass, label]) => (<button
-                key={key}
-                type="button"
-                onClick={() => setPinLayers((p) => ({ ...p, [key]: !p[key] }))}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all cursor-pointer ${
-                  pinLayers[key]
-                    ? 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 shadow-xs'
-                    : 'bg-stone-100 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-stone-400 line-through'
-                }`}
-                title={`Show / hide ${label} pins`}
-              >
-                <span className={`w-2 h-2 rounded-full ${dotClass} ${pinLayers[key] ? '' : 'opacity-30'}`} />
-                {label}
-                {pinLayers[key] ? <Eye className="w-3 h-3 text-stone-400" /> : <EyeOff className="w-3 h-3 text-stone-400" />}
-              </button>
-            ))}
-            {/* Journal droplet pins toggle */}
-            <button
-              type="button"
-              onClick={() => setMemoryDropletsOn((v) => !v)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-full border transition-all cursor-pointer ${
-                memoryDropletsOn
-                  ? 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 shadow-xs'
-                  : 'bg-stone-100 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700 text-stone-400 line-through'
-              }`}
-              title="Show journal memories as water-droplet photo pins on the map"
-            >
-              <MapPin className={`w-3 h-3 ${memoryDropletsOn ? 'text-rose-500' : 'opacity-30'}`} />
-              Droplets
-              {memoryDropletsOn ? <Eye className="w-3 h-3 text-stone-400" /> : <EyeOff className="w-3 h-3 text-stone-400" />}
-            </button>
-          </div>
-        </div>
-        )}
-
         {/* Interactive real world map (OpenStreetMap/CARTO tiles — zoom & pan native) */}
         <div
           className={
@@ -901,32 +861,11 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
             {/* My memory journal CITY dots — dark halo ring + solid colour dot so cities
                 stand out clearly from the filled country shapes underneath */}
-            {!memoryDropletsOn &&
-              visibleMemoryDots.map((mem) => (
-                <React.Fragment key={`dot-${mem.id}`}>
-                  <CircleMarker
-                    center={[mem.coordinates.lat!, mem.coordinates.lng!]}
-                    radius={9}
-                    pathOptions={{ color: '#0f172a', weight: 1.5, fillColor: '#ffffff', fillOpacity: 0.9 }}
-                  />
-                  <CircleMarker
-                    center={[mem.coordinates.lat!, mem.coordinates.lng!]}
-                    radius={5.5}
-                    pathOptions={{
-                      color: '#ffffff',
-                      weight: 1.5,
-                      fillColor: STATUS_STYLES[mem.status].dot,
-                      fillOpacity: 1
-                    }}
-                    eventHandlers={{ click: () => setActiveFilter(mem.status) }}
-                  />
-                </React.Fragment>
-              ))}
+            
 
-            {/* Water-droplet journal pins — my memories pinned as photos at their locations
-                (toggle in the Journal drawer / layer chips). Tap one to open its journal entry. */}
-            {memoryDropletsOn &&
-              visibleMemoryDots.map((mem) => (
+            {/* Water-droplet journal pins — my memories pinned as photos at their locations.
+                Tap one to fly to its place on the timeline below. */}
+            {visibleMemoryDots.map((mem) => (
                 <Marker
                   key={`drop-${mem.id}`}
                   position={[mem.coordinates.lat!, mem.coordinates.lng!]}
@@ -974,17 +913,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   {label}
                 </button>
               ))}
-              <button
-                type="button"
-                onClick={() => setMemoryDropletsOn((v) => !v)}
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full whitespace-nowrap transition-all cursor-pointer ${
-                  memoryDropletsOn ? 'text-stone-700 dark:text-stone-200' : 'text-stone-400 line-through'
-                }`}
-                title="Show journal memories as water-droplet photo pins on the map"
-              >
-                <MapPin className={`w-3 h-3 ${memoryDropletsOn ? 'text-rose-500' : 'opacity-30'}`} />
-                Drops
-              </button>
             </div>
           )}
 
@@ -1048,150 +976,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             )}
           </div>
 
-          {/* Journal floating button — opens the on-map Memories Journal drawer */}
-          {!isJournalOpen && (
-            <button
-              type="button"
-              onClick={() => setIsJournalOpen(true)}
-              className="absolute bottom-28 sm:bottom-4 right-3 z-[600] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-stone-900/85 dark:bg-stone-800/95 backdrop-blur-md text-white text-[11px] font-bold shadow-xl border border-white/20 hover:bg-stone-900 active:scale-95 transition-all cursor-pointer"
-              title="Open your Memories Journal on the map"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-amber-300" />
-              <span>Journal ({memories.length})</span>
-            </button>
-          )}
-
-          {/* On-map Memories Journal — your saved places, right on the map.
-              Tap any entry to fly to its city dot. Everything stays saved in your journal below. */}
-          {isJournalOpen && (
-            <div className="absolute z-[600] bg-white/95 dark:bg-stone-900/95 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-2xl flex flex-col max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[55%] max-sm:rounded-t-2xl sm:top-3 sm:bottom-3 sm:right-3 sm:w-80 sm:rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-stone-100 dark:border-stone-800 shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <BookOpen className="w-4 h-4 text-rose-500" />
-                  <span className="font-display font-bold text-sm text-stone-900 dark:text-stone-100">
-                    Memories Journal
-                  </span>
-                  <span className="text-[10px] font-bold text-stone-400 font-mono">
-                    {filteredMemories.length}/{memories.length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setMemoryDropletsOn((v) => !v)}
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
-                      memoryDropletsOn
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400'
-                    }`}
-                    title="Show journal memories as water-droplet photo pins on the map"
-                  >
-                    <MapPin className="w-3 h-3" />
-                    <span>{memoryDropletsOn ? 'Droplets on' : 'Droplets off'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsJournalOpen(false)}
-                    className="p-1 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer"
-                    title="Close journal"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Status filter pills */}
-              <div className="flex items-center gap-1 px-3 py-2 border-b border-stone-100 dark:border-stone-800 overflow-x-auto shrink-0">
-                {(['all', 'Visited', 'Current Location', 'Dream Next'] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    onClick={() => setActiveFilter(filter)}
-                    className={`px-2 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                      activeFilter === filter
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200'
-                    }`}
-                  >
-                    {filter === 'all' ? `All (${memories.length})` : filter.replace('Current Location', 'Current')}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
-                {filteredMemories.length === 0 ? (
-                  <div className="p-6 text-center text-[11px] text-stone-400">
-                    No memories under this filter yet.
-                  </div>
-                ) : (
-                  filteredMemories.map((mem) => {
-                    const thumb = mem.photos[0] || DEFAULT_MEMORY_PHOTO;
-                    return (
-                      <div
-                        key={`j-${mem.id}`}
-                        className="group/j flex items-start gap-2.5 p-2 rounded-2xl border border-stone-200/80 dark:border-stone-700/80 hover:border-rose-300 dark:hover:border-rose-700 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
-                        onClick={() => flyToMemory(mem)}
-                        title="Fly to this memory on the map"
-                      >
-                        <img
-                          src={thumb}
-                          alt={mem.destination}
-                          onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                          className="w-12 h-12 rounded-lg object-cover shrink-0 bg-stone-100 dark:bg-stone-800"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className="w-2 h-2 rounded-full shrink-0"
-                              style={{ background: STATUS_STYLES[mem.status].dot }}
-                            />
-                            <span className="text-xs font-bold text-stone-900 dark:text-stone-100 truncate">
-                              {mem.destination}, {mem.country}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-stone-400 font-mono mt-0.5">{mem.date}</div>
-                          <p className="text-[11px] text-stone-500 dark:text-stone-400 line-clamp-2 mt-0.5 leading-snug">
-                            {mem.memoryNote}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditMemory(mem);
-                          }}
-                          className="p-1 rounded-lg text-stone-300 hover:text-stone-600 dark:hover:text-stone-300 opacity-0 group-hover/j:opacity-100 transition-opacity cursor-pointer shrink-0"
-                          title="Edit this memory"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingMemoryId(null);
-                  setNewCity('');
-                  setNewCountry('');
-                  setNewNote('');
-                  setNewTaggedCompanion('');
-                  setNewPhotos([DEFAULT_MEMORY_PHOTO]);
-                  setSelectedItineraryId('');
-                  setIsAddMemoryModalOpen(true);
-                }}
-                className="m-2.5 mt-0 shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold text-white bg-rose-600 rounded-2xl hover:brightness-105 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Record a New Memory</span>
-              </button>
-            </div>
-          )}
-
-                    {/* Active Pin Overlay Card — you only */}
+          {/* Active Pin Overlay Card — you only */}
           <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-white/60 dark:border-stone-700 rounded-2xl p-3.5 shadow-2xl z-[500]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -1230,218 +1015,196 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
       </div>
 
 
-      {/* Places Gone & Memories Journal Section */}
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* My Memories — scrollable journey timeline (current first, then visited) */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="font-display text-xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
-              {getTranslation('placesGone')}
+              My Memories
             </h3>
             <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-              {getTranslation('placesGoneSub')}
+              Your journey down the line — where you are first, then everywhere you have been.
             </p>
           </div>
-
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-800 p-1 rounded-2xl text-xs overflow-x-auto">
-            {(['all', 'Visited', 'Current Location', 'Dream Next'] as const).map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                onClick={() => setActiveFilter(filter)}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activeFilter === filter
-                    ? 'bg-rose-600 text-white shadow-md shadow-orange-500/25'
-                    : 'text-stone-600 dark:text-stone-400 hover:text-stone-950 dark:hover:text-stone-100'
-                }`}
-              >
-                {filter === 'all' ? `All (${memories.length})` : filter}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingMemoryId(null);
+              setNewCity('');
+              setNewCountry('');
+              setNewNote('');
+              setNewTaggedCompanion('');
+              setNewPhotos([DEFAULT_MEMORY_PHOTO]);
+              setSelectedItineraryId('');
+              setIsAddMemoryModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg self-start"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{getTranslation('recordMemory')}</span>
+          </button>
         </div>
 
-        {/* Memories — boarding-pass ticket rows (compact) */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          {filteredMemories.map((mem) => {
-            const photos = mem.photos.length > 0 ? mem.photos : [DEFAULT_MEMORY_PHOTO];
-            const idx = Math.min(photoIdx[mem.id] || 0, photos.length - 1);
-            const statusColor = STATUS_STYLES[mem.status].dot;
+        {/* Fixed frame with internal scroll — the page never grows with more trips */}
+        <div className="relative rounded-3xl border border-stone-200 dark:border-stone-800 bg-white/60 dark:bg-stone-900/40 shadow-xs">
+          <div className="h-[26rem] sm:h-[30rem] overflow-y-auto overscroll-contain px-4 sm:px-8 py-6 scrollbar-thin">
+            {timelineMemories.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center gap-2 text-stone-400">
+                <MapPin className="w-6 h-6" />
+                <p className="text-xs">No memories yet — record where you are or where you have been.</p>
+              </div>
+            ) : (
+              <div className="relative">
+                {/* the dotted journey line */}
+                <span
+                  aria-hidden="true"
+                  className="absolute left-4 sm:left-1/2 top-0 bottom-0 border-l-2 border-dotted border-stone-300 dark:border-violet-400/30 sm:-transtone-x-1/2"
+                />
+                <div className="space-y-6">
+                  {timelineMemories.map((mem, i) => {
+                    const photos = mem.photos.length > 0 ? mem.photos : [DEFAULT_MEMORY_PHOTO];
+                    const idx = Math.min(photoIdx[mem.id] || 0, photos.length - 1);
+                    const statusColor = STATUS_STYLES[mem.status].dot;
+                    const leftSide = i % 2 === 0;
+                    const isCurrent = mem.status === 'Current Location';
 
-            return (
-              <div
-                key={mem.id}
-                className="group relative flex items-stretch bg-white dark:bg-stone-900/80 border border-stone-200 dark:border-stone-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg hover:border-stone-300 dark:hover:border-stone-700 transition-all"
-              >
-                {/* Ticket stub — status colour, perforated edge */}
-                <div
-                  className="relative w-14 shrink-0 flex flex-col items-center justify-center gap-1 py-3 border-r border-dashed border-stone-300 dark:border-stone-700"
-                  style={{ background: `color-mix(in srgb, ${statusColor} 14%, transparent)` }}
-                >
-                  <Plane
-                    className="w-4 h-4 -rotate-45"
-                    style={{ color: statusColor }}
-                  />
-                  <span
-                    className="text-[8px] font-black uppercase tracking-widest [writing-mode:vertical-rl] rotate-180"
-                    style={{ color: statusColor }}
-                  >
-                    {mem.status === 'Current Location' ? 'Now' : mem.status === 'Dream Next' ? 'Dream' : 'Visited'}
-                  </span>
-                  {/* perforation holes */}
-                  <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-stone-50 dark:bg-[#06030f] border border-stone-200 dark:border-stone-800" />
-                  <span className="absolute -bottom-1.5 -right-1.5 w-3 h-3 rounded-full bg-stone-50 dark:bg-[#06030f] border border-stone-200 dark:border-stone-800" />
-                </div>
-
-                {/* Photo thumb — tap to open lightbox */}
-                <div className="relative w-20 sm:w-24 shrink-0 my-2.5 ml-3 rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800 self-stretch">
-                  <img
-                    key={photos[idx]}
-                    src={photos[idx]}
-                    alt={mem.destination}
-                    onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                    onClick={() => openLightbox(photos, idx, `${mem.destination}, ${mem.country}`)}
-                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-104 transition-transform duration-500 cursor-zoom-in"
-                  />
-                  {photos.length > 1 && (
-                    <>
-                      <button
-                        type="button"
-                        aria-label="Previous photo"
-                        onClick={() => stepPhoto(mem.id, photos.length, -1)}
-                        className="absolute left-0.5 top-1/2 -transtone-y-1/2 w-5 h-5 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+                    const card = (
+                      <div
+                        className={`group relative bg-white dark:bg-stone-900/85 border border-stone-200 dark:border-stone-800 rounded-2xl p-3 shadow-xs hover:shadow-lg hover:border-stone-300 dark:hover:border-stone-700 transition-all ${
+                          isCurrent ? 'ring-1 ring-emerald-400/60' : ''
+                        }`}
                       >
-                        <ChevronLeft className="w-3 h-3" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Next photo"
-                        onClick={() => stepPhoto(mem.id, photos.length, 1)}
-                        className="absolute right-0.5 top-1/2 -transtone-y-1/2 w-5 h-5 rounded-full bg-black/45 hover:bg-black/65 text-white flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer z-10"
-                      >
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
-                      <span className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 z-10">
-                        <Camera className="w-2.5 h-2.5" />
-                        {idx + 1}/{photos.length}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {/* Body */}
-                <div className="flex-1 min-w-0 px-3 py-2.5 flex flex-col justify-center gap-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <MapPin className="w-3 h-3 shrink-0" style={{ color: statusColor }} />
-                    <span className="font-bold text-xs text-stone-900 dark:text-stone-100 truncate">
-                      {mem.destination}, {mem.country}
-                    </span>
-                    <span className="shrink-0 text-[9px] font-mono text-stone-400 flex items-center gap-1">
-                      <Calendar className="w-2.5 h-2.5" />
-                      {mem.date}
-                    </span>
-                  </div>
-
-                  {editingNoteId === mem.id ? (
-                    <div className="space-y-1.5">
-                      <textarea
-                        rows={2}
-                        value={editNoteText}
-                        onChange={(e) => setEditNoteText(e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 resize-y"
-                      />
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setEditingNoteId(null)}
-                          className="px-2 py-0.5 text-[10px] text-stone-500 bg-stone-100 dark:bg-stone-800 rounded-md cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSaveNote(mem.id)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-white bg-rose-600 rounded-md cursor-pointer"
-                        >
-                          <Check className="w-2.5 h-2.5" />
-                          Save
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p
-                      className="text-[11px] text-stone-500 dark:text-stone-400 leading-snug italic line-clamp-2 cursor-pointer"
-                      title="Tap to edit this memory note"
-                      onClick={() => {
-                        setEditingNoteId(mem.id);
-                        setEditNoteText(mem.memoryNote);
-                      }}
-                    >
-                      "{mem.memoryNote}"
-                    </p>
-                  )}
-
-                  {mem.companionsTagged.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Users className="w-2.5 h-2.5 text-stone-400" />
-                      {mem.companionsTagged.map((c) => (
-                        <span
-                          key={c}
-                          className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 pl-1.5 pr-0.5 py-px rounded-full"
-                        >
-                          {c}
+                        <div className="flex items-start gap-3">
+                          <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800">
+                            <img
+                              key={photos[idx]}
+                              src={photos[idx]}
+                              alt={mem.destination}
+                              onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
+                              onClick={() => openLightbox(photos, idx, `${mem.destination}, ${mem.country}`)}
+                              className="absolute inset-0 w-full h-full object-cover group-hover:scale-104 transition-transform duration-500 cursor-zoom-in"
+                            />
+                            {photos.length > 1 && (
+                              <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                <Camera className="w-2.5 h-2.5" />
+                                {idx + 1}/{photos.length}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full text-white"
+                                style={{ background: statusColor }}
+                              >
+                                {isCurrent ? 'Now' : 'Visited'}
+                              </span>
+                              <span className="font-bold text-xs text-stone-900 dark:text-stone-100 truncate">
+                                {mem.destination}, {mem.country}
+                              </span>
+                            </div>
+                            <div className="text-[10px] font-mono text-stone-400 mt-0.5 flex items-center gap-1">
+                              <Calendar className="w-2.5 h-2.5" />
+                              {mem.date}
+                            </div>
+                            <p
+                              className="text-[11px] text-stone-500 dark:text-stone-400 leading-snug italic line-clamp-2 mt-1 cursor-pointer"
+                              title="Tap to edit this memory note"
+                              onClick={() => {
+                                setEditingNoteId(mem.id);
+                                setEditNoteText(mem.memoryNote);
+                              }}
+                            >
+                              "{mem.memoryNote}"
+                            </p>
+                            {editingNoteId === mem.id && (
+                              <div className="mt-1.5 space-y-1.5">
+                                <textarea
+                                  rows={2}
+                                  value={editNoteText}
+                                  onChange={(e) => setEditNoteText(e.target.value)}
+                                  className="w-full px-2 py-1.5 text-xs border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 resize-y"
+                                />
+                                <div className="flex justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingNoteId(null)}
+                                    className="px-2 py-0.5 text-[10px] text-stone-500 bg-stone-100 dark:bg-stone-800 rounded-md cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveNote(mem.id)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-white bg-rose-600 rounded-md cursor-pointer"
+                                  >
+                                    <Check className="w-2.5 h-2.5" />
+                                    Save
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {/* hover actions */}
+                        <div className="absolute top-2 right-2 flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
-                            onClick={() => handleRemoveMemoryCompanion(mem.id, c)}
-                            className="p-px rounded-full hover:bg-orange-200 dark:hover:bg-orange-900 text-orange-500 hover:text-orange-800 dark:hover:text-orange-200 transition-colors cursor-pointer"
-                            title={`Remove ${c} from this memory`}
+                            onClick={() => flyToMemory(mem)}
+                            className="p-1.5 text-stone-400 hover:text-emerald-600 transition-colors cursor-pointer"
+                            title="Show on map"
                           >
-                            <X className="w-2 h-2" />
+                            <MapPin className="w-3.5 h-3.5" />
                           </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                          <button
+                            type="button"
+                            onClick={() => handleEditMemory(mem)}
+                            className="p-1.5 text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
+                            title="Edit this memory"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleShareMemory(mem)}
+                            className="p-1.5 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                            title="Share this memory"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMemory(mem.id)}
+                            className="p-1.5 text-stone-400 hover:text-red-600 transition-colors cursor-pointer"
+                            title="Remove memory"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
 
-                {/* Actions — tucked on the right, appear on hover (always visible on touch) */}
-                <div className="shrink-0 flex flex-col items-center justify-center gap-0.5 px-2 border-l border-dashed border-stone-200 dark:border-stone-800 text-stone-400 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    onClick={() => onGoToItinerary(`${mem.destination}, ${mem.country}`)}
-                    className="p-1.5 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                    title="View itinerary"
-                  >
-                    <Plane className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleEditMemory(mem)}
-                    className="p-1.5 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
-                    title="Edit this memory (photos, companions, note...)"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleShareMemory(mem)}
-                    className="p-1.5 hover:text-rose-600 transition-colors cursor-pointer"
-                    title="Share this memory"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteMemory(mem.id)}
-                    className="p-1.5 hover:text-red-600 transition-colors cursor-pointer"
-                    title="Remove memory"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                    return (
+                      <div key={mem.id} className="relative sm:grid sm:grid-cols-2 sm:gap-10 items-start">
+                        {/* node on the line */}
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-4 sm:left-1/2 top-5 w-3 h-3 rounded-full -transtone-x-1/2 ring-4 ring-white dark:ring-stone-950 z-10"
+                          style={{ background: statusColor }}
+                        />
+                        {/* mobile: everything to the right of the line; desktop: staggered */}
+                        <div className={`pl-10 sm:pl-0 ${leftSide ? 'sm:col-start-1 sm:pr-2' : 'sm:col-start-2 sm:pl-2'}`}>
+                          {card}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            );
-          })}
+            )}
+          </div>
+          {/* fade hint at the frame's bottom when there is more to scroll */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-b-3xl bg-gradient-to-t from-white/80 dark:from-[#0b0620]/80 to-transparent" />
         </div>
       </div>
 

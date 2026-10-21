@@ -2,6 +2,7 @@ import React from 'react';
 import { Globe, MapPin, CalendarDays, Wallet, Stamp as StampIcon, Plane } from 'lucide-react';
 import { SoloTraveler, TravelItinerary, SoloPersonalExpense, ExpenseItem } from '../types/travel';
 import { getTranslation } from '../utils/i18n';
+import { StampArt } from '../utils/landmarkArt';
 import { getFxRates, convertAmount } from '../utils/currency';
 
 interface PassportViewProps {
@@ -23,7 +24,7 @@ const STAMP_INKS = [
 interface StampEntry {
   country: string;
   year: string;
-  city: string;
+  cities: string[]; // every city visited in that country — drives the unique stamp art
 }
 
 export const PassportView: React.FC<PassportViewProps> = ({
@@ -32,25 +33,41 @@ export const PassportView: React.FC<PassportViewProps> = ({
   soloExpenses,
   sharedExpenses
 }) => {
-  // ── Stamps derived from real trips: one per country, earliest visit wins ──
+  // ── Stamps derived from real trips: one per country, earliest visit wins.
+  //    Every city visited in that country is collected so the stamp art is
+  //    unique to the traveller's actual stops. ──
+  const splitCities = (dest: string): string[] =>
+    dest
+      .split(',')[0]
+      .split(/\s*[&+]\s*|\s+and\s+/i)
+      .map((c) => c.trim())
+      .filter(Boolean);
+
   const stamps: StampEntry[] = [];
-  const seen = new Set<string>();
+  const byCountry = new Map<string, StampEntry>();
   const homeCountry = (currentUser.country || '').trim();
   if (homeCountry) {
-    stamps.push({ country: homeCountry, year: 'HOME', city: currentUser.homeCity || '' });
-    seen.add(homeCountry.toLowerCase());
+    const home = { country: homeCountry, year: 'HOME', cities: currentUser.homeCity ? [currentUser.homeCity] : [] };
+    stamps.push(home);
+    byCountry.set(homeCountry.toLowerCase(), home);
   }
   [...itineraries]
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     .forEach((it) => {
       const country = (it.country || it.destination.split(',').pop() || '').trim();
-      if (!country || seen.has(country.toLowerCase())) return;
-      seen.add(country.toLowerCase());
-      stamps.push({
-        country,
-        year: (it.startDate || '').slice(0, 4),
-        city: it.destination.split(',')[0].trim()
-      });
+      if (!country) return;
+      const key = country.toLowerCase();
+      const cities = splitCities(it.destination);
+      const existing = byCountry.get(key);
+      if (existing) {
+        cities.forEach((c) => {
+          if (!existing.cities.some((x) => x.toLowerCase() === c.toLowerCase())) existing.cities.push(c);
+        });
+        return;
+      }
+      const entry: StampEntry = { country, year: (it.startDate || '').slice(0, 4), cities };
+      byCountry.set(key, entry);
+      stamps.push(entry);
     });
 
   // ── Stats ──
@@ -139,17 +156,17 @@ export const PassportView: React.FC<PassportViewProps> = ({
           <div className="mt-7 pt-5 border-t border-stone-800 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             <div>
               <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-stone-500">
-                {getTranslation('passportHolder')}
+                Departure
               </div>
               <div className="mt-1 font-mono font-semibold text-stone-200 truncate">
-                {currentUser.homeCity || currentUser.country}
+                {currentUser.country || currentUser.homeCity}
               </div>
             </div>
             <div>
               <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-stone-500">
-                {getTranslation('statCountries')}
+                Arrival
               </div>
-              <div className="mt-1 font-mono font-semibold text-stone-200">{currentUser.country}</div>
+              <div className="mt-1 font-mono font-semibold text-stone-200">World</div>
             </div>
             <div>
               <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-stone-500">
@@ -218,14 +235,16 @@ export const PassportView: React.FC<PassportViewProps> = ({
                   key={`${st.country}-${st.year}`}
                   className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full border-[3px] border-dashed flex flex-col items-center justify-center text-center p-3 select-none ${STAMP_INKS[i % STAMP_INKS.length]}`}
                   style={{ transform: `rotate(${rot}deg)` }}
-                  title={`${st.city ? `${st.city}, ` : ''}${st.country} · ${st.year}`}
+                  title={`${st.cities.length ? `${st.cities.join(', ')}, ` : ''}${st.country} · ${st.year}`}
                 >
-                  <Globe className="w-4 h-4 opacity-70 mb-1" />
+                  <StampArt cities={st.cities} className="w-11 h-11 sm:w-12 sm:h-12 opacity-80 mb-0.5" />
                   <div className="text-[11px] sm:text-xs font-extrabold uppercase tracking-widest leading-tight line-clamp-2">
                     {st.country}
                   </div>
-                  <div className="mt-1 text-[10px] font-mono font-bold opacity-80">{st.year}</div>
-                  <div className="text-[8px] font-bold uppercase tracking-[0.25em] opacity-60">Entry</div>
+                  <div className="mt-0.5 text-[10px] font-mono font-bold opacity-80">{st.year}</div>
+                  <div className="text-[8px] font-bold uppercase tracking-[0.25em] opacity-60 truncate max-w-full px-1">
+                    {st.cities.join(' · ') || 'Entry'}
+                  </div>
                 </div>
               );
             })}
@@ -233,13 +252,6 @@ export const PassportView: React.FC<PassportViewProps> = ({
         )}
       </div>
 
-      {/* Footprints map is rendered by App directly below this view */}
-      <div className="pt-2 border-t border-stone-200 dark:border-stone-800">
-        <h2 className="font-display text-xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
-          {getTranslation('footprintsSection')}
-        </h2>
-        <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">{getTranslation('mapSub')}</p>
-      </div>
     </div>
   );
 };

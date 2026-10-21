@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, Route, Compass, Stamp } from 'lucide-react';
+import { ShieldAlert, Route, Compass, BookOpen } from 'lucide-react';
 import { getTranslation } from '../utils/i18n';
 import { SoloTraveler } from '../types/travel';
 
@@ -8,6 +8,7 @@ export type NavTab =
   | 'itinerary'
   | 'matcher'
   | 'map'
+  | 'journal'
   | 'stories'
   | 'messages'
   | 'activities'
@@ -28,10 +29,21 @@ interface NavigationProps {
   currentUser?: SoloTraveler;
 }
 
+
+/** Passport-book nav icon with the word PROFILE on the cover. */
+const PassportBookIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <rect x="4.5" y="2.5" width="15" height="19" rx="2.2" />
+    <line x1="8.2" y1="2.5" x2="8.2" y2="21.5" />
+    <text x="13.6" y="13.2" textAnchor="middle" fontSize="4.1" fontWeight="800" letterSpacing="0.4" fill="currentColor" stroke="none" fontFamily="inherit">PROFILE</text>
+  </svg>
+);
+
 const TABS: { tab: NavTab; labelKey: string; icon: React.FC<{ className?: string }> }[] = [
   { tab: 'itinerary', labelKey: 'navTrips', icon: Route },
   { tab: 'stories', labelKey: 'navExplore', icon: Compass },
-  { tab: 'map', labelKey: 'navPassport', icon: Stamp }
+  { tab: 'journal', labelKey: 'navJournal', icon: BookOpen },
+  { tab: 'map', labelKey: 'navPassport', icon: PassportBookIcon }
 ];
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -51,9 +63,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   const Avatar = (
     <button
-      onClick={() => onSelectTab('profile')}
+      onClick={() => onSelectTab('map')}
       className={`rounded-full transition-all cursor-pointer ${
-        activeTab === 'profile' || activeTab === 'settings'
+        activeTab === 'settings'
           ? 'ring-2 ring-violet-400 ring-offset-2 ring-offset-white dark:ring-offset-stone-950'
           : 'hover:ring-2 hover:ring-violet-300 hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-stone-950'
       }`}

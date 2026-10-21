@@ -31,6 +31,8 @@ interface MyProfileViewProps {
   onUpdateProfile: (updated: Partial<SoloTraveler>) => void;
   onUpdateSafetyRecord: (updated: Partial<SafeCheckinRecord>) => void;
   onOpenSettings?: () => void;
+  /** Render inside the Passport page — section header instead of a page header */
+  embedded?: boolean;
 }
 
 const PACE_OPTIONS: TravelPace[] = ['Chill & Scenic', 'Moderate Explorer', 'Brisk & Fast-Paced'];
@@ -53,7 +55,8 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
   safetyRecord,
   onUpdateProfile,
   onUpdateSafetyRecord,
-  onOpenSettings
+  onOpenSettings,
+  embedded = false
 }) => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -195,6 +198,11 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-200 dark:border-stone-800">
         <div>
+          {embedded && (
+            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-600 dark:text-violet-400 mb-1.5">
+              Travel Passport
+            </div>
+          )}
           <h2 className="font-display text-2xl font-bold text-stone-900 dark:text-stone-50 tracking-tight">
             {getTranslation('profileTitle')}
           </h2>

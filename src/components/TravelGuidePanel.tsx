@@ -222,11 +222,7 @@ export function resolveDestinationCurrency(itinerary: TravelItinerary) {
   };
 }
 
-/** Default packing checklist — connectivity essentials only; travelers add their own items. */
-const DEFAULT_PACKING_ITEMS = [
-  'Pocket WiFi / eSIM (stay connected everywhere)',
-  'Power bank (10,000mAh+ for full-day exploring)'
-];
+
 
 /** Deterministic small hash for per-city weather variation on multi-city trips. */
 const hashStr = (s: string): number => {
@@ -269,64 +265,11 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
   const natCurrency = countryInfoFor(guideNat)?.currency || { code: 'EUR', symbol: '€', name: 'Euro' };
   const visaVerdict = visaVerdictFor(guideNat, `${itinerary.country || ''} ${itinerary.destination}`);
 
-  // Track checked packing items per itinerary
-  const [checkedPackingItems, setCheckedPackingItems] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem('wanderlust_checked_packing');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const togglePackingCheck = (key: string) => {
-    setCheckedPackingItems((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      localStorage.setItem('wanderlust_checked_packing', JSON.stringify(next));
-      return next;
-    });
-  };
-
-  // Editable custom checklist items per itinerary
-  const [checklistByItin, setChecklistByItin] = useState<Record<string, string[]>>(() => {
-    const saved = localStorage.getItem('wanderlust_custom_checklists');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const [newChecklistText, setNewChecklistText] = useState<Record<string, string>>({});
-
-  // Editable personal travel notes per itinerary
-  const [notesByItin, setNotesByItin] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('wanderlust_custom_notes');
-    return saved ? JSON.parse(saved) : {};
-  });
-
   // Visa details popup — full visa paragraph + entry customs, on demand
   const [visaPopupOpen, setVisaPopupOpen] = useState(false);
 
   // Tax-refund tips popup — the country name whose tax guide is open
   const [taxTipsCountry, setTaxTipsCountry] = useState<string | null>(null);
-
-  const handleAddChecklistItem = (itinId: string, defaultItems: string[]) => {
-    const text = (newChecklistText[itinId] || '').trim();
-    if (!text) return;
-    const currentList = checklistByItin[itinId] || defaultItems || [];
-    const updated = [...currentList, text];
-    const newMap = { ...checklistByItin, [itinId]: updated };
-    setChecklistByItin(newMap);
-    localStorage.setItem('wanderlust_custom_checklists', JSON.stringify(newMap));
-    setNewChecklistText((prev) => ({ ...prev, [itinId]: '' }));
-  };
-
-  const handleRemoveChecklistItem = (itinId: string, idxToRemove: number, defaultItems: string[]) => {
-    const currentList = checklistByItin[itinId] || defaultItems || [];
-    const updated = currentList.filter((_, idx) => idx !== idxToRemove);
-    const newMap = { ...checklistByItin, [itinId]: updated };
-    setChecklistByItin(newMap);
-    localStorage.setItem('wanderlust_custom_checklists', JSON.stringify(newMap));
-  };
-
-  const handleUpdateNotes = (itinId: string, notes: string) => {
-    const newMap = { ...notesByItin, [itinId]: notes };
-    setNotesByItin(newMap);
-    localStorage.setItem('wanderlust_custom_notes', JSON.stringify(newMap));
-  };
 
   // Live FX rates — refreshed from the API on mount, cached 6h, offline fallback estimates
   const [fx, setFx] = useState<FxState>(() => getFxRates());
@@ -487,121 +430,6 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
             )}
           </div>
 
-          {/* Checklist and Notes (Removed 'fully editable' badge as requested) */}
-          <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3.5 text-xs">
-            <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <Luggage className="w-4 h-4 text-emerald-700" />
-                <span>{getTranslation('checklistNotes')}</span>
-              </div>
-            </div>
-
-            {/* Checklist Items — starts with just WiFi & power bank; add your own */}
-            {(() => {
-              const defaultItems = DEFAULT_PACKING_ITEMS;
-              const currentItems = checklistByItin[itinerary.id] || defaultItems;
-              const packedCount = currentItems.filter(
-                (item, idx) => checkedPackingItems[`${itinerary.id}_pack_${item}_${idx}`]
-              ).length;
-
-              return (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                    <span>{getTranslation('essentialsHint')}</span>
-                    <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-300">
-                      {packedCount}/{currentItems.length} {getTranslation('packedWord')}
-                    </span>
-                  </div>
-                  <ul className="space-y-1.5 text-slate-700 dark:text-slate-300 max-h-48 overflow-y-auto pr-1">
-                    {currentItems.map((item, idx) => {
-                      const checkKey = `${itinerary.id}_pack_${item}_${idx}`;
-                      const isChecked = !!checkedPackingItems[checkKey];
-
-                      return (
-                        <li
-                          key={idx}
-                          className={`flex items-center justify-between gap-2 group px-2.5 py-1.5 rounded-lg border transition-colors ${
-                            isChecked
-                              ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200/70 dark:border-emerald-900/50'
-                              : 'bg-white dark:bg-slate-800 border-slate-200/80 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-800'
-                          }`}
-                        >
-                          <div
-                            onClick={() => togglePackingCheck(checkKey)}
-                            className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
-                          >
-                            <span className="shrink-0 text-slate-600">
-                              {isChecked ? (
-                                <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
-                              ) : (
-                                <Square className="w-3.5 h-3.5 text-slate-400" />
-                              )}
-                            </span>
-                            <span className={`truncate text-xs ${isChecked ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-200'}`}>
-                              {item}
-                            </span>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveChecklistItem(itinerary.id, idx, defaultItems)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-600 transition-opacity cursor-pointer rounded"
-                            title="Delete item"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-
-                  {/* Add New Checklist Item Input */}
-                  <div className="flex items-center gap-1.5 pt-1.5">
-                    <input
-                      type="text"
-                      value={newChecklistText[itinerary.id] || ''}
-                      onChange={(e) =>
-                        setNewChecklistText((prev) => ({
-                          ...prev,
-                          [itinerary.id]: e.target.value
-                        }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddChecklistItem(itinerary.id, defaultItems);
-                        }
-                      }}
-                      placeholder={getTranslation('addPackingPh')}
-                      className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleAddChecklistItem(itinerary.id, defaultItems)}
-                      className="px-2.5 py-1.5 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-xl hover:scale-[1.03] transition-all cursor-pointer shrink-0"
-                    >
-                      {getTranslation('addBtn')}
-                    </button>
-                  </div>
-
-                  {/* Editable Personal Notes Textarea */}
-                  <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-1">
-                    <label className="flex items-center gap-1 font-semibold text-slate-900 dark:text-slate-100 text-[11px]">
-                      <FileText className="w-3 h-3 text-slate-500" />
-                      <span>{getTranslation('myNotes')}</span>
-                    </label>
-                    <AutoGrowTextarea
-                      minRows={2}
-                      value={notesByItin[itinerary.id] ?? (itinerary.notes || '')}
-                      onChange={(e) => handleUpdateNotes(itinerary.id, e.target.value)}
-                      placeholder={getTranslation('notesPh')}
-                      className="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-slate-900 leading-relaxed"
-                    />
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
         </div>
 
         {/* Specific Currency Section (Refined: Corresponds specifically to country) */}
