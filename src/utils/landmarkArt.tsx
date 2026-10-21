@@ -161,9 +161,9 @@ export const PassportStamp: React.FC<{ country: string; year: string; cities: st
         <text
           key={c + i}
           x="60"
-          y={76 + i * 9}
+          y={(bottomText ? 78 : 76) + i * 9}
           textAnchor="middle"
-          fontSize="7.5"
+          fontSize={bottomText ? '7' : '7.5'}
           fontStyle="italic"
           letterSpacing="0.6"
           fill="currentColor"

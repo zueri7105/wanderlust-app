@@ -198,16 +198,9 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
       {/* Compact action row — profile details live on the passport above; editing opens a galaxy modal */}
       <div className="flex items-center justify-between gap-4">
         <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-600 dark:text-violet-400">
-          {getTranslation('profileSafety')}
+          Safety
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsEditingProfile(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-stone-900 dark:text-stone-100 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 rounded-lg transition-colors cursor-pointer"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-            <span>Edit Profile</span>
-          </button>
           {onOpenSettings && (
             <button
               type="button"

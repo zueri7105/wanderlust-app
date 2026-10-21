@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Globe,
   Stamp as StampIcon,
@@ -93,6 +93,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
   const totalPages = 1 + stampPages.length;
   const [page, setPage] = useState(0);
   const [flipDir, setFlipDir] = useState<'next' | 'prev'>('next');
+  const touchStartX = useRef<number | null>(null);
   const goTo = (p: number) => {
     const clamped = Math.max(0, Math.min(totalPages - 1, p));
     if (clamped === page) return;
@@ -174,7 +175,26 @@ export const PassportView: React.FC<PassportViewProps> = ({
 
         <div
           key={page}
-          className={`wl-book-page ${flipDir === 'next' ? 'wl-flip-next' : 'wl-flip-prev'} relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[30rem] ${
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            const start = touchStartX.current;
+            touchStartX.current = null;
+            if (start === null) return;
+            const dx = e.changedTouches[0].clientX - start;
+            if (dx <= -50) goTo(page + 1); // swipe left — next page
+            else if (dx >= 50) goTo(page - 1); // swipe right — previous page
+          }}
+          onPointerDown={(e) => { if (e.pointerType === 'mouse') touchStartX.current = e.clientX; }}
+          onPointerUp={(e) => {
+            if (e.pointerType !== 'mouse') return;
+            const start = touchStartX.current;
+            touchStartX.current = null;
+            if (start === null) return;
+            const dx = e.clientX - start;
+            if (dx <= -50) goTo(page + 1);
+            else if (dx >= 50) goTo(page - 1);
+          }}
+          className={`wl-book-page ${flipDir === 'next' ? 'wl-flip-next' : 'wl-flip-prev'} relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[30rem] touch-pan-y select-none ${
             page === 0
               ? 'bg-stone-950 dark:bg-black text-stone-100 shadow-xl'
               : 'bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(139,92,246,0.14),transparent_70%)] bg-white dark:bg-[#0e0820] border border-stone-200 dark:border-violet-900/40 shadow-xl'
@@ -225,16 +245,6 @@ export const PassportView: React.FC<PassportViewProps> = ({
                       {currentUser.name}
                     </h1>
                     <p className="mt-2 text-sm text-stone-400 max-w-md">{getTranslation('passportSub')}</p>
-                    {onUpdateProfile && (
-                      <button
-                        type="button"
-                        onClick={openEditor}
-                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-full border border-violet-300/40 text-violet-200 hover:bg-white/10 transition-colors cursor-pointer"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                        {getTranslation('editProfileBtn')}
-                      </button>
-                    )}
                   </div>
 
                   {/* photo + home immigration stamp */}
@@ -285,7 +295,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
                       <div className="w-24 h-24 sm:w-28 sm:h-28 -rotate-6 text-emerald-600 dark:text-emerald-400 shrink-0 select-none" title={`${homeStamp.country} · Immigration Cleared`}>
                         <PassportStamp
                           country={homeStamp.country}
-                          year={new Date().getFullYear().toString()}
+                          year="HOME"
                           cities={homeStamp.cities}
                           bottomText={getTranslation('immigrationCleared')}
                           className="w-full h-full"
@@ -424,11 +434,23 @@ export const PassportView: React.FC<PassportViewProps> = ({
 
       {/* ── What I have to say ─────────────────────────────────────────── */}
       <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-6 sm:p-7 shadow-xs space-y-5">
-        <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
-          <Heart className="w-4 h-4" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
-            {getTranslation('aboutTitle')}
-          </span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
+            <Heart className="w-4 h-4" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
+              {getTranslation('aboutTitle')}
+            </span>
+          </div>
+          {onUpdateProfile && (
+            <button
+              type="button"
+              onClick={openEditor}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-full border border-violet-300/50 dark:border-violet-800/60 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer"
+            >
+              <Edit3 className="w-3 h-3" />
+              {getTranslation('editProfileBtn')}
+            </button>
+          )}
         </div>
         <p className="text-sm text-stone-700 dark:text-stone-300 leading-relaxed max-w-3xl">
           {currentUser.bio}
