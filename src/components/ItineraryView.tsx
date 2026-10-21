@@ -57,6 +57,7 @@ import { getTranslation, tv } from '../utils/i18n';
 import AutoGrowTextarea from './AutoGrowTextarea';
 import { WORLD_COUNTRIES } from './DestinationSelector';
 import { TripRouteMap } from './TripRouteMap';
+import { JourneyBoard } from './JourneyBoard';
 import { findPlaceGeo, estimateLeg, optimizeStopOrder, suggestPlacesFor, type TravelMode } from '../utils/placeGeo';
 
 interface ItineraryViewProps {
@@ -1291,6 +1292,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
               <div
                 key={itinerary.id}
               >
+              {detailTripId ? (
+                /* Trip page: day-by-day journey board (date tabs + route map) */
+                <JourneyBoard
+                  itinerary={itinerary}
+                  onUpdateItinerary={onUpdateItinerary}
+                  onEditTrip={() => handleOpenEditTrip(itinerary)}
+                />
+              ) : (
               <div
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md overflow-hidden transition-all"
               >
@@ -1709,6 +1718,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   </div>
                 )}
               </div>
+              )}
               </div>
             );
           })}

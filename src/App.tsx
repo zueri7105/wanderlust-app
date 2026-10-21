@@ -32,6 +32,9 @@ import { TravelMapMemoriesView } from './components/TravelMapMemoriesView';
 import { PassportView } from './components/PassportView';
 import { ExploreView } from './components/ExploreView';
 import { TripDetailView } from './components/TripDetailView';
+import { OnboardingView, OnboardingAnswers } from './components/OnboardingView';
+import { buildBasicGuide } from './utils/guideBuilder';
+import { suggestPlacesFor } from './utils/placeGeo';
 import { playAudioAlert, getTranslation } from './utils/i18n';
 import { getAppSettings } from './utils/settings';
 import { upsertMemoryFromItinerary, removeMemoryForItinerary } from './utils/journalSync';
@@ -45,6 +48,18 @@ export default function App() {
   const [selectedInterest, setSelectedInterest] = useState<string>('All Interests');
   const [selectedScope, setSelectedScope] = useState<string>('All Trips');
   const [isSOSModalOpen, setIsSOSModalOpen] = useState(false);
+
+  // First-run onboarding wizard — shown once to a brand-new (blank) profile
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    try {
+      if (localStorage.getItem('wanderlust_onboarded_v1')) return false;
+      const saved = localStorage.getItem('roamtogether_current_user');
+      const u = saved ? JSON.parse(saved) : CURRENT_USER;
+      return !u.country; // no nationality yet → this traveller has never been welcomed
+    } catch {
+      return false;
+    }
+  });
 
   // Persistence in localStorage
   const [currentUser, setCurrentUser] = useState<SoloTraveler>(() => {
@@ -440,6 +455,89 @@ export default function App() {
     setCurrentUser((prev) => ({ ...prev, ...updated }));
   };
 
+  /**
+   * Onboarding finished — the answers become:
+   *  1) the travel passport (name, nationality, home city, age, languages,
+   *     hobbies, motto as bio),
+   *  2) the first auto-planned itinerary (route map ready from day one), and
+   *  3) the linked journal memory (via handleAddItinerary → journalSync).
+   */
+  const handleOnboardingComplete = (a: OnboardingAnswers) => {
+    const dob = a.birthday ? new Date(a.birthday).getTime() : NaN;
+    const age =
+      Number.isFinite(dob) && dob < Date.now()
+        ? Math.max(1, Math.floor((Date.now() - dob) / (365.25 * 24 * 3600 * 1000)))
+        : currentUser.age;
+
+    handleUpdateProfile({
+      ...(a.name ? { name: a.name } : {}),
+      country: a.nationality,
+      homeCity: a.homeCity,
+      age,
+      languages: a.languages,
+      interests: a.hobbies,
+      bio: a.motto,
+      travelGoals: a.motto ? [a.motto] : currentUser.travelGoals
+    });
+
+    // Auto-plan the first trip: real sights near the destination fill the
+    // day slots so the route map renders the moment the trip exists.
+    const start = new Date();
+    start.setDate(start.getDate() + 14);
+    const end = new Date(start);
+    end.setDate(end.getDate() + a.dayCount - 1);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const startDate = iso(start);
+    const endDate = iso(end);
+
+    const guide = buildBasicGuide(a.destination, '', undefined, a.nationality, startDate, endDate);
+    const suggestions = suggestPlacesFor(a.destination, a.dayCount * 3);
+    const dayPlans = Array.from({ length: a.dayCount }, (_, i) => {
+      const picks = suggestions.slice(i * 3, i * 3 + 3);
+      return {
+        dayNumber: i + 1,
+        title: '',
+        morningActivity: picks[0]
+          ? `Visit ${picks[0].name}`
+          : 'Free morning to explore at your own pace.',
+        afternoonActivity: picks[1]
+          ? `Explore ${picks[1].name}`
+          : 'Free afternoon — wander, taste, discover.',
+        eveningActivity: picks[2]
+          ? `Evening at ${picks[2].name}`
+          : 'Evening at leisure — dinner somewhere local.'
+      };
+    });
+
+    const newItinerary: TravelItinerary = {
+      id: `itin_${Date.now()}`,
+      travelerId: currentUser.id,
+      destination: a.destination.includes(',')
+        ? a.destination
+        : `${a.destination}, ${guide.destinationCountry}`,
+      country: guide.destinationCountry,
+      startDate,
+      endDate,
+      companionPurpose: ['Solo Exploration'],
+      notes: a.motto || 'First adventure planned with WanderLust.',
+      days: dayPlans,
+      travelGuide: guide,
+      tripScope: 'Full Trip',
+      visibility: 'public'
+    };
+
+    handleAddItinerary(newItinerary); // also pins it onto My Journal
+    localStorage.setItem('wanderlust_onboarded_v1', '1');
+    setShowOnboarding(false);
+    setActiveTab('itinerary');
+    setDetailTripId(newItinerary.id); // land on the new trip's journey board
+  };
+
+  const handleOnboardingSkip = () => {
+    localStorage.setItem('wanderlust_onboarded_v1', '1');
+    setShowOnboarding(false);
+  };
+
   const handleUpdateSafetyRecord = (partial: Partial<SafeCheckinRecord>) => {
     setSafetyRecord((prev) => ({ ...prev, ...partial }));
   };
@@ -615,6 +713,11 @@ export default function App() {
         onClose={() => setIsCreateTripOpen(false)}
         onSaveTrip={handleSaveNewTrip}
       />
+
+      {/* First-run onboarding wizard */}
+      {showOnboarding && (
+        <OnboardingView onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />
+      )}
 
       {/* Emergency SOS Help Modal */}
       <EmergencySOSModal
