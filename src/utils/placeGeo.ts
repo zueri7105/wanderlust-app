@@ -196,6 +196,40 @@ export const findPlaceGeo = (text: string): PlaceGeo | null => {
   return found;
 };
 
+/** "kinkaku-ji" → "Kinkaku-ji" — display form for auto-planned activity lines. */
+export const titleCasePlace = (name: string): string =>
+  name
+    .split(/(\s+|-)/)
+    .map((part) => (/^\s|-/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join('');
+
+/**
+ * Landmark suggestions around a destination — powers the automatic route plan
+ * when a new trip is created. Finds the anchor city/place, then returns the
+ * curated places clustered around it (nearest first), the generic city pin
+ * itself excluded so route stops are real sights, not duplicates of the centre.
+ */
+export const suggestPlacesFor = (destination: string, limit = 12): PlaceGeo[] => {
+  const anchor = findPlaceGeo(destination);
+  if (!anchor) return [];
+  const seen = new Set<string>();
+  const out: PlaceGeo[] = [];
+  for (const entry of PLACE_TABLE) {
+    const dist = Math.hypot(entry.lat - anchor.lat, entry.lng - anchor.lng);
+    if (dist > 1.2) continue; // ~metro area / day-trip radius
+    const canonical = entry.names[0];
+    if (canonical === anchor.name || seen.has(canonical)) continue;
+    seen.add(canonical);
+    out.push({ lat: entry.lat, lng: entry.lng, name: titleCasePlace(canonical) });
+  }
+  out.sort(
+    (a, b) =>
+      Math.hypot(a.lat - anchor.lat, a.lng - anchor.lng) -
+      Math.hypot(b.lat - anchor.lat, b.lng - anchor.lng)
+  );
+  return out.slice(0, limit);
+};
+
 export type TravelMode =
   | 'walk'
   | 'transit'

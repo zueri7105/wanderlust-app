@@ -57,7 +57,7 @@ import { getTranslation, tv } from '../utils/i18n';
 import AutoGrowTextarea from './AutoGrowTextarea';
 import { WORLD_COUNTRIES } from './DestinationSelector';
 import { TripRouteMap } from './TripRouteMap';
-import { findPlaceGeo, estimateLeg, optimizeStopOrder, type TravelMode } from '../utils/placeGeo';
+import { findPlaceGeo, estimateLeg, optimizeStopOrder, suggestPlacesFor, type TravelMode } from '../utils/placeGeo';
 
 interface ItineraryViewProps {
   itineraries: TravelItinerary[];
@@ -843,6 +843,13 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
     const guide = await buildTravelGuide(formDest, formCountry, formCities[0], formNotes, formStartDate, formEndDate);
 
+    // Sights near the destination — slots the user left blank get auto-planned
+    // so the route map is ready the moment the trip is saved.
+    const suggestions = suggestPlacesFor(
+      `${formCities[0] || formDest} ${formCountry || guide.destinationCountry || ''}`,
+      formDays.length * 3
+    );
+
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,
       travelerId: currentUser.id,
@@ -860,12 +867,13 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           it ? (it.detail.trim() ? `${it.name.trim() || 'Activity'} — ${it.detail.trim()}` : it.name.trim()) : '';
         const [m, a, ...rest] = d.items;
         const eveningParts = rest.map(fmt).filter(Boolean);
+        const picks = suggestions.slice(idx * 3, idx * 3 + 3);
         return {
           dayNumber: idx + 1,
           title: d.title,
-          morningActivity: fmt(m) || 'Free morning to explore at your own pace.',
-          afternoonActivity: fmt(a) || 'Free afternoon for spontaneous plans.',
-          eveningActivity: eveningParts.join(' · ') || 'Relaxed evening, dinner nearby.',
+          morningActivity: fmt(m) || (picks[0] ? `Visit ${picks[0].name}` : 'Free morning to explore at your own pace.'),
+          afternoonActivity: fmt(a) || (picks[1] ? `Explore ${picks[1].name}` : 'Free afternoon for spontaneous plans.'),
+          eveningActivity: eveningParts.join(' · ') || (picks[2] ? `Evening at ${picks[2].name}` : 'Relaxed evening, dinner nearby.'),
           companionGoal: d.companionGoal
         };
       }),
@@ -878,8 +886,9 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     onAddItinerary(newItinerary);
     setIsAddModalOpen(false);
 
-    // Auto expand the new trip
+    // Auto expand the new trip with its route map already planned
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
+    setRouteMapOpenFor(newItinerary.id);
   };
 
   /** Shared guide builder (country knowledge base + optional AI generation). */
@@ -1028,16 +1037,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     const end = new Date(start);
     end.setDate(end.getDate() + dayCount - 1);
     const iso = (d: Date) => d.toISOString().slice(0, 10);
+    // Auto-plan the route: real sights near the destination fill the day slots
+    // so the route map has numbered stops & legs the moment the trip exists.
+    const suggestions = suggestPlacesFor(destination, dayCount * 3);
     const days: ItineraryDay[] = Array.from({ length: dayCount }, (_, i) => {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
+      const picks = suggestions.slice(i * 3, i * 3 + 3);
       return {
         dayNumber: i + 1,
         date: iso(d),
         title: '',
-        morningActivity: '',
-        afternoonActivity: '',
-        eveningActivity: ''
+        morningActivity: picks[0] ? `Visit ${picks[0].name}` : '',
+        afternoonActivity: picks[1] ? `Explore ${picks[1].name}` : '',
+        eveningActivity: picks[2] ? `Evening at ${picks[2].name}` : ''
       };
     });
     setIsGeneratingGuide(true);
@@ -1058,6 +1071,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     onAddItinerary(newItinerary);
     setQuickText('');
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
+    setRouteMapOpenFor(newItinerary.id); // route map opens already planned
     handleOpenEditTrip(newItinerary);
   };
 
@@ -1082,19 +1096,26 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     const end = new Date(start);
     end.setDate(end.getDate() + dayCount - 1);
     const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const firstPlace = places[0] ? findPlaceGeo(places[0])?.name || '' : '';
+    // Auto-plan the route: parsed places are spread across the days first,
+    // then curated sights near the destination top up any empty slots.
+    const suggestions = suggestPlacesFor(firstPlace || text.slice(0, 40), dayCount * 3)
+      .map((s) => s.name)
+      .filter((n) => !places.some((p) => p.toLowerCase().includes(n.toLowerCase())));
+    const planPool = [...places, ...suggestions];
     const days: ItineraryDay[] = Array.from({ length: dayCount }, (_, i) => {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
+      const picks = planPool.slice(i * 3, i * 3 + 3);
       return {
         dayNumber: i + 1,
         date: iso(d),
         title: '',
-        morningActivity: '',
-        afternoonActivity: '',
-        eveningActivity: ''
+        morningActivity: picks[0] || '',
+        afternoonActivity: picks[1] || '',
+        eveningActivity: picks[2] || ''
       };
     });
-    const firstPlace = places[0] ? findPlaceGeo(places[0])?.name || '' : '';
     setIsGeneratingGuide(true);
     const guide = await buildTravelGuide(firstPlace || text.slice(0, 40), '', firstPlace, text.slice(0, 300), iso(start), iso(end));
     const newItinerary: TravelItinerary = {
@@ -1116,6 +1137,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     onAddItinerary(newItinerary);
     setParseText('');
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
+    setRouteMapOpenFor(newItinerary.id); // route map opens already planned
   };
 
   return (

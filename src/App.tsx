@@ -34,6 +34,7 @@ import { ExploreView } from './components/ExploreView';
 import { TripDetailView } from './components/TripDetailView';
 import { playAudioAlert, getTranslation } from './utils/i18n';
 import { getAppSettings } from './utils/settings';
+import { upsertMemoryFromItinerary, removeMemoryForItinerary } from './utils/journalSync';
 import { BellRing, X } from 'lucide-react';
 
 export default function App() {
@@ -271,16 +272,19 @@ export default function App() {
 
   const handleAddItinerary = (itinerary: TravelItinerary) => {
     setItineraries((prev) => [itinerary, ...prev]);
+    upsertMemoryFromItinerary(itinerary); // pin the trip onto My Journal automatically
   };
 
   const handleUpdateItinerary = (updatedItin: TravelItinerary) => {
     setItineraries((prev) =>
       prev.map((it) => (it.id === updatedItin.id ? updatedItin : it))
     );
+    upsertMemoryFromItinerary(updatedItin); // keep the linked journal memory in step
   };
 
   const handleDeleteItinerary = (id: string) => {
     setItineraries((prev) => prev.filter((it) => it.id !== id));
+    removeMemoryForItinerary(id); // its journal memory goes with it
   };
 
   const handleAddSoloExpense = (expense: Omit<SoloPersonalExpense, 'id'>) => {
