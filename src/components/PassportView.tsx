@@ -1,9 +1,10 @@
 import React from 'react';
-import { Globe, MapPin, CalendarDays, Wallet, Stamp as StampIcon, Plane } from 'lucide-react';
+import { Globe, Stamp as StampIcon, Plane, Languages, Heart, Route } from 'lucide-react';
 import { SoloTraveler, TravelItinerary, SoloPersonalExpense, ExpenseItem } from '../types/travel';
 import { getTranslation } from '../utils/i18n';
-import { StampArt } from '../utils/landmarkArt';
-import { getFxRates, convertAmount } from '../utils/currency';
+import { PassportStamp } from '../utils/landmarkArt';
+import { haversineKm } from '../utils/units';
+import { stopsForDay } from './TripRouteMap';
 
 interface PassportViewProps {
   currentUser: SoloTraveler;
@@ -71,15 +72,27 @@ export const PassportView: React.FC<PassportViewProps> = ({
     });
 
   // ── Stats ──
-  const fx = getFxRates();
-  const totalSpentUSD =
-    soloExpenses.reduce((sum, e) => sum + convertAmount(e.amount, e.currency || 'USD', 'USD', fx), 0) +
-    sharedExpenses.reduce((sum, e) => sum + convertAmount(e.amount, e.currency || 'USD', 'USD', fx), 0);
-  const cities = new Set(itineraries.map((it) => it.destination.split(',')[0].trim().toLowerCase())).size;
-  const daysOnRoad = itineraries.reduce((sum, it) => sum + (it.days?.length || 0), 0);
+  // Total distance travelled: sum of every planned leg across all trips
+  const totalDistanceKm = Math.round(
+    itineraries.reduce((tripSum, it) => {
+      return (
+        tripSum +
+        (it.days || []).reduce((daySum, d) => {
+          const stops = stopsForDay(d);
+          let legSum = 0;
+          for (let i = 0; i < stops.length - 1; i++) {
+            legSum += haversineKm(stops[i].lat, stops[i].lng, stops[i + 1].lat, stops[i + 1].lng);
+          }
+          return daySum + legSum;
+        }, 0)
+      );
+    }, 0)
+  );
+  const languages = currentUser.languages || [];
+  const hobbies = currentUser.interests || [];
   const memberSince = String(2024 + ((currentUser.id.length + currentUser.name.length) % 2)); // stable pseudo year
 
-  const statCard = (icon: React.ReactNode, value: string, label: string) => (
+  const statCard = (icon: React.ReactNode, value: string, label: string, sub?: string) => (
     <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-4 sm:p-5 flex flex-col gap-2 shadow-xs">
       <div className="w-8 h-8 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center">
         {icon}
@@ -88,6 +101,9 @@ export const PassportView: React.FC<PassportViewProps> = ({
         {value}
       </div>
       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">{label}</div>
+      {sub && (
+        <div className="text-[10px] text-stone-500 dark:text-stone-400 leading-snug -mt-1 line-clamp-2">{sub}</div>
+      )}
     </div>
   );
 
@@ -189,12 +205,12 @@ export const PassportView: React.FC<PassportViewProps> = ({
       {/* ── Stats bento ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {statCard(<Globe className="w-4 h-4" />, String(Math.max(0, stamps.length - (homeCountry ? 1 : 0))), getTranslation('statCountries'))}
-        {statCard(<MapPin className="w-4 h-4" />, String(cities), getTranslation('statCities'))}
-        {statCard(<CalendarDays className="w-4 h-4" />, String(daysOnRoad), getTranslation('statDays'))}
+        {statCard(<Languages className="w-4 h-4" />, String(languages.length), getTranslation('statLanguages'), languages.join(' · '))}
+        {statCard(<Heart className="w-4 h-4" />, String(hobbies.length), getTranslation('statHobbies'), hobbies.join(' · '))}
         {statCard(
-          <Wallet className="w-4 h-4" />,
-          totalSpentUSD > 0 ? `$${Math.round(totalSpentUSD).toLocaleString()}` : '—',
-          getTranslation('statSpent')
+          <Route className="w-4 h-4" />,
+          totalDistanceKm > 0 ? totalDistanceKm.toLocaleString() : '—',
+          getTranslation('statTotalKm')
         )}
       </div>
 
@@ -233,18 +249,11 @@ export const PassportView: React.FC<PassportViewProps> = ({
               return (
                 <div
                   key={`${st.country}-${st.year}`}
-                  className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full border-[3px] border-dashed flex flex-col items-center justify-center text-center p-3 select-none ${STAMP_INKS[i % STAMP_INKS.length]}`}
+                  className={`w-32 h-32 sm:w-36 sm:h-36 rounded-full select-none ${STAMP_INKS[i % STAMP_INKS.length]}`}
                   style={{ transform: `rotate(${rot}deg)` }}
                   title={`${st.cities.length ? `${st.cities.join(', ')}, ` : ''}${st.country} · ${st.year}`}
                 >
-                  <StampArt cities={st.cities} className="w-11 h-11 sm:w-12 sm:h-12 opacity-80 mb-0.5" />
-                  <div className="text-[11px] sm:text-xs font-extrabold uppercase tracking-widest leading-tight line-clamp-2">
-                    {st.country}
-                  </div>
-                  <div className="mt-0.5 text-[10px] font-mono font-bold opacity-80">{st.year}</div>
-                  <div className="text-[8px] font-bold uppercase tracking-[0.25em] opacity-60 truncate max-w-full px-1">
-                    {st.cities.join(' · ') || 'Entry'}
-                  </div>
+                  <PassportStamp country={st.country} year={st.year} cities={st.cities} className="w-full h-full" />
                 </div>
               );
             })}

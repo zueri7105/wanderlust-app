@@ -77,15 +77,7 @@ interface ItineraryViewProps {
   onOpenTripDetail?: (itinerary: TravelItinerary) => void;
 }
 
-const COMMON_PURPOSES = [
-  'Split Car Rental & Fuel',
-  'Split Taxi to Outlying Sights',
-  'Shared Dining / Tapas & Feast Partner',
-  'Dawn Photography Walk',
-  'Hiking Safety Partner',
-  'Full Trip Travel Buddy',
-  'Explore Local Markets Together'
-];
+
 
 interface FormDayItem {
   name: string; // activity heading box
@@ -694,11 +686,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [formNotes, setFormNotes] = useState('');
   const [formTripScope, setFormTripScope] = useState<TripScope>('Flexible (Full or Part)');
   const [formDateFlexibility, setFormDateFlexibility] = useState<'Exact Dates' | '±1 Day' | '±2 Days' | '±3 Days'>('Exact Dates');
-  const [customGoalInput, setCustomGoalInput] = useState('');
-  const [selectedPurposes, setSelectedPurposes] = useState<string[]>([
-    'Shared Dining / Tapas & Feast Partner',
-    'Split Car Rental & Fuel'
-  ]);
+  const selectedPurposes: string[] = []; // companion goals removed from trip creation
 
   // Compute duration of stay automatically
   const computeStayDuration = (start: string, end: string) => {
@@ -793,23 +781,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       companionGoal: 'Split airport taxi'
     }
   ]);
-
-  const togglePurpose = (p: string) => {
-    if (selectedPurposes.includes(p)) {
-      setSelectedPurposes(selectedPurposes.filter((item) => item !== p));
-    } else {
-      setSelectedPurposes([...selectedPurposes, p]);
-    }
-  };
-
-  const handleAddCustomGoal = () => {
-    const trimmed = customGoalInput.trim();
-    if (!trimmed) return;
-    if (!selectedPurposes.includes(trimmed)) {
-      setSelectedPurposes([...selectedPurposes, trimmed]);
-    }
-    setCustomGoalInput('');
-  };
 
   const handleAddDraftDay = () => {
     const nextNum = formDays.length + 1;
@@ -1863,59 +1834,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     <option value="±2 Days">±2 Days (Moderate flexibility)</option>
                     <option value="±3 Days">±3 Days (Highly flexible)</option>
                   </select>
-                </div>
-              </div>
-
-              {/* Companionship Goals for This Trip (Optional with chips and custom write-in) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 text-xs">
-                    Companionship Goals for this trip <span className="text-slate-400 font-normal">(optional)</span>:
-                  </label>
-                  <span className="text-[10px] text-slate-400">Pick or type custom</span>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {COMMON_PURPOSES.map((p) => {
-                    const active = selectedPurposes.includes(p);
-                    return (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => togglePurpose(p)}
-                        className={`px-2.5 py-1 rounded-md text-xs transition-colors cursor-pointer ${
-                          active
-                            ? 'bg-rose-600 text-white font-semibold shadow-2xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center gap-1.5 pt-1">
-                  <input
-                    type="text"
-                    value={customGoalInput}
-                    onChange={(e) => setCustomGoalInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddCustomGoal();
-                      }
-                    }}
-                    placeholder="Add custom companionship goal (e.g. Split boat charter)..."
-                    className="flex-1 px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddCustomGoal}
-                    className="px-3 py-1.5 bg-rose-600 text-white rounded-md text-xs font-semibold hover:brightness-105 cursor-pointer shrink-0"
-                  >
-                    Add
-                  </button>
                 </div>
               </div>
 

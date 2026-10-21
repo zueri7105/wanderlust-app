@@ -55,35 +55,6 @@ export const Navigation: React.FC<NavigationProps> = ({
   const hl = (tab: NavTab) =>
     activeTab === tab || (tab === 'itinerary' && (activeTab === 'explore' || activeTab === 'costs'));
 
-  const initials = (currentUser?.name || 'W')
-    .split(' ')
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join('');
-
-  const Avatar = (
-    <button
-      onClick={() => onSelectTab('map')}
-      className={`rounded-full transition-all cursor-pointer ${
-        activeTab === 'settings'
-          ? 'ring-2 ring-violet-400 ring-offset-2 ring-offset-white dark:ring-offset-stone-950'
-          : 'hover:ring-2 hover:ring-violet-300 hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-stone-950'
-      }`}
-      title={getTranslation('profile')}
-    >
-      {currentUser?.avatar ? (
-        <img
-          src={currentUser.avatar}
-          alt={currentUser.name}
-          className="w-9 h-9 rounded-full object-cover border border-stone-200 dark:border-stone-700"
-        />
-      ) : (
-        <span className="w-9 h-9 rounded-full bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center text-[11px] font-bold">
-          {initials}
-        </span>
-      )}
-    </button>
-  );
 
   const SOSButton = (extra: string) => (
     <button
@@ -134,7 +105,6 @@ export const Navigation: React.FC<NavigationProps> = ({
         {/* SOS + avatar pinned to the bottom of the rail */}
         <div className="flex flex-col items-center gap-3">
           {SOSButton('w-10 h-10')}
-          {Avatar}
         </div>
       </nav>
 
@@ -162,7 +132,6 @@ export const Navigation: React.FC<NavigationProps> = ({
           })}
           <div className="flex items-center gap-2 pl-1">
             {SOSButton('w-9 h-9')}
-            {Avatar}
           </div>
         </div>
       </nav>

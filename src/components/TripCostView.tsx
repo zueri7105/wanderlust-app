@@ -95,29 +95,29 @@ const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`inline-flex items-center justify-between gap-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium cursor-pointer ${
+        className={`inline-flex items-center justify-between gap-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-400 font-medium cursor-pointer ${
           compact ? 'px-3 py-1.5 text-xs min-w-44' : 'w-full px-3 py-2 text-sm'
         }`}
       >
         <span className="inline-flex items-center gap-1.5 truncate">
-          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
           <span className="truncate max-w-56">{displayValue}</span>
         </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-stone-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-72 max-w-[85vw] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden right-0">
-          <div className="p-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="absolute z-50 mt-1 w-72 max-w-[85vw] bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-xl overflow-hidden right-0">
+          <div className="p-2 border-b border-stone-100 dark:border-stone-800">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Search className="absolute left-2.5 top-1/2 -transtone-y-1/2 w-3.5 h-3.5 text-stone-400" />
               <input
                 type="text"
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search any city or country…"
-                className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full pl-8 pr-3 py-1.5 text-xs border border-stone-200 dark:border-stone-700 rounded-lg bg-stone-50 dark:bg-stone-800 text-stone-800 dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-400"
               />
             </div>
           </div>
@@ -126,18 +126,18 @@ const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
               <button
                 type="button"
                 onClick={() => pick('All')}
-                className={`w-full text-left px-3 py-2 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer inline-flex items-center gap-2 ${
-                  value === 'All' ? 'text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800' : 'text-slate-700 dark:text-slate-300'
+                className={`w-full text-left px-3 py-2 font-semibold hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer inline-flex items-center gap-2 ${
+                  value === 'All' ? 'text-stone-900 dark:text-stone-100 bg-stone-50 dark:bg-stone-800' : 'text-stone-700 dark:text-stone-300'
                 }`}
               >
-                <Globe className="w-3.5 h-3.5 text-slate-400" />
+                <Globe className="w-3.5 h-3.5 text-stone-400" />
                 <span>All Destinations</span>
               </button>
             )}
 
             {suggestionMatches.length > 0 && (
               <>
-                <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-stone-400 uppercase tracking-wider">
                   Your Itinerary Destinations
                 </div>
                 {suggestionMatches.map((d) => (
@@ -145,8 +145,8 @@ const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
                     key={d}
                     type="button"
                     onClick={() => pick(d)}
-                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer inline-flex items-center gap-2 ${
-                      value === d ? 'font-semibold text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800' : 'text-slate-700 dark:text-slate-300'
+                    className={`w-full text-left px-3 py-2 hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer inline-flex items-center gap-2 ${
+                      value === d ? 'font-semibold text-stone-900 dark:text-stone-100 bg-stone-50 dark:bg-stone-800' : 'text-stone-700 dark:text-stone-300'
                     }`}
                   >
                     <MapPin className="w-3.5 h-3.5 text-emerald-500" />
@@ -158,7 +158,7 @@ const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
 
             {cityMatches.length > 0 && (
               <>
-                <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-stone-400 uppercase tracking-wider">
                   Cities
                 </div>
                 {cityMatches.map((c) => {
@@ -168,7 +168,7 @@ const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
                       key={full}
                       type="button"
                       onClick={() => pick(full)}
-                      className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer inline-flex items-center gap-2"
+                      className="w-full text-left px-3 py-2 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer inline-flex items-center gap-2"
                     >
                       <MapPin className="w-3.5 h-3.5 text-rose-400" />
                       <span className="truncate">{full}</span>
@@ -180,7 +180,7 @@ const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
 
             {countryMatches.length > 0 && (
               <>
-                <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-stone-400 uppercase tracking-wider">
                   Countries
                 </div>
                 {countryMatches.map((c) => (
@@ -188,7 +188,7 @@ const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
                     key={c.country}
                     type="button"
                     onClick={() => pick(c.country)}
-                    className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer inline-flex items-center gap-2"
+                    className="w-full text-left px-3 py-2 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer inline-flex items-center gap-2"
                   >
                     <Globe className="w-3.5 h-3.5 text-sky-400" />
                     <span className="truncate">{c.country}</span>
@@ -201,14 +201,14 @@ const DestinationCombobox: React.FC<DestinationComboboxProps> = ({
               <button
                 type="button"
                 onClick={() => pick(trimmed)}
-                className="w-full text-left px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                className="w-full text-left px-3 py-2 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer"
               >
                 Use "<span className="font-semibold">{trimmed}</span>" as custom destination
               </button>
             )}
 
             {trimmed.length >= 2 && suggestionMatches.length === 0 && cityMatches.length === 0 && countryMatches.length === 0 && (
-              <div className="px-3 py-2 text-slate-400">No matches — use the custom option above.</div>
+              <div className="px-3 py-2 text-stone-400">No matches — use the custom option above.</div>
             )}
           </div>
         </div>
@@ -547,14 +547,14 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
   return (
     <div className="space-y-10">
       {/* Top Controls: Currency Basket Box & Destination Filter */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-5 shadow-xs space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
           <div>
-            <h2 className="font-display text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
+            <h2 className="font-display text-2xl font-bold text-stone-900 dark:text-stone-50 tracking-tight">
               {lockedDestination ? getTranslation('tripCostsTitle') : getTranslation('costsTitle')}
             </h2>
             {lockedDestination && (
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 inline-flex items-center gap-1">
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 inline-flex items-center gap-1">
                 <MapPin className="w-3 h-3" />
                 {lockedDestination}
               </p>
@@ -564,7 +564,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
           {/* Destination Filter — hidden when the view is locked to one trip */}
           {!lockedDestination && (
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Destination:</span>
+              <span className="text-stone-500 dark:text-stone-400 font-medium">Destination:</span>
               <DestinationCombobox
                 value={filterDestination}
                 onChange={setFilterDestination}
@@ -577,23 +577,23 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
         </div>
 
         {/* Currency Basket Box: 2 rows of 6 currencies as requested */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
+        <div className="p-4 bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full border-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
+              <div className="w-7 h-7 rounded-full border-2 border-violet-500 text-violet-600 dark:text-violet-300 flex items-center justify-center font-bold text-sm shrink-0">
                 ¥
               </div>
               <div>
-                <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <div className="text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
                   <span>Currency Basket Box</span>
-                  <span className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">
+                  <span className="text-violet-700 dark:text-violet-300 font-mono font-bold">
                     Active: {activeCurrency} ({activeCurrencyDef.symbol})
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col items-start sm:items-end gap-1 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+            <div className="flex flex-col items-start sm:items-end gap-1 text-[11px] font-mono text-stone-500 dark:text-stone-400">
               <span
                 className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                   fx.isLive
@@ -631,12 +631,12 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     }}
                     className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-between shadow-xs ${
                       isActive
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold ring-2 ring-slate-900/20'
-                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                        ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold ring-2 ring-violet-300/40'
+                        : 'bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100'
                     }`}
                   >
                     <span className="font-mono">{c.symbol} {c.code}</span>
-                    {isActive && <Check className="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-600" />}
+                    {isActive && <Check className="w-3.5 h-3.5 text-white" />}
                   </button>
                 );
               })}
@@ -644,7 +644,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
           </div>
 
           {/* Row 2: User Added Currencies (max 6) + Add Currency Button */}
-          <div className="space-y-1 pt-2 border-t border-slate-200/70 dark:border-slate-700">
+          <div className="space-y-1 pt-2 border-t border-stone-200/70 dark:border-stone-700">
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               {customCurrencies.map((c) => {
                 const isActive = activeCurrency === c.code;
@@ -653,8 +653,8 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     key={c.code}
                     className={`relative group rounded-lg transition-all flex items-center justify-between border ${
                       isActive
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold border-slate-900 dark:border-slate-100 shadow-xs'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                        ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold border-violet-300/40 shadow-xs'
+                        : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100'
                     }`}
                   >
                     <button
@@ -667,7 +667,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                       className="px-3 py-2 text-xs flex-1 text-left cursor-pointer flex items-center justify-between"
                     >
                       <span className="font-mono">{c.symbol} {c.code}</span>
-                      {isActive && <Check className="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-600" />}
+                      {isActive && <Check className="w-3.5 h-3.5 text-white" />}
                     </button>
                     <button
                       type="button"
@@ -675,7 +675,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                         e.stopPropagation();
                         handleRemoveCustomCurrency(c.code);
                       }}
-                      className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors cursor-pointer mr-1"
+                      className="p-1 text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md transition-colors cursor-pointer mr-1"
                       title={`Remove ${c.code}`}
                     >
                       <X className="w-3 h-3" />
@@ -689,7 +689,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddCurrencyModalOpen(true)}
-                  className="px-3 py-2 text-xs font-semibold rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-900 dark:hover:border-slate-200 hover:text-slate-900 dark:hover:text-slate-100 flex items-center justify-center gap-1.5 transition-colors cursor-pointer bg-white/50 dark:bg-slate-900/50"
+                  className="px-3 py-2 text-xs font-semibold rounded-lg border border-dashed border-stone-300 dark:border-stone-700 text-stone-600 dark:text-stone-400 hover:border-stone-900 dark:hover:border-stone-200 hover:text-stone-900 dark:hover:text-stone-100 flex items-center justify-center gap-1.5 transition-colors cursor-pointer bg-white/50 dark:bg-stone-900/50"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Currency</span>
@@ -700,7 +700,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
               {Array.from({ length: Math.max(0, 5 - customCurrencies.length) }).map((_, i) => (
                 <div
                   key={`empty_${i}`}
-                  className="hidden sm:flex px-3 py-2 rounded-lg border border-slate-200/50 dark:border-slate-800/50 text-[10px] text-slate-400 items-center justify-center font-mono"
+                  className="hidden sm:flex px-3 py-2 rounded-lg border border-stone-200/50 dark:border-stone-800/50 text-[10px] text-stone-400 items-center justify-center font-mono"
                 >
                   Empty Slot
                 </div>
@@ -711,20 +711,20 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
       </div>
 
       {/* PART 1: YOUR OWN FINANCIALS FOR YOUR SOLO TRIP */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <section className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-6 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
           <div>
-            <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+            <div className="text-xs font-semibold text-violet-700 dark:text-violet-300 uppercase tracking-wider">
               Solo Financials
             </div>
-            <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50 mt-0.5">
+            <h3 className="font-display font-bold text-lg text-stone-950 dark:text-stone-50 mt-0.5">
               Personal Solo Trip Budget ({activeCurrency})
             </h3>
           </div>
 
           <button
             onClick={() => setIsAddSoloModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:brightness-105 transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl hover:brightness-105 transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Add Personal Expense</span>
@@ -734,9 +734,9 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
         {/* Solo Financial Metric Cards with Editable Budget */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* 1. Editable Total Trip Budget */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col justify-between">
+          <div className="p-4 bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <div className="flex items-center justify-between text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider">
                 <span>Total Budget</span>
                 <button
                   type="button"
@@ -744,7 +744,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     setBudgetEditInput(String(targetBudgetUSD));
                     setIsEditingBudget(!isEditingBudget);
                   }}
-                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                  className="text-xs text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                 >
                   <Edit3 className="w-3 h-3" />
                   <span>Edit</span>
@@ -754,14 +754,14 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
               {isEditingBudget ? (
                 <form onSubmit={handleSaveBudget} className="mt-2 space-y-1.5">
                   <div className="flex items-center gap-1">
-                    <span className="text-xs text-slate-500 font-mono">$</span>
+                    <span className="text-xs text-stone-500 font-mono">$</span>
                     <input
                       type="number"
                       min="1"
                       required
                       value={budgetEditInput}
                       onChange={(e) => setBudgetEditInput(e.target.value)}
-                      className="w-full px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
+                      className="w-full px-2 py-1 text-xs border border-stone-300 dark:border-stone-700 rounded bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-mono"
                       placeholder="USD budget..."
                     />
                   </div>
@@ -769,64 +769,64 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsEditingBudget(false)}
-                      className="px-2 py-0.5 text-[10px] text-slate-500 hover:text-slate-700"
+                      className="px-2 py-0.5 text-[10px] text-stone-500 hover:text-stone-700"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-2 py-0.5 text-[10px] bg-slate-900 text-white rounded font-semibold cursor-pointer"
+                      className="px-2 py-0.5 text-[10px] bg-stone-900 text-white rounded font-semibold cursor-pointer"
                     >
                       Save
                     </button>
                   </div>
                 </form>
               ) : (
-                <div className="mt-1 font-mono text-xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                <div className="mt-1 font-mono text-xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
                   {formatMoney(targetSoloBudget, activeCurrency)}
                 </div>
               )}
             </div>
-            <div className="text-[11px] text-slate-500 mt-1">
+            <div className="text-[11px] text-stone-500 mt-1">
               Base: ${targetBudgetUSD.toLocaleString()} USD
             </div>
           </div>
 
           {/* 2. Total Solo Spent */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <div className="p-4 bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl">
+            <div className="text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider">
               Total Solo Spent
             </div>
-            <div className="mt-1 font-mono text-xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+            <div className="mt-1 font-mono text-xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
               {formatMoney(totalSoloSpent, activeCurrency)}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-stone-500 mt-0.5">
               {budgetPercentUsed}% of {formatMoney(targetSoloBudget, activeCurrency)} budget
             </div>
           </div>
 
           {/* 3. Budget Remaining */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <div className="p-4 bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl">
+            <div className="text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider">
               Budget Remaining
             </div>
             <div className="mt-1 font-mono text-xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
               {formatMoney(budgetRemaining, activeCurrency)}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-stone-500 mt-0.5">
               Available in {activeCurrency}
             </div>
           </div>
 
           {/* 4. Recorded Items */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <div className="p-4 bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl">
+            <div className="text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider">
               Recorded Items
             </div>
-            <div className="mt-1 font-mono text-xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+            <div className="mt-1 font-mono text-xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
               {filteredSolo.length} expenses
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-stone-500 mt-0.5">
               In {filterDestination === 'All' ? 'all destinations' : filterDestination.split(',')[0]}
             </div>
           </div>
@@ -834,39 +834,39 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
         {/* Solo Personal Expenses List with Swipe Left to Delete */}
         <div className="space-y-3">
-          <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+          <div className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center justify-between">
             <span>Solo Expense Breakdown</span>
           </div>
 
           {filteredSolo.length === 0 ? (
-            <div className="p-8 text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-500">
+            <div className="p-8 text-center bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl text-xs text-stone-500">
               No personal expenses recorded for this destination yet.
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+            <div className="divide-y divide-stone-100 dark:divide-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl overflow-hidden">
               {filteredSolo.map((exp) => {
                 const converted = convertCurrency(exp.amount, exp.currency || 'USD', activeCurrency);
 
                 return (
                   <div
                     key={exp.id}
-                    className="relative overflow-hidden group bg-white dark:bg-slate-900 hover:bg-slate-50/70 dark:hover:brightness-105/50 transition-colors"
+                    className="relative overflow-hidden group bg-white dark:bg-stone-900 hover:bg-stone-50/70 dark:hover:brightness-105/50 transition-colors"
                   >
                     <div className="p-3.5 flex items-center justify-between text-xs gap-3">
                       <div className="min-w-0">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                        <div className="font-semibold text-stone-900 dark:text-stone-100 truncate">
                           {exp.title}
                         </div>
-                        <div className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <div className="text-stone-500 dark:text-stone-400 text-[11px] mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                           <span>{exp.destination}</span>
                           <span aria-hidden="true">·</span>
-                          <span className="font-medium text-slate-700 dark:text-slate-300">{exp.category}</span>
+                          <span className="font-medium text-stone-700 dark:text-stone-300">{exp.category}</span>
                           <span aria-hidden="true">·</span>
                           <span className="font-mono tabular-nums">{exp.date}</span>
                           {exp.note && (
                             <>
                               <span aria-hidden="true">·</span>
-                              <span className="italic text-slate-400">"{exp.note}"</span>
+                              <span className="italic text-stone-400">"{exp.note}"</span>
                             </>
                           )}
                         </div>
@@ -874,11 +874,11 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
                       <div className="flex items-center gap-3 shrink-0">
                         <div className="text-right">
-                          <div className="font-mono tabular-nums font-bold text-slate-900 dark:text-slate-100 text-sm">
+                          <div className="font-mono tabular-nums font-bold text-stone-900 dark:text-stone-100 text-sm">
                             {formatMoney(converted, activeCurrency)}
                           </div>
                           {(exp.currency || 'USD').toUpperCase() !== activeCurrency && (
-                            <div className="text-[10px] text-slate-400 font-mono">
+                            <div className="text-[10px] text-stone-400 font-mono">
                               Original: {exp.currency} {exp.amount.toLocaleString()}
                             </div>
                           )}
@@ -888,7 +888,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                         <button
                           type="button"
                           onClick={() => onDeleteSoloExpense && onDeleteSoloExpense(exp.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-600 transition-colors cursor-pointer rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
+                          className="p-1.5 text-stone-400 hover:text-red-600 transition-colors cursor-pointer rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
                           title="Delete expense"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -904,20 +904,20 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
       </section>
 
       {/* PART 2: COMPANION SPLIT COST LEDGER */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <section className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl p-6 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
           <div>
-            <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">
+            <div className="text-xs font-semibold text-violet-700 dark:text-violet-300 uppercase tracking-wider">
               Companion Splitting Ledger
             </div>
-            <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50 mt-0.5">
+            <h3 className="font-display font-bold text-lg text-stone-950 dark:text-stone-50 mt-0.5">
               Shared Activity & Transport Receipts
             </h3>
           </div>
 
           <button
             onClick={() => setIsAddSharedModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:brightness-105 transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl hover:brightness-105 transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Split New Expense</span>
@@ -926,32 +926,32 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
         {/* Shared Financial Metrics in Unified Currency */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <div className="p-4 bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl">
+            <div className="text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider">
               Paid Upfront By You (Pending)
             </div>
-            <div className="mt-1 font-mono text-xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+            <div className="mt-1 font-mono text-xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
               {formatMoney(totalPaidUpfrontByMe, activeCurrency)}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-stone-500 mt-0.5">
               To be collected from companions
             </div>
           </div>
 
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <div className="p-4 bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl">
+            <div className="text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider">
               Your Share of Group Costs
             </div>
-            <div className="mt-1 font-mono text-xl font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+            <div className="mt-1 font-mono text-xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
               {formatMoney(totalMyShare, activeCurrency)}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-stone-500 mt-0.5">
               Your portion of group receipts
             </div>
           </div>
 
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
-            <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <div className="p-4 bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700 rounded-2xl">
+            <div className="text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider">
               Net Balance
             </div>
             <div
@@ -960,7 +960,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                   ? 'text-emerald-700 dark:text-emerald-400'
                   : netBalance < -0.5
                   ? 'text-amber-700 dark:text-amber-400'
-                  : 'text-slate-900 dark:text-slate-100'
+                  : 'text-stone-900 dark:text-stone-100'
               }`}
             >
               {netBalance > 0.5
@@ -969,7 +969,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                 ? `-${formatMoney(Math.abs(netBalance), activeCurrency)} (You owe)`
                 : 'All Settled'}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-stone-500 mt-0.5">
               Equalized among companions
             </div>
           </div>
@@ -977,12 +977,12 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
         {/* Shared Expenses Table with Strike-Through for Settled & Swipe to Delete */}
         <div className="space-y-3">
-          <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+          <div className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center justify-between">
             <span>Recorded Shared Receipts</span>
           </div>
 
           {sortedShared.length === 0 ? (
-            <div className="p-8 text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-500">
+            <div className="p-8 text-center bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-2xl text-xs text-stone-500">
               No shared receipts recorded yet.
             </div>
           ) : (
@@ -1000,8 +1000,8 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     key={exp.id}
                     className={`relative overflow-hidden group transition-colors rounded-xl border ${
                       exp.settled
-                        ? 'bg-slate-50/80 dark:bg-slate-900/40 opacity-70 border-slate-200 dark:border-slate-800'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 shadow-xs hover:border-slate-300 dark:hover:border-slate-600'
+                        ? 'bg-stone-50/80 dark:bg-stone-900/40 opacity-70 border-stone-200 dark:border-stone-800'
+                        : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-700 shadow-xs hover:border-stone-300 dark:hover:border-stone-600'
                     }`}
                   >
                     <div className="p-3.5 sm:p-4">
@@ -1011,20 +1011,20 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                           <div
                             className={`font-semibold text-[13px] leading-snug break-words ${
                               exp.settled
-                                ? 'line-through text-slate-400 dark:text-slate-500'
-                                : 'text-slate-900 dark:text-slate-100'
+                                ? 'line-through text-stone-400 dark:text-stone-500'
+                                : 'text-stone-900 dark:text-stone-100'
                             }`}
                           >
                             {exp.title}
                           </div>
                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
-                            <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">
+                            <span className="px-1.5 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 font-medium">
                               {exp.destination}
                             </span>
                             <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-semibold">
                               {exp.category}
                             </span>
-                            <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono tabular-nums">
+                            <span className="px-1.5 py-0.5 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 font-mono tabular-nums">
                               {exp.date}
                             </span>
                           </div>
@@ -1033,14 +1033,14 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                         <div className="text-right shrink-0">
                           <div
                             className={`font-mono tabular-nums font-bold text-base ${
-                              exp.settled ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'
+                              exp.settled ? 'line-through text-stone-400' : 'text-stone-900 dark:text-stone-100'
                             }`}
                           >
                             {formatMoney(convertedTotal, activeCurrency)}
                           </div>
                           <div
                             className={`text-[11px] font-mono tabular-nums font-medium ${
-                              amISplit ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                              amISplit ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-400'
                             }`}
                           >
                             {amISplit
@@ -1048,7 +1048,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                               : 'Not in split'}
                           </div>
                           {isDifferentCurrency && (
-                            <div className="text-[10px] text-slate-400 font-mono">
+                            <div className="text-[10px] text-stone-400 font-mono">
                               Original: {exp.currency} {exp.amount.toLocaleString()}
                             </div>
                           )}
@@ -1057,14 +1057,14 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
                       {/* Receipt note gets its own full-width strip so nothing is cramped */}
                       {exp.receiptNote && (
-                        <div className="mt-2 text-[11px] italic text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-lg px-2.5 py-1.5 break-words">
+                        <div className="mt-2 text-[11px] italic text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-800 rounded-lg px-2.5 py-1.5 break-words">
                           "{exp.receiptNote}"
                         </div>
                       )}
 
                       {/* Bottom: paid-by line + roomy action buttons (stack full-width on phones) */}
                       <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                        <div className="text-[11px] text-stone-600 dark:text-stone-400">
                           Paid by <strong>{payerName}</strong> · Split {splitCount} ways (
                           {formatMoney(convertedPerPerson, activeCurrency)}/person)
                         </div>
@@ -1075,7 +1075,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                             onClick={() => onToggleSharedSettled(exp.id)}
                             className={`flex-1 sm:flex-none px-3.5 py-2 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer text-center ${
                               exp.settled
-                                ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                ? 'bg-stone-200 dark:bg-stone-700 text-stone-700 dark:text-stone-300'
                                 : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
                             }`}
                           >
@@ -1085,7 +1085,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                           <button
                             type="button"
                             onClick={() => onDeleteSharedExpense && onDeleteSharedExpense(exp.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 transition-colors cursor-pointer rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
+                            className="p-2 text-stone-400 hover:text-red-600 transition-colors cursor-pointer rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
                             title="Delete shared receipt"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1107,41 +1107,41 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
           <div className="wl-modal-card max-w-md p-6 relative text-xs space-y-4">
             <button
               onClick={() => setIsAddCurrencyModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer"
             >
               ✕
             </button>
 
-            <h3 className="font-display font-bold text-base text-slate-950 dark:text-slate-50">
+            <h3 className="font-display font-bold text-base text-stone-950 dark:text-stone-50">
               Add Currency to Row 2 Basket (Max 6)
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-stone-500 dark:text-stone-400">
               Choose from popular world travel currencies or enter a custom currency.
             </p>
 
             {/* Alphabetical World Currencies with Search Bar on top */}
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-700 dark:text-slate-300 block text-[11px] uppercase tracking-wider">
+                <span className="font-semibold text-stone-700 dark:text-stone-300 block text-[11px] uppercase tracking-wider">
                   All World Currencies (Alphabetical · Search Code, Name, or Country):
                 </span>
-                <span className="text-[10px] font-mono text-slate-400">
+                <span className="text-[10px] font-mono text-stone-400">
                   {WORLD_CURRENCIES.length} Currencies
                 </span>
               </div>
 
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -transtone-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search currency code (e.g. JPY, EUR), name, or country (e.g. Japan, Mexico, Switzerland)..."
                   value={currencySearch}
                   onChange={(e) => setCurrencySearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400"
                 />
               </div>
 
-              <div className="max-h-60 overflow-y-auto space-y-1 pr-1 border border-slate-200 dark:border-slate-700 rounded-xl p-2 bg-slate-50/50 dark:bg-slate-800/40">
+              <div className="max-h-60 overflow-y-auto space-y-1 pr-1 border border-stone-200 dark:border-stone-700 rounded-xl p-2 bg-stone-50/50 dark:bg-stone-800/40">
                 {WORLD_CURRENCIES.filter((c) => {
                   if (!currencySearch.trim()) return true;
                   const q = currencySearch.toLowerCase();
@@ -1167,22 +1167,22 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                       }
                       className={`w-full p-2 rounded-lg text-left flex items-center justify-between text-xs transition-colors ${
                         alreadyIn
-                          ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800'
-                          : 'hover:bg-white dark:hover:brightness-105 bg-white/70 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-700/60 cursor-pointer'
+                          ? 'opacity-40 cursor-not-allowed bg-stone-100 dark:bg-stone-800'
+                          : 'hover:bg-white dark:hover:brightness-105 bg-white/70 dark:bg-stone-900/60 border border-stone-200/60 dark:border-stone-700/60 cursor-pointer'
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate pr-2">
-                        <span className="font-bold font-mono text-slate-900 dark:text-slate-100 shrink-0">
+                        <span className="font-bold font-mono text-stone-900 dark:text-stone-100 shrink-0">
                           {cur.code} ({cur.symbol})
                         </span>
-                        <span className="text-slate-700 dark:text-slate-300 font-medium truncate">
+                        <span className="text-stone-700 dark:text-stone-300 font-medium truncate">
                           {cur.name}
                         </span>
-                        <span className="text-[10px] text-slate-400 shrink-0">
+                        <span className="text-[10px] text-stone-400 shrink-0">
                           · {cur.country}
                         </span>
                       </div>
-                      <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                      <span className="text-[10px] font-mono text-stone-500 shrink-0">
                         {alreadyIn ? 'In Basket' : '+ Add'}
                       </span>
                     </button>
@@ -1192,40 +1192,40 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
             </div>
 
             {/* Custom Input */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-3">
-              <span className="font-semibold text-slate-700 dark:text-slate-300 block text-[11px] uppercase tracking-wider">
+            <div className="pt-3 border-t border-stone-200 dark:border-stone-700 space-y-3">
+              <span className="font-semibold text-stone-700 dark:text-stone-300 block text-[11px] uppercase tracking-wider">
                 Or Define Custom Currency:
               </span>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-[11px] text-slate-500 mb-0.5">Code (3-letter)</label>
+                  <label className="block text-[11px] text-stone-500 mb-0.5">Code (3-letter)</label>
                   <input
                     type="text"
                     maxLength={4}
                     placeholder="e.g. CHF"
                     value={customCodeInput}
                     onChange={(e) => setCustomCodeInput(e.target.value.toUpperCase())}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
+                    className="w-full px-2.5 py-1.5 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-500 mb-0.5">Symbol</label>
+                  <label className="block text-[11px] text-stone-500 mb-0.5">Symbol</label>
                   <input
                     type="text"
                     placeholder="e.g. Fr."
                     value={customSymbolInput}
                     onChange={(e) => setCustomSymbolInput(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
+                    className="w-full px-2.5 py-1.5 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-500 mb-0.5">Rate / 1 USD</label>
+                  <label className="block text-[11px] text-stone-500 mb-0.5">Rate / 1 USD</label>
                   <input
                     type="number"
                     step="0.01"
                     value={customRateInput}
                     onChange={(e) => setCustomRateInput(Number(e.target.value))}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
+                    className="w-full px-2.5 py-1.5 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-mono"
                   />
                 </div>
               </div>
@@ -1242,7 +1242,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                   setCustomCodeInput('');
                   setCustomSymbolInput('');
                 }}
-                className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:brightness-105 cursor-pointer"
+                className="w-full py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white font-semibold rounded-2xl hover:brightness-105 cursor-pointer"
               >
                 Add Custom Currency to Row 2
               </button>
@@ -1257,21 +1257,21 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
           <div className="wl-modal-card max-w-md p-6 relative">
             <button
               onClick={() => setIsAddSoloModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer"
             >
               ✕
             </button>
 
-            <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
+            <h3 className="font-display font-bold text-lg text-stone-950 dark:text-stone-50">
               Add Personal Solo Expense
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
               Record individual flight, hotel, transit, or daily food expense for your solo trip.
             </p>
 
             <form onSubmit={handleSoloSubmit} className="mt-5 space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Expense Description
                 </label>
                 <input
@@ -1280,13 +1280,13 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                   placeholder="e.g. Return Flight or Hotel Reservation"
                   value={soloTitle}
                   onChange={(e) => setSoloTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Amount
                   </label>
                   <input
@@ -1295,18 +1295,18 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     required
                     value={soloAmountStr}
                     onChange={(e) => setSoloAmountStr(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-violet-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Currency
                   </label>
                   <select
                     value={soloCurrency}
                     onChange={(e) => setSoloCurrency(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 font-medium"
                   >
                     {allKnownCurrencies.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -1319,13 +1319,13 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Category
                   </label>
                   <select
                     value={soloCategory}
                     onChange={(e) => setSoloCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400"
                   >
                     <option value="Flights & Rail">Flights & Rail</option>
                     <option value="Lodging / Hotel">Lodging / Hotel</option>
@@ -1337,12 +1337,12 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Destination
                   </label>
                   {lockedDestination ? (
-                    <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm inline-flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                    <div className="px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300 text-sm inline-flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-stone-400" />
                       {lockedDestination}
                     </div>
                   ) : (
@@ -1356,7 +1356,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Notes (Optional)
                 </label>
                 <input
@@ -1364,21 +1364,21 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                   placeholder="e.g. Booked via airline website or local booking"
                   value={soloNote}
                   onChange={(e) => setSoloNote(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+              <div className="pt-3 border-t border-stone-200 dark:border-stone-700 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsAddSoloModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 cursor-pointer"
+                  className="px-4 py-2 text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-lg hover:bg-stone-200 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl hover:brightness-105 cursor-pointer shadow-xs"
                 >
                   Save Personal Expense
                 </button>
@@ -1394,21 +1394,21 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
           <div className="wl-modal-card max-w-md p-6 relative">
             <button
               onClick={() => setIsAddSharedModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer"
             >
               ✕
             </button>
 
-            <h3 className="font-display font-bold text-lg text-slate-950 dark:text-slate-50">
+            <h3 className="font-display font-bold text-lg text-stone-950 dark:text-stone-50">
               Split Shared Companion Expense
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
               Record a taxi ride, shared tour, meal, or boat rental to split equally with companions.
             </p>
 
             <form onSubmit={handleSharedSubmit} className="mt-5 space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Shared Expense Title
                 </label>
                 <input
@@ -1417,13 +1417,13 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                   placeholder="e.g. Taxi to Otagi Shrine or Private Boat Rental"
                   value={sharedTitle}
                   onChange={(e) => setSharedTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Total Amount
                   </label>
                   <input
@@ -1432,18 +1432,18 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     required
                     value={sharedAmountStr}
                     onChange={(e) => setSharedAmountStr(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-violet-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Currency
                   </label>
                   <select
                     value={sharedCurrency}
                     onChange={(e) => setSharedCurrency(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 font-medium"
                   >
                     {allKnownCurrencies.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -1456,7 +1456,7 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Paid Upfront By
                   </label>
                   <input
@@ -1464,21 +1464,21 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                     value={sharedPayer}
                     onChange={(e) => setSharedPayer(e.target.value)}
                     placeholder="Write a name (e.g. Elena)"
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
                   />
-                  <span className="block text-[10px] text-slate-400 mt-1">
+                  <span className="block text-[10px] text-stone-400 mt-1">
                     Leave blank if you paid — or write any name.
                   </span>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                     Category
                   </label>
                   <select
                     value={sharedCategory}
                     onChange={(e) => setSharedCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400"
                   >
                     <option value="Transport">Transport</option>
                     <option value="Tour / Guide">Tour / Guide</option>
@@ -1490,12 +1490,12 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                   Destination
                 </label>
                 {lockedDestination ? (
-                  <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm inline-flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  <div className="px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300 text-sm inline-flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-stone-400" />
                     {lockedDestination}
                   </div>
                 ) : (
@@ -1507,17 +1507,17 @@ export const TripCostView: React.FC<TripCostViewProps> = ({
                 )}
               </div>
 
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+              <div className="pt-3 border-t border-stone-200 dark:border-stone-700 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsAddSharedModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 cursor-pointer"
+                  className="px-4 py-2 text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-lg hover:bg-stone-200 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg hover:brightness-105 cursor-pointer shadow-xs"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl hover:brightness-105 cursor-pointer shadow-xs"
                 >
                   Record Shared Expense
                 </button>

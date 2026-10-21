@@ -195,26 +195,18 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-200 dark:border-stone-800">
-        <div>
-          {embedded && (
-            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-600 dark:text-violet-400 mb-1.5">
-              Travel Passport
-            </div>
-          )}
-          <h2 className="font-display text-2xl font-bold text-stone-900 dark:text-stone-50 tracking-tight">
-            {getTranslation('profileTitle')}
-          </h2>
+      {/* Compact action row — profile details live on the passport above; editing opens a galaxy modal */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-600 dark:text-violet-400">
+          {getTranslation('profileSafety')}
         </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsEditingProfile(!isEditingProfile)}
+            onClick={() => setIsEditingProfile(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-stone-900 dark:text-stone-100 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 rounded-lg transition-colors cursor-pointer"
           >
             <Edit3 className="w-3.5 h-3.5" />
-            <span>{isEditingProfile ? 'Cancel Editing' : 'Edit Profile'}</span>
+            <span>Edit Profile</span>
           </button>
           {onOpenSettings && (
             <button
@@ -227,458 +219,6 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
             </button>
           )}
         </div>
-      </div>
-
-      {/* Main Profile Card */}
-      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-6 shadow-xs">
-        {isEditingProfile ? (
-          <form onSubmit={handleSaveProfile} className="space-y-5 text-xs">
-            <h3 className="font-display font-bold text-base text-stone-950 dark:text-stone-50 pb-2 border-b border-stone-100 dark:border-stone-800">
-              Edit Personal Traveller Details
-            </h3>
-
-            {/* Profile Picture Upload Section as requested */}
-            <div className="p-4 bg-stone-50 dark:bg-stone-800/60 rounded-2xl border border-stone-200 dark:border-stone-700 flex flex-col sm:flex-row items-center gap-4">
-              <div className="relative group shrink-0">
-                <img
-                  src={avatar || currentUser.avatar}
-                  alt={name}
-                  className="w-20 h-20 rounded-2xl object-cover border-2 border-stone-300 dark:border-stone-600 shadow-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                  title="Upload picture"
-                >
-                  <Camera className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-1.5 text-center sm:text-left flex-1">
-                <div className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
-                  Profile Picture
-                </div>
-                <p className="text-stone-500 dark:text-stone-400 text-xs">
-                  Upload your own photo as your profile picture to help companions recognize you when meeting abroad.
-                </p>
-
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl text-xs font-semibold cursor-pointer hover:brightness-105 transition-colors shadow-2xs"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Upload Your Own Photo</span>
-                  </button>
-
-                  <span className="text-[11px] text-stone-400">JPG, PNG, WebP supported</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Gender</label>
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                >
-                  <option value="female">Female</option>
-                  <option value="male">Male</option>
-                  <option value="non-binary">Non-binary</option>
-                  <option value="prefer-not-to-say">Prefer not to say</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Age</label>
-                <input
-                  type="number"
-                  required
-                  value={age}
-                  onChange={(e) => setAge(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-mono tabular-nums"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Home City</label>
-                <input
-                  type="text"
-                  required
-                  value={homeCity}
-                  onChange={(e) => setHomeCity(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
-                  Nationality / Country
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Travel Pace</label>
-                <select
-                  value={travelPace}
-                  onChange={(e) => setTravelPace(e.target.value as TravelPace)}
-                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                >
-                  {PACE_OPTIONS.map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Budget Tier</label>
-                <select
-                  value={budgetTier}
-                  onChange={(e) => setBudgetTier(e.target.value as BudgetTier)}
-                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                >
-                  {BUDGET_OPTIONS.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Solo Travel Bio</label>
-              <textarea
-                rows={3}
-                required
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
-                  Languages (comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={languagesStr}
-                  onChange={(e) => setLanguagesStr(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
-                  Interests (comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={interestsStr}
-                  onChange={(e) => setInterestsStr(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
-                Travel Goals (comma separated)
-              </label>
-              <input
-                type="text"
-                placeholder="Shared local dinners, Split cabs to temples"
-                value={goalsStr}
-                onChange={(e) => setGoalsStr(e.target.value)}
-                className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-              />
-              <p className="text-[10px] text-stone-400 mt-1">
-                Shown on your profile so companions can see what you'd like to share on the road.
-              </p>
-            </div>
-
-            {/* Social links — Instagram & personal site */}
-            <div className="p-4 rounded-2xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200/70 dark:border-violet-900/40 space-y-3">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-pink-700 dark:text-pink-300 uppercase tracking-wider">
-                <Instagram className="w-3.5 h-3.5" />
-                <span>Show off your adventures</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
-                    Instagram Handle <span className="font-normal text-stone-400">(optional)</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -transtone-y-1/2 text-stone-400 font-semibold">@</span>
-                    <input
-                      type="text"
-                      placeholder="wander.anya"
-                      value={instagram}
-                      onChange={(e) => setInstagram(e.target.value)}
-                      className="w-full pl-7 pr-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                    />
-                  </div>
-                  <p className="text-[10px] text-stone-400 mt-1">
-                    Appears as a tappable Instagram chip on your profile banner.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
-                    Blog / Website <span className="font-normal text-stone-400">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. anyatravels.com"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                  />
-                  <p className="text-[10px] text-stone-400 mt-1">
-                    Your travel blog, portfolio or YouTube — anywhere companions can see more of you.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end gap-2 border-t border-stone-100 dark:border-stone-800">
-              <button
-                type="button"
-                onClick={() => setIsEditingProfile(false)}
-                className="px-4 py-2 text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-md hover:bg-stone-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-xl hover:brightness-105"
-              >
-                Save Profile
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="space-y-6">
-            {/* Vibrant traveler hero banner */}
-            <div className="relative -m-6 mb-0 rounded-t-xl overflow-hidden">
-              <div className="absolute inset-0 bg-stone-950 dark:bg-stone-900" />
-              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, white 1.5px, transparent 1.5px), radial-gradient(circle at 70% 60%, white 1px, transparent 1px), radial-gradient(circle at 45% 80%, white 1.2px, transparent 1.2px)', backgroundSize: '90px 90px, 60px 60px, 120px 120px' }} />
-              <div className="relative px-6 pt-6 pb-14 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="relative group shrink-0">
-                    <img
-                      src={currentUser.avatar}
-                      alt={currentUser.name}
-                      className="w-20 h-20 rounded-2xl object-cover border-[3px] border-white/80 shadow-lg"
-                    />
-                    <PresenceBadge status={presenceForTraveler(currentUser.id, currentUser.id)} />
-                    <button
-                      onClick={() => {
-                        setIsEditingProfile(true);
-                        setTimeout(() => fileInputRef.current?.click(), 100);
-                      }}
-                      className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                      title="Change profile picture"
-                    >
-                      <Camera className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="text-white">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-display font-bold text-2xl drop-shadow-sm">
-                        {currentUser.name}
-                      </h3>
-                      <span className="text-xs text-white/85 font-mono">
-                        {currentUser.age} yrs
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-white/90 mt-1">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        <span>From {currentUser.homeCity}, {currentUser.country}</span>
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                      {currentUser.gender === 'female' && (
-                        <span className="text-[10px] bg-white/20 backdrop-blur-xs border border-white/30 text-white px-2 py-0.5 rounded-full font-semibold">
-                          Female Solo Traveller
-                        </span>
-                      )}
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-white/20 backdrop-blur-xs border border-white/30 text-white px-2 py-0.5 rounded-full">
-                        <ShieldCheck className="w-3 h-3" />
-                        <span>Verified Solo Explorer</span>
-                      </span>
-                      {instagramHandle && (
-                        <a
-                          href={`https://instagram.com/${instagramHandle}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-white bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 shadow-sm hover:scale-105 transition-all"
-                          title="Open Instagram profile"
-                        >
-                          <Instagram className="w-3 h-3" />
-                          <span>@{instagramHandle}</span>
-                        </a>
-                      )}
-                      {websiteUrl && (
-                        <a
-                          href={websiteHref}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-semibold bg-white/20 backdrop-blur-xs border border-white/30 text-white px-2 py-0.5 rounded-full hover:bg-white/30 transition-colors"
-                          title="Open personal website"
-                        >
-                          <Link2 className="w-3 h-3" />
-                          <span>{websiteLabel}</span>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleCopyLink}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-2xl transition-all cursor-pointer shadow-md ${
-                    copiedLink
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-white text-rose-600 hover:bg-rose-50'
-                  }`}
-                >
-                  {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
-                  <span>{copiedLink ? 'Profile Link Copied!' : 'Share My Profile'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Stat chips overlapping the banner */}
-            <div className="grid grid-cols-3 gap-3 -mt-8 relative z-10 px-1">
-              <div className="p-3 bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-md text-center">
-                <Compass className="w-4 h-4 text-rose-500 mx-auto mb-1" />
-                <div className="font-mono text-lg font-bold text-stone-900 dark:text-stone-100 tabular-nums leading-none">
-                  {currentUser.soloTripsCount}
-                </div>
-                <div className="text-[10px] text-stone-500 dark:text-stone-400 mt-1">Solo Journeys</div>
-              </div>
-              <div className="p-3 bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-md text-center">
-                <HeartHandshake className="w-4 h-4 text-orange-500 mx-auto mb-1" />
-                <div className="font-mono text-lg font-bold text-stone-900 dark:text-stone-100 tabular-nums leading-none">
-                  {currentUser.vouchedByCount}
-                </div>
-                <div className="text-[10px] text-stone-500 dark:text-stone-400 mt-1">Community Vouches</div>
-              </div>
-              <div className="p-3 bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-md text-center">
-                <ShieldCheck className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
-                <div className="font-mono text-lg font-bold text-stone-900 dark:text-stone-100 tabular-nums leading-none">
-                  ★ {currentUser.safetyRating}
-                </div>
-                <div className="text-[10px] text-stone-500 dark:text-stone-400 mt-1">Companion Rating</div>
-              </div>
-            </div>
-
-            {/* Bio */}
-            <div className="pt-5">
-              <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-1">
-                About {currentUser.name.split(' ')[0]}
-              </div>
-              <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed">
-                {currentUser.bio}
-              </p>
-            </div>
-
-            {/* Travel style chips */}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 font-semibold">
-                <Compass className="w-3.5 h-3.5" />
-                <span>Pace: {currentUser.travelPace}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-300 font-semibold font-mono">
-                <span>Budget: {currentUser.budgetTier}</span>
-              </span>
-            </div>
-
-            {/* Travel goals — what this traveller hopes to share */}
-            {(currentUser.travelGoals || []).length > 0 && (
-              <div>
-                <div className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <Compass className="w-3 h-3" />
-                  <span>Looking to share</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {(currentUser.travelGoals || []).map((g) => (
-                    <span key={g} className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 font-medium text-[11px]">
-                      {g}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Languages & Interests */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700">
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-sky-700 dark:text-sky-300 uppercase tracking-wider mb-1.5">
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>Languages</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {currentUser.languages.map((lang) => (
-                    <span key={lang} className="px-2 py-0.5 bg-white dark:bg-stone-800 border border-sky-200 dark:border-sky-800 rounded-md text-stone-800 dark:text-stone-200 font-medium text-[11px]">
-                      {lang}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700">
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-300 uppercase tracking-wider mb-1.5">
-                  <Compass className="w-3.5 h-3.5" />
-                  <span>Interests</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {currentUser.interests.map((interest) => (
-                    <span key={interest} className="px-2 py-0.5 bg-white dark:bg-stone-800 border border-violet-200 dark:border-violet-800 rounded-md text-stone-800 dark:text-stone-200 font-medium text-[11px]">
-                      {interest}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Safety & Emergency Contacts Section (Refinery work on emergency contacts as requested) */}
@@ -918,6 +458,281 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Edit Profile — galaxy modal */}
+      {isEditingProfile && (
+        <div className="wl-modal-overlay" onClick={() => setIsEditingProfile(false)}>
+          <div
+            className="wl-modal-card w-full max-w-2xl mx-4 max-h-[88vh] overflow-y-auto p-6 sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="wl-modal-close"
+              onClick={() => setIsEditingProfile(false)}
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="wl-modal-eyebrow">WanderLust Studio</div>
+            <h3 className="wl-modal-title mb-5">Edit Profile</h3>
+          <form onSubmit={handleSaveProfile} className="space-y-5 text-xs">
+              {/* Profile Picture Upload Section as requested */}
+              <div className="p-4 bg-stone-50 dark:bg-stone-800/60 rounded-2xl border border-stone-200 dark:border-stone-700 flex flex-col sm:flex-row items-center gap-4">
+                <div className="relative group shrink-0">
+                  <img
+                    src={avatar || currentUser.avatar}
+                    alt={name}
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-stone-300 dark:border-stone-600 shadow-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    title="Upload picture"
+                  >
+                    <Camera className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 text-center sm:text-left flex-1">
+                  <div className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+                    Profile Picture
+                  </div>
+                  <p className="text-stone-500 dark:text-stone-400 text-xs">
+                    Upload your own photo as your profile picture to help companions recognize you when meeting abroad.
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl text-xs font-semibold cursor-pointer hover:brightness-105 transition-colors shadow-2xs"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload Your Own Photo</span>
+                    </button>
+
+                    <span className="text-[11px] text-stone-400">JPG, PNG, WebP supported</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Gender</label>
+                  <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as any)}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                  >
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="non-binary">Non-binary</option>
+                    <option value="prefer-not-to-say">Prefer not to say</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Age</label>
+                  <input
+                    type="number"
+                    required
+                    value={age}
+                    onChange={(e) => setAge(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-mono tabular-nums"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Home City</label>
+                  <input
+                    type="text"
+                    required
+                    value={homeCity}
+                    onChange={(e) => setHomeCity(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    Nationality / Country
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Travel Pace</label>
+                  <select
+                    value={travelPace}
+                    onChange={(e) => setTravelPace(e.target.value as TravelPace)}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                  >
+                    {PACE_OPTIONS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Budget Tier</label>
+                  <select
+                    value={budgetTier}
+                    onChange={(e) => setBudgetTier(e.target.value as BudgetTier)}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                  >
+                    {BUDGET_OPTIONS.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">Solo Travel Bio</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    Languages (comma separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={languagesStr}
+                    onChange={(e) => setLanguagesStr(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
+                    Interests (comma separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={interestsStr}
+                    onChange={(e) => setInterestsStr(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
+                  Travel Goals (comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Shared local dinners, Split cabs to temples"
+                  value={goalsStr}
+                  onChange={(e) => setGoalsStr(e.target.value)}
+                  className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                />
+                <p className="text-[10px] text-stone-400 mt-1">
+                  Shown on your profile so companions can see what you'd like to share on the road.
+                </p>
+              </div>
+
+              {/* Social links — Instagram & personal site */}
+              <div className="p-4 rounded-2xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200/70 dark:border-violet-900/40 space-y-3">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-pink-700 dark:text-pink-300 uppercase tracking-wider">
+                  <Instagram className="w-3.5 h-3.5" />
+                  <span>Show off your adventures</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
+                      Instagram Handle <span className="font-normal text-stone-400">(optional)</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -transtone-y-1/2 text-stone-400 font-semibold">@</span>
+                      <input
+                        type="text"
+                        placeholder="wander.anya"
+                        value={instagram}
+                        onChange={(e) => setInstagram(e.target.value)}
+                        className="w-full pl-7 pr-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                      />
+                    </div>
+                    <p className="text-[10px] text-stone-400 mt-1">
+                      Appears as a tappable Instagram chip on your profile banner.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-stone-700 dark:text-stone-300 mb-1">
+                      Blog / Website <span className="font-normal text-stone-400">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. anyatravels.com"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                    />
+                    <p className="text-[10px] text-stone-400 mt-1">
+                      Your travel blog, portfolio or YouTube — anywhere companions can see more of you.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-stone-100 dark:border-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingProfile(false)}
+                  className="px-4 py-2 text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-md hover:bg-stone-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-xl hover:brightness-105"
+                >
+                  Save Profile
+                </button>
+              </div>
+          </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

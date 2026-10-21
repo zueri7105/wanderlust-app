@@ -385,3 +385,65 @@ html.dark .wl-modal-close:hover { color: #f5f5f4; border-color: rgba(167, 139, 2
 }
 :where(html.dark .wl-modal-card) :where(input, select, textarea)::placeholder { color: #78716c; }
 :where(html.dark .wl-modal-card) :where(select) option { background: #17102b; color: #f5f5f4; }
+
+/* ── My Journal galaxy timeline ─────────────────────────────────────────── */
+
+/* Vertical "star trail" — perfect round dots at any height, like the
+   dotted flight path on the travel passport. */
+.wl-timeline-line {
+  width: 3px;
+  background-image: radial-gradient(circle at center, #c4b5fd 1.5px, transparent 1.6px);
+  background-size: 3px 12px;
+  background-repeat: repeat-y;
+  background-position: center top;
+  opacity: 0.75;
+}
+html.dark .wl-timeline-line {
+  background-image: radial-gradient(circle at center, #a78bfa 1.5px, transparent 1.6px);
+  filter: drop-shadow(0 0 3px rgba(167, 139, 250, 0.55));
+  opacity: 0.9;
+}
+
+/* Amber variant for the dream-next continuation */
+.wl-timeline-line-dream {
+  width: 3px;
+  background-image: radial-gradient(circle at center, #fbbf24 1.5px, transparent 1.6px);
+  background-size: 3px 12px;
+  background-repeat: repeat-y;
+  background-position: center top;
+  opacity: 0.7;
+}
+html.dark .wl-timeline-line-dream {
+  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.5));
+  opacity: 0.85;
+}
+
+/* Scroll-reveal — cards drift in from their side, one at a time */
+.wl-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.65s ease,
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+@media (min-width: 640px) {
+  .wl-reveal.wl-reveal-left { transform: translate(-28px, 14px); }
+  .wl-reveal.wl-reveal-right { transform: translate(28px, 14px); }
+}
+.wl-reveal.wl-visible { opacity: 1; transform: none; }
+
+/* Slow pulse for the "current" node on the timeline */
+@keyframes wl-node-pulse {
+  0% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35), 0 0 10px rgba(16, 185, 129, 0.6); }
+  70% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0), 0 0 14px rgba(16, 185, 129, 0.25); }
+  100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35), 0 0 10px rgba(16, 185, 129, 0.6); }
+}
+.wl-node-current { animation: wl-node-pulse 2.4s ease-in-out infinite; }
+
+/* Gentle float for decorative icons */
+@keyframes wl-float {
+  0%, 100% { transform: translateY(0) rotate(var(--wl-rot, 0deg)); }
+  50% { transform: translateY(-6px) rotate(var(--wl-rot, 0deg)); }
+}
+.wl-float { animation: wl-float 4.5s ease-in-out infinite; }
