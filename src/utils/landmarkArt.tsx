@@ -135,7 +135,7 @@ export const PassportStamp: React.FC<{ country: string; year: string; cities: st
     <svg viewBox="0 0 120 120" className={className} aria-hidden>
       <defs>
         <path id={arcId} d="M 60 60 m -44 0 a 44 44 0 1 1 88 0 a 44 44 0 1 1 -88 0" fill="none" />
-        <path id={arcBotId} d="M 16 60 a 44 44 0 0 0 88 0" fill="none" />
+        <path id={arcBotId} d="M 14 56 a 46 46 0 0 0 92 0" fill="none" />
       </defs>
       {/* rings */}
       <circle cx="60" cy="60" r="57" fill="none" stroke="currentColor" strokeWidth="2.4" strokeDasharray="4 3.5" opacity="0.9" />
@@ -180,7 +180,7 @@ export const PassportStamp: React.FC<{ country: string; year: string; cities: st
       )}
       {/* bottom arc overprint, e.g. IMMIGRATION CLEARED */}
       {bottomText && (
-        <text fontSize="6.4" fontWeight="800" letterSpacing="2.2" fill="currentColor" opacity="0.95">
+        <text fontSize="6" fontWeight="800" letterSpacing="1.8" fill="currentColor" opacity="0.95">
           <textPath href={`#${arcBotId}`} startOffset="50%" textAnchor="middle">
             {bottomText.toUpperCase()}
           </textPath>

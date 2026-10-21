@@ -559,6 +559,7 @@ export default function App() {
               itineraries={itineraries}
               soloExpenses={soloExpenses}
               sharedExpenses={sharedExpenses}
+              onUpdateProfile={handleUpdateProfile}
             />
             <MyProfileView
               embedded

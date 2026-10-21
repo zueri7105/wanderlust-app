@@ -10,7 +10,9 @@ import {
   Link2,
   ChevronLeft,
   ChevronRight,
-  Trophy
+  Trophy,
+  Edit3,
+  X
 } from 'lucide-react';
 import { SoloTraveler, TravelItinerary, SoloPersonalExpense, ExpenseItem } from '../types/travel';
 import { getTranslation } from '../utils/i18n';
@@ -23,6 +25,7 @@ interface PassportViewProps {
   itineraries: TravelItinerary[];
   soloExpenses: SoloPersonalExpense[];
   sharedExpenses: ExpenseItem[];
+  onUpdateProfile?: (updated: Partial<SoloTraveler>) => void;
 }
 
 // Stamp-ink colours cycle so neighbouring stamps never share an ink
@@ -44,7 +47,8 @@ const STAMPS_PER_PAGE = 6;
 
 export const PassportView: React.FC<PassportViewProps> = ({
   currentUser,
-  itineraries
+  itineraries,
+  onUpdateProfile
 }) => {
   // ── Stamps derived from real trips: one per country, earliest visit wins ──
   const splitCities = (dest: string): string[] =>
@@ -116,6 +120,42 @@ export const PassportView: React.FC<PassportViewProps> = ({
   const hobbies = currentUser.interests || [];
   const memberSince = String(2024 + ((currentUser.id.length + currentUser.name.length) % 2)); // stable pseudo year
 
+  // ── Edit profile (passport identity page fields) ──
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(currentUser.name);
+  const [editCountry, setEditCountry] = useState(currentUser.country);
+  const [editHomeCity, setEditHomeCity] = useState(currentUser.homeCity);
+  const [editBio, setEditBio] = useState(currentUser.bio);
+  const [editInstagram, setEditInstagram] = useState(currentUser.instagram || '');
+  const [editWebsite, setEditWebsite] = useState(currentUser.website || '');
+  const [editLanguages, setEditLanguages] = useState(languages.join(', '));
+  const [editHobbies, setEditHobbies] = useState(hobbies.join(', '));
+  const openEditor = () => {
+    setEditName(currentUser.name);
+    setEditCountry(currentUser.country);
+    setEditHomeCity(currentUser.homeCity);
+    setEditBio(currentUser.bio);
+    setEditInstagram(currentUser.instagram || '');
+    setEditWebsite(currentUser.website || '');
+    setEditLanguages((currentUser.languages || []).join(', '));
+    setEditHobbies((currentUser.interests || []).join(', '));
+    setIsEditing(true);
+  };
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateProfile?.({
+      name: editName.trim() || currentUser.name,
+      country: editCountry.trim() || currentUser.country,
+      homeCity: editHomeCity.trim() || currentUser.homeCity,
+      bio: editBio.trim(),
+      instagram: editInstagram.replace(/^@/, '').trim(),
+      website: editWebsite.trim(),
+      languages: editLanguages.split(',').map((x) => x.trim()).filter(Boolean),
+      interests: editHobbies.split(',').map((x) => x.trim()).filter(Boolean)
+    });
+    setIsEditing(false);
+  };
+
   const instagramHandle = (currentUser.instagram || '').replace(/^@/, '').trim();
   const websiteUrl = (currentUser.website || '').trim();
   const websiteHref = websiteUrl
@@ -185,6 +225,16 @@ export const PassportView: React.FC<PassportViewProps> = ({
                       {currentUser.name}
                     </h1>
                     <p className="mt-2 text-sm text-stone-400 max-w-md">{getTranslation('passportSub')}</p>
+                    {onUpdateProfile && (
+                      <button
+                        type="button"
+                        onClick={openEditor}
+                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-full border border-violet-300/40 text-violet-200 hover:bg-white/10 transition-colors cursor-pointer"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        {getTranslation('editProfileBtn')}
+                      </button>
+                    )}
                   </div>
 
                   {/* photo + home immigration stamp */}
@@ -235,7 +285,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
                       <div className="w-24 h-24 sm:w-28 sm:h-28 -rotate-6 text-emerald-600 dark:text-emerald-400 shrink-0 select-none" title={`${homeStamp.country} · Immigration Cleared`}>
                         <PassportStamp
                           country={homeStamp.country}
-                          year="HOME"
+                          year={new Date().getFullYear().toString()}
                           cities={homeStamp.cities}
                           bottomText={getTranslation('immigrationCleared')}
                           className="w-full h-full"
@@ -451,6 +501,76 @@ export const PassportView: React.FC<PassportViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Edit Profile — passport identity fields, galaxy modal */}
+      {isEditing && (
+        <div className="wl-modal-overlay" onClick={() => setIsEditing(false)}>
+          <div
+            className="wl-modal-card w-full max-w-xl mx-4 max-h-[88vh] overflow-y-auto p-6 sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button type="button" className="wl-modal-close" onClick={() => setIsEditing(false)} aria-label="Close">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="wl-modal-eyebrow">Travel Passport</div>
+            <h3 className="wl-modal-title mb-5">{getTranslation('editProfileBtn')}</h3>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">Full name</label>
+                  <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">Nationality (Departure)</label>
+                  <input type="text" required value={editCountry} onChange={(e) => setEditCountry(e.target.value)} className="w-full" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">Home city</label>
+                  <input type="text" required value={editHomeCity} onChange={(e) => setEditHomeCity(e.target.value)} className="w-full" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                    Instagram <span className="font-normal text-stone-400">(optional)</span>
+                  </label>
+                  <input type="text" placeholder="wander.elena" value={editInstagram} onChange={(e) => setEditInstagram(e.target.value)} className="w-full" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                    Blog / Website <span className="font-normal text-stone-400">(optional)</span>
+                  </label>
+                  <input type="text" placeholder="wanderlust-elenarostova.com" value={editWebsite} onChange={(e) => setEditWebsite(e.target.value)} className="w-full" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">{getTranslation('aboutTitle')}</label>
+                <textarea rows={3} value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full resize-none" />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">{getTranslation('statLanguages')} (comma separated)</label>
+                  <input type="text" value={editLanguages} onChange={(e) => setEditLanguages(e.target.value)} className="w-full" />
+                </div>
+                <div>
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">{getTranslation('statHobbies')} (comma separated)</label>
+                  <input type="text" value={editHobbies} onChange={(e) => setEditHobbies(e.target.value)} className="w-full" />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-stone-200 dark:border-stone-700 flex justify-end gap-2.5">
+                <button type="button" onClick={() => setIsEditing(false)} className="px-4 py-2 text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-lg hover:bg-stone-200">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 text-xs font-bold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-xl hover:brightness-105">
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

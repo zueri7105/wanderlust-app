@@ -463,6 +463,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   // The little "You are here" card on the map can be tucked away for a clean view
   const [profileCardOn, setProfileCardOn] = useState(true);
   const [myPinOn, setMyPinOn] = useState(true);
+  const [pinPanelOn, setPinPanelOn] = useState(false);
   // Map fly-to target when a journal entry is tapped
   const [memoryFly, setMemoryFly] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -960,15 +961,53 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
           </div>
 
           {/* Full-screen toggle */}
-          {/* Hide / show my avatar pinpoint */}
-          <button
-            type="button"
-            onClick={() => setMyPinOn((v) => !v)}
-            className="absolute top-3 right-12 z-[600] w-8 h-8 rounded-full bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-lg flex items-center justify-center text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer transition-colors"
-            title={myPinOn ? 'Hide my profile pin on the map' : 'Show my profile pin on the map'}
-          >
-            {myPinOn ? <MapPin className="w-4 h-4" /> : <MapPinOff className="w-4 h-4" />}
-          </button>
+          {/* Pinpoint layers — expand to choose what shows on the map */}
+          <div className="absolute top-3 right-12 z-[600]">
+            <button
+              type="button"
+              onClick={() => setPinPanelOn((v) => !v)}
+              className="w-8 h-8 rounded-full bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-stone-200 dark:border-stone-700 shadow-lg flex items-center justify-center text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer transition-colors"
+              title="Choose which pinpoints show on the map"
+            >
+              {pinPanelOn ? <MapPinOff className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
+            </button>
+            {pinPanelOn && (
+              <div className="absolute right-0 mt-2 w-44 bg-white/95 dark:bg-stone-900/95 backdrop-blur-md border border-stone-200 dark:border-stone-700 rounded-2xl shadow-xl p-2.5 space-y-1 text-[11px] font-semibold text-stone-700 dark:text-stone-200">
+                <div className="px-1 pb-1 text-[9px] font-bold uppercase tracking-wider text-stone-400">
+                  Map pinpoints
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMyPinOn((v) => !v)}
+                  className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${myPinOn ? 'bg-rose-500' : 'bg-stone-300 dark:bg-stone-600'}`} />
+                    {getTranslation('pinMe')}
+                  </span>
+                  {myPinOn ? <Eye className="w-3.5 h-3.5 text-stone-500" /> : <EyeOff className="w-3.5 h-3.5 text-stone-400" />}
+                </button>
+                {([
+                  ['current', '#10b981', 'Current', pinLayers.current, () => setPinLayers((pl) => ({ ...pl, current: !pl.current }))],
+                  ['visited', '#0ea5e9', 'Visited', pinLayers.visited, () => setPinLayers((pl) => ({ ...pl, visited: !pl.visited }))],
+                  ['dream', '#f59e0b', 'Dream Next', pinLayers.dream, () => setPinLayers((pl) => ({ ...pl, dream: !pl.dream }))]
+                ] as const).map(([key, color, label, on, toggle]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={toggle as any}
+                    className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ background: on ? (color as string) : '#a8a29e' }} />
+                      {label}
+                    </span>
+                    {on ? <Eye className="w-3.5 h-3.5 text-stone-500" /> : <EyeOff className="w-3.5 h-3.5 text-stone-400" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setIsMapFullscreen((v) => !v)}
@@ -1317,6 +1356,41 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                               <div className="text-[10px] font-mono text-amber-600/80 dark:text-amber-400/70 mt-0.5 flex items-center gap-1">
                                 <Calendar className="w-2.5 h-2.5" />
                                 {mem.date.replace(/^Planned /, '') || 'Someday'}
+                              </div>
+                              {/* same 4 functions as current/visited memories */}
+                              <div className="mt-2 pt-1.5 border-t border-amber-200/70 dark:border-amber-800/50 flex items-center justify-end gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => flyToMemory(mem)}
+                                  className="p-1.5 text-stone-400 hover:text-emerald-600 transition-colors cursor-pointer"
+                                  title="Show on map"
+                                >
+                                  <MapPin className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditMemory(mem)}
+                                  className="p-1.5 text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
+                                  title="Edit this memory"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleShareMemory(mem)}
+                                  className="p-1.5 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                  title="Share this memory"
+                                >
+                                  <Share2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteMemory(mem.id)}
+                                  className="p-1.5 text-stone-400 hover:text-red-600 transition-colors cursor-pointer"
+                                  title="Remove memory"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
                           </div>
