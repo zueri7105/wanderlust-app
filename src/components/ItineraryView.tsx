@@ -3,7 +3,6 @@ import { TravelItinerary, SoloTraveler, ItineraryDay, TravelGuideInfo, TripScope
 import {
   Calendar,
   CalendarDays,
-  ArrowLeft,
   MapPin,
   Users,
   Compass,
@@ -48,6 +47,7 @@ import {
 import { generateDestinationTravelGuide } from '../services/geminiService';
 import { formatTemperature, haversineKm } from '../utils/units';
 import { lookupCountryGuide, visaAdviceFor, tippingAdviceFor } from '../utils/countryGuides';
+import { buildBasicGuide } from '../utils/guideBuilder';
 import { cardAcceptanceForCountry, tippingForCountry, countryInfoFor, countryNameFor, visaVerdictFor } from '../utils/countryInfo';
 import { taxInfoFor } from '../utils/taxInfo';
 import ActivityImage from './ActivityImage';
@@ -55,7 +55,6 @@ import { travelAppsFor } from '../data/travelApps';
 import { emergencyNumbersFor } from '../data/emergencyNumbers';
 import { getTranslation, tv } from '../utils/i18n';
 import AutoGrowTextarea from './AutoGrowTextarea';
-import { WORLD_COUNTRIES } from './DestinationSelector';
 import { TripRouteMap } from './TripRouteMap';
 import { JourneyBoard } from './JourneyBoard';
 import { findPlaceGeo, estimateLeg, optimizeStopOrder, suggestPlacesFor, type TravelMode } from '../utils/placeGeo';
@@ -81,19 +80,6 @@ interface ItineraryViewProps {
 
 
 
-interface FormDayItem {
-  /** Activity heading (pins on the route map). */
-  name: string;
-  /** The box below the heading — notes for this stop. */
-  detail: string;
-}
-
-interface FormDayDraft {
-  /** Day heading shown on the dotted timeline. */
-  title: string;
-  /** One heading + one write box per activity. */
-  items: FormDayItem[];
-}
 
 
 const DAY_TIME_ROWS: Array<{
@@ -673,27 +659,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     onUpdateItinerary?.({ ...itin, days, wishlist });
   };
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isGeneratingGuide, setIsGeneratingGuide] = useState(false);
 
-  // Form state — destination split into Country box + City box.
-  // City is optional (country alone is enough for companion matching) and may
-  // hold several comma-separated cities for multi-city trips.
-  const [formCountry, setFormCountry] = useState('');
-  const [formCity, setFormCity] = useState('');
-  const formCities = formCity
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const formDest = formCities.length > 0 && formCountry.trim()
-    ? `${formCities.join(' · ')}, ${formCountry.trim()}`
-    : (formCities.join(' · ') || formCountry.trim());
-  const [formStartDate, setFormStartDate] = useState('2026-11-01');
-  const [formEndDate, setFormEndDate] = useState('2026-11-05');
-  const [formNotes, setFormNotes] = useState('');
-  const [formTripScope, setFormTripScope] = useState<TripScope>('Flexible (Full or Part)');
-  const [formDateFlexibility, setFormDateFlexibility] = useState<'Exact Dates' | '±1 Day' | '±2 Days' | '±3 Days'>('Exact Dates');
-  const selectedPurposes: string[] = []; // companion goals removed from trip creation
 
   // Compute duration of stay automatically
   const computeStayDuration = (start: string, end: string) => {
@@ -704,310 +671,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     const nights = Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
     const days = nights + 1;
     return { days, nights };
-  };
-
-  const syncDraftDaysCount = (targetDays: number) => {
-    setFormDays((prev) => {
-      if (prev.length === targetDays) return prev;
-      if (prev.length < targetDays) {
-        const added: FormDayDraft[] = [];
-        for (let i = prev.length + 1; i <= targetDays; i++) {
-          added.push({ title: `Day ${i}`, items: [{ name: '', detail: '' }] });
-        }
-        return [...prev, ...added];
-      }
-      return prev.slice(0, targetDays);
-    });
-  };
-
-  const handleStartDateChange = (val: string) => {
-    setFormStartDate(val);
-    const dur = computeStayDuration(val, formEndDate);
-    syncDraftDaysCount(dur.days);
-  };
-
-  const handleEndDateChange = (val: string) => {
-    setFormEndDate(val);
-    const dur = computeStayDuration(formStartDate, val);
-    syncDraftDaysCount(dur.days);
-  };
-
-  // Dynamic multi-day draft list — per day a heading, then one heading + one
-  // write box per activity, matching the dotted-line day cards on the trip page.
-  const [formDays, setFormDays] = useState<FormDayDraft[]>([
-    {
-      title: 'Arrival & Old Town First Walk',
-      items: [
-        { name: 'Arrive & check in', detail: 'Airport transfer, settle in' },
-        { name: 'Historic square stroll', detail: 'Local cafe stop' },
-        { name: 'Welcome dinner', detail: 'Neighborhood tavern' }
-      ]
-    },
-    {
-      title: 'Iconic Architecture & Viewpoints',
-      items: [
-        { name: 'Early landmark walk', detail: 'Before the crowds' },
-        { name: 'Artisan market crawl', detail: '' },
-        { name: 'Scenic city viewpoint', detail: '' },
-        { name: 'Sunset dinner', detail: '' }
-      ]
-    },
-    {
-      title: 'Day Excursion & Outdoor Adventure',
-      items: [
-        { name: 'Day trip out', detail: 'Nearby island, national park, or guided tour' },
-        { name: 'Scenic highlights & nature spots', detail: '' },
-        { name: 'Panoramic terrace', detail: 'Sunset drinks' }
-      ]
-    },
-    {
-      title: 'Cultural Heritage & Sunset Walk',
-      items: [
-        { name: 'Palace / museum visit', detail: 'Main heritage monument' },
-        { name: 'Promenade coffee', detail: 'Artisan shopping' },
-        { name: 'Farewell dinner', detail: 'Local terrace' }
-      ]
-    },
-    {
-      title: 'Morning Views & Departure',
-      items: [
-        { name: 'Farewell vista', detail: 'Cable car or viewpoint' },
-        { name: 'Pack & airport transfer', detail: '' },
-        { name: 'Departure flight', detail: '' }
-      ]
-    }
-  ]);
-
-  const handleAddDraftDay = () => {
-    const nextNum = formDays.length + 1;
-    setFormDays([...formDays, { title: `Day ${nextNum}`, items: [{ name: '', detail: '' }] }]);
-  };
-
-  const handleRemoveDraftDay = (index: number) => {
-    if (formDays.length <= 1) return;
-    setFormDays(formDays.filter((_, idx) => idx !== index));
-  };
-
-  const handleUpdateDraftDay = (index: number, field: 'title', val: string) => {
-    const next = [...formDays];
-    next[index] = { ...next[index], [field]: val };
-    setFormDays(next);
-  };
-
-  const handleUpdateDayItem = (dayIdx: number, itemIdx: number, field: keyof FormDayItem, val: string) => {
-    setFormDays((prev) =>
-      prev.map((d, i) =>
-        i === dayIdx
-          ? { ...d, items: d.items.map((it, j) => (j === itemIdx ? { ...it, [field]: val } : it)) }
-          : d
-      )
-    );
-  };
-
-  const handleAddDayItem = (dayIdx: number) => {
-    setFormDays((prev) =>
-      prev.map((d, i) => (i === dayIdx ? { ...d, items: [...d.items, { name: '', detail: '' }] } : d))
-    );
-  };
-
-  const handleRemoveDayItem = (dayIdx: number, itemIdx: number) => {
-    setFormDays((prev) =>
-      prev.map((d, i) =>
-        i === dayIdx && d.items.length > 1
-          ? { ...d, items: d.items.filter((_, j) => j !== itemIdx) }
-          : d
-      )
-    );
-  };
-
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formDest || !formStartDate || !formEndDate) return;
-
-    setIsGeneratingGuide(true);
-
-    const guide = await buildTravelGuide(formDest, formCountry, formCities[0], formNotes, formStartDate, formEndDate);
-
-    // Sights near the destination — slots the user left blank get auto-planned
-    // so the route map is ready the moment the trip is saved.
-    const suggestions = suggestPlacesFor(
-      `${formCities[0] || formDest} ${formCountry || guide.destinationCountry || ''}`,
-      formDays.length * 3
-    );
-
-    const newItinerary: TravelItinerary = {
-      id: `itin_${Date.now()}`,
-      travelerId: currentUser.id,
-      destination: formDest.includes(',') ? formDest : `${formCities[0] || formDest}, ${guide.destinationCountry}`,
-      country: guide.destinationCountry,
-      cities: formCities.length > 1 ? formCities : undefined,
-      startDate: formStartDate,
-      endDate: formEndDate,
-      companionPurpose: selectedPurposes.length > 0 ? selectedPurposes : ['Solo Exploration'],
-      notes: formNotes || `Solo trip to ${formDest}.`,
-      days: formDays.map((d, idx) => {
-        // Each activity is a heading (pins on the route map) with its own write
-        // box — names store newline-joined so the dotted timeline, map and day
-        // view split them back out; boxes land in stopDetails keyed by name.
-        const names = d.items.map((it) => it.name.trim()).filter(Boolean);
-        const details: Record<string, string> = {};
-        d.items.forEach((it) => {
-          const n = it.name.trim();
-          if (n && it.detail.trim()) details[n] = it.detail.trim();
-        });
-        const picks = suggestions.slice(idx * 3, idx * 3 + 3);
-        return {
-          dayNumber: idx + 1,
-          title: d.title.trim() || `Day ${idx + 1}`,
-          morningActivity: names.length
-            ? names.join('\n')
-            : (picks[0] ? `Visit ${picks[0].name}` : 'Free morning to explore at your own pace.'),
-          afternoonActivity: names.length ? '' : (picks[1] ? `Explore ${picks[1].name}` : 'Free afternoon for spontaneous plans.'),
-          eveningActivity: names.length ? '' : (picks[2] ? `Evening at ${picks[2].name}` : 'Relaxed evening, dinner nearby.'),
-          stopDetails: details
-        };
-      }),
-      travelGuide: guide,
-      tripScope: formTripScope,
-      dateFlexibility: formDateFlexibility,
-      visibility: 'public'
-    };
-
-    onAddItinerary(newItinerary);
-    setIsAddModalOpen(false);
-
-    // Auto expand the new trip with its route map already planned
-    setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
-    setRouteMapOpenFor(newItinerary.id);
-  };
-
-  /** Shared guide builder (country knowledge base + optional AI generation). */
-  const buildTravelGuide = async (
-    destInput: string,
-    countryInput: string,
-    firstCity: string | undefined,
-    notes: string,
-    startDate: string,
-    endDate: string
-  ): Promise<TravelGuideInfo> => {
-    // Country knowledge base: resolves bare cities ("Bangkok" → Thailand) and aligns
-    // entry rules, customs, phrases and currency with whatever destination is typed.
-    const kb = lookupCountryGuide(destInput);
-    const nat = currentUser.country || 'Germany';
-    const country = countryInput.trim() || (kb.key !== 'generic' ? kb.name : destInput);
-    const city = firstCity || destInput;
-    const visaText = visaAdviceFor(nat, kb);
-    const tippingText = tippingAdviceFor(nat, kb);
-    const kbCurrency = {
-      code: kb.currencyCode,
-      name: kb.currencyName,
-      symbol: kb.currencySymbol,
-      rateBenchmark: '',
-      cardAcceptance: 'Cards are widely accepted in cities; carry some cash for markets, taxis, and small towns.',
-      tippingRules: tippingText
-    };
-
-    // Country-specific emergency numbers (police / ambulance) for the safety panel
-    const emergency = emergencyNumbersFor(`${formDest} ${country}`);
-    const emergencyAdvisory =
-      `Emergency numbers in ${emergency.country}: ` +
-      (emergency.numbers.general ? `General ${emergency.numbers.general} · ` : '') +
-      `Police ${emergency.numbers.police} · Ambulance ${emergency.numbers.ambulance}` +
-      (emergency.numbers.fire ? ` · Fire ${emergency.numbers.fire}` : '') +
-      '. Save them offline before you arrive.';
-    // Concrete, locally-used travel apps for this destination
-    const localApps = travelAppsFor(`${formDest} ${country}`);
-
-    let guide: TravelGuideInfo;
-    try {
-      const generated = await generateDestinationTravelGuide(formDest, nat, formNotes);
-      guide = {
-        travelerNationality: nat,
-        destinationCity: city,
-        destinationCountry: country,
-        visaRequirements: visaText,
-        specificCurrency: {
-          ...kbCurrency,
-          cardAcceptance: generated.specificCurrency?.cardAcceptance || kbCurrency.cardAcceptance
-        },
-        weatherOutlook: generated.weatherOutlook || {
-          cityName: `${city} Local Climate`,
-          seasonPeriod: `${formStartDate} to ${formEndDate}`,
-          temperatureRange: '14°C – 23°C (57°F – 73°F)',
-          daytimeAvg: '21°C',
-          nighttimeAvg: '14°C',
-          rainProbability: '15% chance of light showers',
-          conditions: 'Sunny, pleasant afternoons with cool evenings.',
-          daylightSummary: 'Approx. 11 hours daylight.',
-          clothingAdvice: 'Pack comfortable layers, walking shoes, and a light windbreaker.'
-        },
-        recommendedToBring: generated.recommendedToBring?.length
-          ? generated.recommendedToBring
-          : ['Walking shoes', 'Plug adapter', 'Light jacket'],
-        arrivalRulesAndApps: {
-          connectivityAdvice:
-            generated.arrivalRulesAndApps?.connectivityAdvice ||
-            'Purchase an international eSIM or check roaming coverage before departure.',
-          recommendedApps: generated.arrivalRulesAndApps?.recommendedApps?.length
-            ? generated.arrivalRulesAndApps.recommendedApps
-            : localApps,
-          entryRegulations: kb.entryRules
-        },
-        culturalNorms: kb.customs,
-        basicGreetings: kb.phrases,
-        culturalShocks: generated.culturalShocks || [
-          {
-            title: 'Dining Schedules & Local Pace',
-            description: 'Restaurants and shops operate on local rhythms.',
-            tip: 'Check opening hours for afternoon closures.'
-          }
-        ],
-        soloSafetyAdvisories: [
-          emergencyAdvisory,
-          ...(generated.soloSafetyAdvisories?.length
-            ? generated.soloSafetyAdvisories
-            : ['Meet potential travel companions in public plazas.'])
-        ]
-      };
-    } catch {
-      guide = {
-        travelerNationality: nat,
-        destinationCity: city,
-        destinationCountry: country,
-        visaRequirements: visaText,
-        specificCurrency: kbCurrency,
-        weatherOutlook: {
-          cityName: `${city} City Outlook`,
-          seasonPeriod: `${formStartDate} to ${formEndDate}`,
-          temperatureRange: '16°C – 24°C',
-          daytimeAvg: '22°C',
-          nighttimeAvg: '15°C',
-          rainProbability: '20%',
-          conditions: 'Mild pleasant autumn weather.',
-          daylightSummary: 'Approx. 11 hours daylight.',
-          clothingAdvice: 'Light layers, good walking sneakers, sunglasses.'
-        },
-        recommendedToBring: [
-          'Comfortable walking shoes',
-          'Power bank for full-day photo exploration',
-          'Universal power plug adapter',
-          'Lightweight packable rain jacket'
-        ],
-        arrivalRulesAndApps: {
-          connectivityAdvice: 'Download offline maps before leaving airport.',
-          recommendedApps: localApps,
-          entryRegulations: kb.entryRules
-        },
-        culturalNorms: kb.customs,
-        basicGreetings: kb.phrases,
-        culturalShocks: [
-          { title: 'Local Etiquette', description: 'Be respectful of local traditions.', tip: 'Observe locals.' }
-        ],
-        soloSafetyAdvisories: [emergencyAdvisory, 'Meet potential travel companions in busy public places and share your live location with someone you trust.']
-      };
-    }
-    setIsGeneratingGuide(false);
-    return guide;
   };
 
   /* ── Pi-Travel creation hub ────────────────────────────────────────────── */
@@ -1043,8 +706,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         eveningActivity: picks[2] ? `Evening at ${picks[2].name}` : ''
       };
     });
-    setIsGeneratingGuide(true);
-    const guide = await buildTravelGuide(destination, '', destination.split(',')[0]?.trim(), '', iso(start), iso(end));
+    const guide = buildBasicGuide(destination, '', destination.split(',')[0]?.trim(), currentUser.country || '', iso(start), iso(end));
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,
       travelerId: currentUser.id,
@@ -1063,6 +725,44 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
     setRouteMapOpenFor(newItinerary.id); // route map opens already planned
     handleOpenEditTrip(newItinerary);
+  };
+
+  /** "+ Add a new trip" — no form, no popup: create the trip instantly and
+      land straight on its route map & day-planning page. */
+  const handleInstantCreate = () => {
+    const quick = quickText.trim();
+    const start = new Date();
+    start.setDate(start.getDate() + 14);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 2);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const days: ItineraryDay[] = Array.from({ length: 3 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return {
+        dayNumber: i + 1,
+        date: iso(d),
+        title: '',
+        morningActivity: '',
+        afternoonActivity: '',
+        eveningActivity: ''
+      };
+    });
+    const newItinerary: TravelItinerary = {
+      id: `itin_${Date.now()}`,
+      travelerId: currentUser.id,
+      destination: quick,
+      country: quick.includes(',') ? (quick.split(',').pop() || '').trim() : '',
+      startDate: iso(start),
+      endDate: iso(end),
+      companionPurpose: [],
+      notes: '',
+      days,
+      visibility: 'private'
+    };
+    onAddItinerary(newItinerary);
+    setQuickText('');
+    onOpenTripDetail?.(newItinerary);
   };
 
   /** Parse pasted guide text: named places fall into the Want-to-go pool of a draft trip. */
@@ -1106,8 +806,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         eveningActivity: picks[2] || ''
       };
     });
-    setIsGeneratingGuide(true);
-    const guide = await buildTravelGuide(firstPlace || text.slice(0, 40), '', firstPlace, text.slice(0, 300), iso(start), iso(end));
+    const guide = buildBasicGuide(firstPlace || text.slice(0, 40), '', firstPlace, currentUser.country || '', iso(start), iso(end));
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,
       travelerId: currentUser.id,
@@ -1222,7 +921,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           <div className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 text-right">
             <button
               type="button"
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={handleInstantCreate}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl border border-dashed border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-500 dark:text-stone-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-400 dark:hover:border-violet-500 transition-colors cursor-pointer"
             >
               {getTranslation('manualCreateLink')}
@@ -1254,7 +953,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             Create your first detailed itinerary box with multi-day morning, afternoon, and evening schedules.
           </p>
           <button
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={handleInstantCreate}
             className="mt-4 inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -1266,7 +965,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           {sortedItineraries.map((itinerary) => {
             const isExpanded = !!expandedIds[itinerary.id];
             // Traveller nationality drives the visa chip on the card header
-            const guideNat = itinerary.travelGuide?.travelerNationality || currentUser.country || 'Germany';
+            const guideNat = (itinerary.travelGuide?.travelerNationality || currentUser.country || '').trim();
             // Pi-style card stat: total planned stops across every day & slot
             const placesCount = itinerary.days.reduce(
               (n, d) =>
@@ -1364,10 +1063,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     <div className="space-y-1.5 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className={`font-display font-bold text-lg ${cover ? 'text-white' : 'text-slate-950 dark:text-slate-50'}`}>
-                          {itinerary.destination}
+                          {itinerary.destination || getTranslation('untitledTrip')}
                         </h3>
                         {/* Visa chip — passport × destination specific, from official sources */}
-                        {(() => {
+                        {!guideNat && (
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded border ${cover ? 'text-white/90 bg-white/10 border-white/25' : 'text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800/60 border-stone-300/80 dark:border-stone-700'}`}>
+                            <Stamp className="w-3 h-3" />
+                            {getTranslation('visaNeedNat')}
+                          </span>
+                        )}
+                        {guideNat && (() => {
                           const destText = `${itinerary.country || ''} ${itinerary.destination}`;
                           const v = visaVerdictFor(guideNat, destText);
                           const daysStr = v.days ? tv('visaDaysShort', { n: v.days }) : '';
@@ -1420,7 +1125,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             : 'text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                         }`}>
                           <MapPin className="w-3 h-3" />
-                          {itinerary.country || itinerary.destination}
+                          {itinerary.country || itinerary.destination || getTranslation('untitledTrip')}
                         </span>
                         <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded border ${cdCls}`}>
                           {cd.kind === 'today' ? <Sparkles className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
@@ -1766,308 +1471,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
 
 
-
-      {/* Plan New Itinerary Modal with Dynamic Multi-Day Builder */}
-      {isAddModalOpen && (
-        /* Full new-trip PAGE (not a popup) — “+ Add a new trip” lands here
-           directly; Back / Cancel returns to the trips list. */
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-50 dark:bg-[#0b0714] md:pl-[76px]">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-5">
-            <button
-              type="button"
-              onClick={() => setIsAddModalOpen(false)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-500 dark:text-stone-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>{getTranslation('backToTrips')}</span>
-            </button>
-          <div className="wl-modal-card max-w-2xl p-6 sm:p-7 relative" style={{ maxHeight: 'none', overflow: 'visible' }}>
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <div className="wl-modal-eyebrow">WanderLust Studio</div>
-                <h3 className="wl-modal-title mt-1.5">
-                  Plan New Trip Itinerary & Schedule
-                </h3>
-                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1.5 max-w-md">
-                  Build your day-by-day plan on the dotted line — a heading per day, then one heading with its own write box per activity.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="wl-modal-close"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleFormSubmit} className="mt-5 space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Destination
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <input
-                      type="text"
-                      required
-                      list="wl-country-list"
-                      placeholder="Country (e.g. Croatia)"
-                      value={formCountry}
-                      onChange={(e) => setFormCountry(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                    />
-                    <datalist id="wl-country-list">
-                      {WORLD_COUNTRIES.map((c) => (
-                        <option key={c.country} value={c.country} />
-                      ))}
-                    </datalist>
-                    <span className="block text-[10px] text-slate-400 mt-1">Country</span>
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="City — optional (e.g. Dubrovnik, or Kyoto, Osaka)"
-                      value={formCity}
-                      onChange={(e) => setFormCity(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900"
-                    />
-                    <span className="block text-[10px] text-slate-400 mt-1">
-                      City — optional. Visiting several cities? Separate them with commas. Leave blank to match companions by country.
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formStartDate}
-                    onChange={(e) => handleStartDateChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formEndDate}
-                    onChange={(e) => handleEndDateChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-              </div>
-
-              {/* Automatically generated Duration of Stay */}
-              {(() => {
-                const dur = computeStayDuration(formStartDate, formEndDate);
-                return (
-                  <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg flex items-center justify-between text-xs">
-                    <span className="font-semibold text-rose-900 dark:text-rose-200">
-                      Duration of stay:
-                    </span>
-                    <span className="font-mono font-bold text-rose-700 dark:text-rose-300">
-                      {dur.days} Days ({dur.nights} Nights)
-                    </span>
-                  </div>
-                );
-              })()}
-
-              {/* Scope & Date Flexibility */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 text-xs">
-                    Travel Together Scope:
-                  </label>
-                  <select
-                    value={formTripScope}
-                    onChange={(e) => setFormTripScope(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs"
-                  >
-                    <option value="Flexible (Full or Part)">Flexible (Full or Part of Trip)</option>
-                    <option value="Full Trip">Full Trip (Travel Together Throughout)</option>
-                    <option value="Part of Trip">Part of Trip (Meet for Specific Days / Sights)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 text-xs">
-                    Date Flexibility:
-                  </label>
-                  <select
-                    value={formDateFlexibility}
-                    onChange={(e) => setFormDateFlexibility(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs"
-                  >
-                    <option value="Exact Dates">Exact Dates (Fixed schedule)</option>
-                    <option value="±1 Day">±1 Day (Slightly flexible)</option>
-                    <option value="±2 Days">±2 Days (Moderate flexibility)</option>
-                    <option value="±3 Days">±3 Days (Highly flexible)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Privacy Notice on Itinerary Visibility */}
-              <div className="text-[11px] text-slate-500 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                <strong className="text-slate-800 dark:text-slate-200">Open to public:</strong> Dates, destination, flexibility, and general notes are viewable by public travelers to find companions. Detailed journey can be customized in Settings.
-              </div>
-
-              {/* Multi-Day Planner — same dotted-line day cards as the trip page:
-                  one heading + one plan box (one activity per line) per day. */}
-              <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs">
-                    Travel Planning ({formDays.length} Days)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleAddDraftDay}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Another Day</span>
-                  </button>
-                </div>
-
-                <div className="relative">
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-[15px] top-4 bottom-4 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
-                  />
-                  <div className="space-y-3">
-                    {formDays.map((d, idx) => (
-                      <div key={idx} className="relative pl-11">
-                        <span
-                          aria-hidden="true"
-                          className="absolute left-0 top-3 w-8 h-8 rounded-full bg-rose-600 text-white text-[11px] font-bold flex items-center justify-center shadow-sm border-2 border-white dark:border-slate-900"
-                        >
-                          {idx + 1}
-                        </span>
-                        <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              placeholder={`Day ${idx + 1} heading (e.g. Dawn Temple Photography)`}
-                              value={d.title}
-                              onChange={(e) => handleUpdateDraftDay(idx, 'title', e.target.value)}
-                              className="flex-1 min-w-0 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold text-xs"
-                            />
-                            {formDays.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveDraftDay(idx)}
-                                className="p-1 text-slate-400 hover:text-red-600 shrink-0 cursor-pointer"
-                                title="Remove day"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                          {/* one heading + one write box per activity */}
-                          <div className="space-y-2">
-                            {d.items.map((it, itemIdx) => (
-                              <div
-                                key={itemIdx}
-                                className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1.5"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-bold text-slate-400 shrink-0 w-4 text-center">
-                                    {itemIdx + 1}
-                                  </span>
-                                  <input
-                                    type="text"
-                                    placeholder={getTranslation('jdNamePh')}
-                                    value={it.name}
-                                    onChange={(e) => handleUpdateDayItem(idx, itemIdx, 'name', e.target.value)}
-                                    className="flex-1 min-w-0 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold"
-                                  />
-                                  {d.items.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveDayItem(idx, itemIdx)}
-                                      className="p-1 text-slate-400 hover:text-red-600 shrink-0 cursor-pointer"
-                                      title="Remove activity"
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                                <textarea
-                                  rows={2}
-                                  placeholder={getTranslation('jdStopNotePh')}
-                                  value={it.detail}
-                                  onChange={(e) => handleUpdateDayItem(idx, itemIdx, 'detail', e.target.value)}
-                                  className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px] leading-relaxed"
-                                />
-                              </div>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() => handleAddDayItem(idx)}
-                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-dashed border-rose-300 dark:border-rose-800 rounded-lg hover:bg-rose-100 transition-colors cursor-pointer"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              {getTranslation('jdAddActivity')}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Trip Overview & Notes
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Outline key priorities, lodging style, or pace preferences..."
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isGeneratingGuide}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:brightness-105 transition-colors shadow-xs flex items-center gap-1.5"
-                >
-                  {isGeneratingGuide ? (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                      <span>Generating Travel Guide...</span>
-                    </>
-                  ) : (
-                    <span>Save Itinerary Box</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-          </div>
-        </div>
-      )}
 
       {/* Edit Trip Modal — edit every day at once; delete trip lives here */}
       {editingTripId && (() => {

@@ -90,7 +90,9 @@ export const buildBasicGuide = (
   endDate: string
 ): TravelGuideInfo => {
   const kb = lookupCountryGuide(destInput);
-  const nat = nationality || 'Germany';
+  // Never invent a nationality — an empty passport means visa/currency sections
+  // must ask for the traveller's nationality instead of assuming one.
+  const nat = (nationality || '').trim();
   const country =
     countryInput.trim() ||
     countryNameFor(destInput) ||

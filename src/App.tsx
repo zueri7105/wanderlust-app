@@ -53,10 +53,13 @@ export default function App() {
   // First-run onboarding wizard — shown once to a brand-new (blank) profile
   const [showOnboarding, setShowOnboarding] = useState(() => {
     try {
-      if (localStorage.getItem('wanderlust_onboarded_v1')) return false;
       const saved = localStorage.getItem('roamtogether_current_user');
       const u = saved ? JSON.parse(saved) : CURRENT_USER;
-      return !u.country; // no nationality yet → this traveller has never been welcomed
+      // Nationality is mandatory (visa rules must never be guessed) — a profile
+      // without a passport country goes through the wizard, even if it skipped
+      // or finished it before this rule existed.
+      if (!u.country) return true;
+      return !localStorage.getItem('wanderlust_onboarded_v1');
     } catch {
       return false;
     }
@@ -553,10 +556,7 @@ export default function App() {
     setDetailTripId(newItinerary.id); // land on the new trip's journey board
   };
 
-  const handleOnboardingSkip = () => {
-    localStorage.setItem('wanderlust_onboarded_v1', '1');
-    setShowOnboarding(false);
-  };
+  // (no skip handler — onboarding is mandatory so nationality is always known)
 
   const handleUpdateSafetyRecord = (partial: Partial<SafeCheckinRecord>) => {
     setSafetyRecord((prev) => ({ ...prev, ...partial }));
@@ -736,7 +736,7 @@ export default function App() {
 
       {/* First-run onboarding wizard */}
       {showOnboarding && (
-        <OnboardingView onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />
+        <OnboardingView onComplete={handleOnboardingComplete} />
       )}
 
       {/* Emergency SOS Help Modal */}

@@ -8,6 +8,7 @@ import {
   TravelTrip
 } from '../types/travel';
 import { getTranslation } from '../utils/i18n';
+import { buildBasicGuide } from '../utils/guideBuilder';
 import { getFxRates, convertAmount } from '../utils/currency';
 import { ItineraryView } from './ItineraryView';
 import { TripCostView } from './TripCostView';
@@ -52,6 +53,32 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 }) => {
   // Tabs in order: Trips (the plan) → Trip costs → Travel Guide
   const [tab, setTab] = useState<'plan' | 'costs' | 'guide'>('plan');
+
+  // Blank-destination trip (created via "+ Add a new trip"): the masthead is a
+  // destination input; committing it names the trip and builds its guide.
+  const [destDraft, setDestDraft] = useState('');
+  const [destSaving, setDestSaving] = useState(false);
+  const commitDestination = async () => {
+    const dest = destDraft.trim();
+    if (!dest || destSaving) return;
+    setDestSaving(true);
+    const country = dest.includes(',') ? (dest.split(',').pop() || '').trim() : '';
+    const guide = buildBasicGuide(
+      dest,
+      country,
+      dest.split(',')[0]?.trim(),
+      currentUser.country || '',
+      itinerary.startDate,
+      itinerary.endDate
+    );
+    onUpdateItinerary({
+      ...itinerary,
+      destination: dest,
+      country: country || guide.destinationCountry,
+      travelGuide: guide
+    });
+    setDestSaving(false);
+  };
 
   // Per-trip spend (destination-prefix match, converted to USD for the chip)
   const fx = getFxRates();
@@ -102,12 +129,36 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           <span>{getTranslation('backToTrips').replace('← ', '')}</span>
         </button>
 
-        <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-600 dark:text-violet-400">
-          {getTranslation('myTripsTitle')} · {itinerary.country || itinerary.destination.split(',').pop()?.trim()}
-        </div>
-        <h1 className="font-display text-3xl sm:text-6xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 leading-[1.05] break-words">
-          {itinerary.destination}
-        </h1>
+        {(itinerary.country || itinerary.destination.split(',').pop()?.trim()) && (
+          <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-violet-600 dark:text-violet-400">
+            {getTranslation('myTripsTitle')} · {itinerary.country || itinerary.destination.split(',').pop()?.trim()}
+          </div>
+        )}
+        {itinerary.destination.trim() ? (
+          <h1 className="font-display text-3xl sm:text-6xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 leading-[1.05] break-words">
+            {itinerary.destination}
+          </h1>
+        ) : (
+          <div className="max-w-xl">
+            <input
+              autoFocus
+              value={destDraft}
+              onChange={(e) => setDestDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void commitDestination();
+                }
+              }}
+              onBlur={() => { void commitDestination(); }}
+              placeholder={getTranslation('whereToPh')}
+              className="w-full font-display text-2xl sm:text-4xl font-extrabold tracking-tight bg-white dark:bg-stone-900 border-2 border-dashed border-violet-300 dark:border-violet-700 rounded-2xl px-4 py-3 text-stone-950 dark:text-stone-50 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-violet-500"
+            />
+            {destSaving && (
+              <p className="mt-2 text-xs font-semibold text-violet-500">…</p>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 font-semibold text-stone-700 dark:text-stone-200">

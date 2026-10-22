@@ -12,7 +12,7 @@
 
 import { TravelItinerary, TravelMemory } from '../types/travel';
 import { findPlaceGeo } from './placeGeo';
-import { activityImageUrl } from './activityImages';
+import { getTripCover } from './tripCovers';
 
 const STORAGE_KEY = 'wanderlust_travel_memories';
 
@@ -55,19 +55,22 @@ const memoryFromItinerary = (it: TravelItinerary): TravelMemory => {
   const country = (it.country || it.destination.split(',').slice(-1)[0] || '').trim();
   const geo = findPlaceGeo(city) || findPlaceGeo(it.destination) || findPlaceGeo(country);
   const start = new Date(it.startDate);
-  const firstActivity =
-    it.days?.[0]?.morningActivity || it.days?.[0]?.afternoonActivity || it.days?.[0]?.eveningActivity || '';
   const dayLines = dayLinesFor(it);
+  // Photo syncs with the trip card cover; with no cover we store none and the
+  // journal renders its galaxy placeholder instead of a random stock photo.
+  const cover = getTripCover(it.id);
 
   return {
     id: memIdFor(it.id),
     destination: city,
     country,
+    // Never invent coordinates — an unresolved place stays unpinned until the
+    // journal's geocoder resolves it, so a pin can never land in the wrong country.
     coordinates: geo
       ? { x: 0, y: 0, lat: geo.lat, lng: geo.lng }
-      : { x: 0, y: 0, lat: 20, lng: 0 },
+      : { x: 0, y: 0 },
     date: start.toLocaleString('default', { month: 'long', year: 'numeric' }),
-    photos: [activityImageUrl(firstActivity || city, city, 'card')],
+    photos: cover ? [cover] : [],
     memoryNote:
       `My ${it.days.length}-day ${it.tripScope || 'trip'} in ${it.destination}. ` +
       (it.notes ? `${it.notes} ` : '') +
@@ -83,8 +86,16 @@ const memoryFromItinerary = (it: TravelItinerary): TravelMemory => {
  * derived from the trip itself (place, coordinates, date, status) update.
  */
 export const upsertMemoryFromItinerary = (it: TravelItinerary) => {
-  const memories = readMemories();
   const id = memIdFor(it.id);
+  // A trip with no place yet (fresh "New trip") gets no journal pin at all.
+  const hasPlace = Boolean(
+    (it.cities && it.cities.length > 0) || it.destination.trim() || it.country.trim()
+  );
+  if (!hasPlace) {
+    removeMemoryForItinerary(it.id);
+    return;
+  }
+  const memories = readMemories();
   const idx = memories.findIndex((m) => m.id === id);
   if (idx === -1) {
     writeMemories([memoryFromItinerary(it), ...memories]);
@@ -92,10 +103,15 @@ export const upsertMemoryFromItinerary = (it: TravelItinerary) => {
   }
   const fresh = memoryFromItinerary(it);
   const prev = memories[idx];
+  const prevPhotos = Array.isArray(prev.photos) ? prev.photos : [];
   memories[idx] = {
     ...fresh,
     memoryNote: prev.memoryNote || fresh.memoryNote,
-    photos: Array.isArray(prev.photos) && prev.photos.length > 0 ? prev.photos : fresh.photos,
+    // Trip cover leads (synced with the card); user-added photos stay after it.
+    photos:
+      fresh.photos.length > 0
+        ? [...fresh.photos, ...prevPhotos.filter((p) => !fresh.photos.includes(p))]
+        : prevPhotos,
     companionsTagged: prev.companionsTagged || []
   };
   writeMemories(memories);

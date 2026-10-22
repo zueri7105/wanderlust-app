@@ -207,7 +207,7 @@ export interface TravelItinerary {
   companionPurpose: string[];
   notes: string;
   days: ItineraryDay[];
-  travelGuide: TravelGuideInfo;
+  travelGuide?: TravelGuideInfo;
   tripScope?: TripScope;
   dateFlexibility?: 'Exact Dates' | '±1 Day' | '±2 Days' | '±3 Days';
   visibility?: 'public' | 'companions_only' | 'private';

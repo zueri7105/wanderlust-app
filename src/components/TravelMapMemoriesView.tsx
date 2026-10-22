@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getTranslation } from '../utils/i18n';
 import { upsertMemoryFromItinerary } from '../utils/journalSync';
+import { geoForTask, requestGeocode, onGeocodeResolved } from '../utils/geocode';
+import { getTripCover } from '../utils/tripCovers';
 import { SoloTraveler, TravelItinerary, TravelMemory } from '../types/travel';
 import { MapContainer, TileLayer, Marker, CircleMarker, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -235,12 +237,12 @@ const migrateMemories = (raw: unknown): TravelMemory[] => {
       const known = geoFor(m?.destination || '');
       if (known) coords = { x: 0, y: 0, ...known };
       else if (typeof coords.x === 'number') coords = { ...coords, ...legacyPercentToLatLng(coords.x, coords.y) };
-      else coords = { x: 0, y: 0, lat: 20, lng: 0 };
+      else coords = { x: 0, y: 0 }; // unresolved — the geocoder effect pins it
     }
     return {
       ...m,
       coordinates: coords,
-      photos: Array.isArray(m?.photos) && m.photos.length > 0 ? m.photos : [m?.photoUrl || DEFAULT_MEMORY_PHOTO]
+      photos: Array.isArray(m?.photos) ? m.photos.filter(Boolean) : m?.photoUrl ? [m.photoUrl] : []
     };
   });
 };
@@ -259,8 +261,41 @@ const MapFlyer: React.FC<{ target: { lat: number; lng: number } | null }> = ({ t
 
 
 
+/** The app's galaxy layout as a CSS background — used whenever a memory has no photo. */
+const GALAXY_BG =
+  'radial-gradient(ellipse 80% 60% at 30% 25%, rgba(139,92,246,0.55), transparent 62%),' +
+  'radial-gradient(ellipse 70% 55% at 75% 72%, rgba(56,189,248,0.32), transparent 58%),' +
+  'radial-gradient(ellipse at center, #1b1030 0%, #0b0714 78%)';
+const GALAXY_STARS =
+  'radial-gradient(1px 1px at 22% 30%, #fff, transparent),' +
+  'radial-gradient(1px 1px at 64% 16%, #e9d5ff, transparent),' +
+  'radial-gradient(1.5px 1.5px at 80% 46%, #fff, transparent),' +
+  'radial-gradient(1px 1px at 42% 68%, #c4b5fd, transparent),' +
+  'radial-gradient(1px 1px at 12% 82%, #fff, transparent),' +
+  'radial-gradient(1.5px 1.5px at 56% 54%, #fff, transparent),' +
+  'radial-gradient(1px 1px at 88% 84%, #e9d5ff, transparent),' +
+  'radial-gradient(1px 1px at 32% 48%, #fff, transparent)';
+
+/** Galaxy thumbnail — stands in for a missing memory photo (the app's starry layout). */
+const GalaxyThumb: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className = '', style }) => (
+  <div aria-hidden="true" className={className} style={{ background: GALAXY_BG, ...style }}>
+    <div className="w-full h-full" style={{ backgroundImage: GALAXY_STARS }} />
+  </div>
+);
+
+/** Lead photo for a memory: trip-linked memories sync with their trip card
+    cover; then the first real user photo; null → render the galaxy layout. */
+const memoryLeadPhoto = (mem: TravelMemory): string | null => {
+  if (mem.id.startsWith('mem_itin_')) {
+    const cover = getTripCover(mem.id.slice('mem_itin_'.length));
+    if (cover) return cover;
+  }
+  const real = (mem.photos || []).filter((ph) => ph && ph !== DEFAULT_MEMORY_PHOTO);
+  return real[0] || null;
+};
+
 /** Water-droplet pin for MY memory journal entries — photo pinned at its location. */
-const memoryDropletIcon = (photo: string, color: string, isDream: boolean) =>
+const memoryDropletIcon = (photo: string | null, color: string, isDream: boolean) =>
   L.divIcon({
     className: 'wl-mem',
     iconSize: [40, 48],
@@ -269,7 +304,11 @@ const memoryDropletIcon = (photo: string, color: string, isDream: boolean) =>
       position:relative;width:36px;height:36px;border-radius:9999px 9999px 9999px 3px;
       transform:rotate(-45deg);background:#fff;border:2.5px solid ${color};
       box-shadow:0 8px 18px -6px ${color}99;overflow:hidden;${isDream ? 'opacity:.85;border-style:dashed;' : ''}">
-      <img src="${photo}" style="width:100%;height:100%;object-fit:cover;transform:rotate(45deg) scale(1.42);" draggable="false"/>
+      ${
+        photo
+          ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;transform:rotate(45deg) scale(1.42);" draggable="false"/>`
+          : `<div style="width:100%;height:100%;background:${GALAXY_BG};"><div style="width:100%;height:100%;background-image:${GALAXY_STARS};"></div></div>`
+      }
     </div>`
   });
 
@@ -347,7 +386,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [newCity, setNewCity] = useState('');
   const [newCountry, setNewCountry] = useState('');
   const [newDate, setNewDate] = useState('October 2026');
-  const [newPhotos, setNewPhotos] = useState<string[]>([DEFAULT_MEMORY_PHOTO]);
+  const [newPhotos, setNewPhotos] = useState<string[]>(['']);
   const [newNote, setNewNote] = useState('');
   const [newTaggedCompanion, setNewTaggedCompanion] = useState('');
   const [newStatus, setNewStatus] = useState<'Visited' | 'Current Location' | 'Dream Next'>('Visited');
@@ -390,7 +429,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     setNewDate(mem.date);
     setNewNote(mem.memoryNote);
     setNewTaggedCompanion(mem.companionsTagged.join(', '));
-    setNewPhotos(mem.photos.length > 0 ? [...mem.photos] : [DEFAULT_MEMORY_PHOTO]);
+    setNewPhotos(mem.photos.length > 0 ? [...mem.photos] : ['']);
     setSelectedItineraryId('');
     setIsAddMemoryModalOpen(true);
   };
@@ -449,6 +488,32 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     localStorage.setItem('wanderlust_travel_memories', JSON.stringify(updated));
   };
 
+  // Pin resolver: memories without coordinates get geocoded (city → country)
+  // so every droplet lands inside the same country the map colours — never at
+  // a guessed location. Resolved coords are persisted back to localStorage.
+  const [geoTick, setGeoTick] = useState(0);
+  useEffect(() => onGeocodeResolved(() => setGeoTick((t) => t + 1)), []);
+  useEffect(() => {
+    let changed = false;
+    const next = memories.map((m) => {
+      if (typeof m.coordinates.lat === 'number' && typeof m.coordinates.lng === 'number') return m;
+      const context = m.country || m.destination;
+      const geo =
+        geoForTask(m.destination, context) ||
+        geoForTask(m.country, m.country) ||
+        (m.country ? geoForTask(`${m.destination}, ${m.country}`, m.country) : null);
+      if (geo) {
+        changed = true;
+        return { ...m, coordinates: { x: 0, y: 0, lat: geo.lat, lng: geo.lng } };
+      }
+      if (m.destination) requestGeocode(m.destination, context);
+      else if (m.country) requestGeocode(m.country, m.country);
+      return m;
+    });
+    if (changed) saveMemories(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memories, geoTick]);
+
   const handleShareLocation = () => {
     const shareText = `📍 ${currentUser.name}'s Live Travel Location: ${myDestination || 'Somewhere new'} · Safe & Active · Shared via WanderLust`;
     if (navigator.share) {
@@ -477,9 +542,9 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     if (!newCity || !newCountry) return;
 
     const geo = geoFor(newCity) || geoFor(newCountry);
-    const coords = geo
-      ? { x: 0, y: 0, lat: geo.lat, lng: geo.lng }
-      : { x: 0, y: 0, lat: 10 + Math.random() * 40, lng: -20 + Math.random() * 80 };
+    // Never invent coordinates — unresolved places stay unpinned until the
+    // geocoder effect resolves them (a pin must match its coloured country).
+    const coords = geo ? { x: 0, y: 0, lat: geo.lat, lng: geo.lng } : { x: 0, y: 0 };
 
     const photos = newPhotos.map((p) => p.trim()).filter(Boolean);
     const companions = newTaggedCompanion
@@ -495,9 +560,9 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 ...m,
                 destination: newCity,
                 country: newCountry,
-                coordinates: m.coordinates.lat ? m.coordinates : coords,
+                coordinates: typeof m.coordinates.lat === 'number' ? m.coordinates : coords,
                 date: newDate,
-                photos: photos.length > 0 ? photos : [DEFAULT_MEMORY_PHOTO],
+                photos,
                 memoryNote: newNote || m.memoryNote,
                 companionsTagged: companions,
                 status: newStatus
@@ -512,7 +577,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         country: newCountry,
         coordinates: coords,
         date: newDate,
-        photos: photos.length > 0 ? photos : [DEFAULT_MEMORY_PHOTO],
+        photos,
         memoryNote: newNote || `Wonderful moments captured traveling solo in ${newCity}, ${newCountry}!`,
         companionsTagged: companions,
         status: newStatus
@@ -526,7 +591,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     setNewCountry('');
     setNewNote('');
     setNewTaggedCompanion('');
-    setNewPhotos([DEFAULT_MEMORY_PHOTO]);
+    setNewPhotos(['']);
     setSelectedItineraryId('');
   };
 
@@ -615,7 +680,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     };
     const map = new Map<string, TravelMemory['status']>();
     memories.forEach((m) => {
-      const key = geoKeyFor(m.country || m.destination);
+      const key = geoKeyFor(m.country || (m.destination.split(',').pop() || '').trim());
       if (!key) return;
       const cur = map.get(key);
       if (!cur || priority[m.status] > priority[cur]) map.set(key, m.status);
@@ -782,7 +847,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   key={`drop-${mem.id}`}
                   position={[mem.coordinates.lat!, mem.coordinates.lng!]}
                   icon={memoryDropletIcon(
-                    mem.photos[0] || DEFAULT_MEMORY_PHOTO,
+                    memoryLeadPhoto(mem),
                     STATUS_STYLES[mem.status].dot,
                     mem.status === 'Dream Next'
                   )}
@@ -940,7 +1005,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               setNewCountry('');
               setNewNote('');
               setNewTaggedCompanion('');
-              setNewPhotos([DEFAULT_MEMORY_PHOTO]);
+              setNewPhotos(['']);
               setSelectedItineraryId('');
               setIsAddMemoryModalOpen(true);
             }}
@@ -973,8 +1038,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 />
                 <div className="space-y-6">
                   {timelineMemories.map((mem, i) => {
-                    const photos = mem.photos.length > 0 ? mem.photos : [DEFAULT_MEMORY_PHOTO];
-                    const idx = Math.min(photoIdx[mem.id] || 0, photos.length - 1);
+                    const lead = memoryLeadPhoto(mem);
+                    const photos = (mem.photos || []).filter((ph) => ph && ph !== DEFAULT_MEMORY_PHOTO);
+                    if (lead && !photos.includes(lead)) photos.unshift(lead);
+                    const idx = Math.min(photoIdx[mem.id] || 0, Math.max(photos.length - 1, 0));
                     const statusColor = STATUS_STYLES[mem.status].dot;
                     const leftSide = i % 2 === 0;
                     const isCurrent = mem.status === 'Current Location';
@@ -987,14 +1054,18 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                       >
                         <div className="flex items-start gap-3">
                           <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-stone-100 dark:bg-stone-800">
-                            <img
-                              key={photos[idx]}
-                              src={photos[idx]}
-                              alt={mem.destination}
-                              onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                              onClick={() => openLightbox(photos, idx, `${mem.destination}, ${mem.country}`)}
-                              className="absolute inset-0 w-full h-full object-cover group-hover:scale-104 transition-transform duration-500 cursor-zoom-in"
-                            />
+                            {photos.length > 0 ? (
+                              <img
+                                key={photos[idx]}
+                                src={photos[idx]}
+                                alt={mem.destination}
+                                onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
+                                onClick={() => openLightbox(photos, idx, `${mem.destination}, ${mem.country}`)}
+                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-104 transition-transform duration-500 cursor-zoom-in"
+                              />
+                            ) : (
+                              <GalaxyThumb className="absolute inset-0 w-full h-full" />
+                            )}
                             {photos.length > 1 && (
                               <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
                                 <Camera className="w-2.5 h-2.5" />

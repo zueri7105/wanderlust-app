@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Cake, Globe2, Heart, MapPin, MessageCircle, Plus, Sparkles, Stamp, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Cake, Globe2, Heart, MapPin, MessageCircle, Plus, Sparkles, Stamp, Users } from 'lucide-react';
 import { getTranslation, tv } from '../utils/i18n';
 
 export interface OnboardingAnswers {
@@ -17,7 +17,6 @@ export interface OnboardingAnswers {
 
 interface OnboardingViewProps {
   onComplete: (answers: OnboardingAnswers) => void;
-  onSkip: () => void;
 }
 
 const TOTAL_STEPS = 8;
@@ -49,7 +48,7 @@ const inputCls =
  * gender → languages → hobbies → motto. The answers feed the travel passport,
  * the first auto-planned itinerary and the journal (wired up in App).
  */
-export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSkip }) => {
+export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) => {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [destination, setDestination] = useState('');
@@ -120,14 +119,8 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
 
       <div className="relative min-h-full flex items-center justify-center p-4 sm:p-6">
         <div className="wl-modal-card w-full max-w-lg p-6 sm:p-8 relative">
-          <button
-            type="button"
-            onClick={onSkip}
-            className="absolute top-4 right-4 inline-flex items-center gap-1 text-[11px] font-semibold text-stone-400 hover:text-violet-500 transition-colors cursor-pointer"
-          >
-            {getTranslation('obSkipAll')}
-            <X className="w-3.5 h-3.5" />
-          </button>
+          {/* No skip: a passport needs its nationality — the wizard must be
+              completed so visa rules are never guessed. */}
 
           {/* progress */}
           <div className="flex items-center gap-1.5 mb-6 pr-24">

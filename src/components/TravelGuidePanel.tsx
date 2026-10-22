@@ -5,6 +5,7 @@ import {
   Check,
   AlertTriangle,
   CloudSun,
+  Droplets,
   MapPin,
   Luggage,
   CheckSquare,
@@ -27,6 +28,7 @@ import { travelAppsFor } from '../data/travelApps';
 import { emergencyNumbersFor } from '../data/emergencyNumbers';
 import { getFxRates, refreshFxRates, rateFor, type FxState } from '../utils/currency';
 import { getTranslation, tv } from '../utils/i18n';
+import { fetchWeatherTrend, type WeatherTrend } from '../utils/weatherSync';
 
 /** Resolve the destination's currency facts (code, benchmark, card & tipping notes). */
 export function resolveDestinationCurrency(itinerary: TravelItinerary) {
@@ -254,11 +256,94 @@ interface TravelGuidePanelProps {
  * apps, customs, greetings, cultural shocks and safety numbers. Lives on the trip
  * page as its own tab (taken out of the itinerary timeline).
  */
+/** Live weather trend for the guide's City Weather card — real Open-Meteo
+    forecast for trips ≤16 days out, climate-trend projection for later trips. */
+const WeatherTrendBlock: React.FC<{ itinerary: TravelItinerary }> = ({ itinerary }) => {
+  const [trend, setTrend] = useState<WeatherTrend | null>(null);
+  const city =
+    itinerary.travelGuide?.destinationCity || itinerary.destination.split(',')[0]?.trim() || '';
+  const country = itinerary.travelGuide?.destinationCountry || itinerary.country || '';
+
+  useEffect(() => {
+    let alive = true;
+    setTrend(null);
+    void fetchWeatherTrend(city, country, itinerary.startDate, itinerary.endDate).then((t) => {
+      if (alive) setTrend(t);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [city, country, itinerary.startDate, itinerary.endDate]);
+
+  if (!trend) return null;
+  const hi = Math.max(...trend.days.map((d) => d.tMax));
+  const lo = Math.min(...trend.days.map((d) => d.tMin));
+  const span = Math.max(hi - lo, 1);
+
+  return (
+    <div className="bg-white/80 dark:bg-slate-800/70 border border-sky-100 dark:border-slate-700 rounded-xl p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-bold text-slate-900 dark:text-slate-100 text-[11px] flex items-center gap-1.5">
+          <Droplets className="w-3 h-3 text-sky-500" />
+          {getTranslation('weatherTrendTitle')}
+        </span>
+        <span className="font-mono tabular-nums text-[10px] font-bold text-slate-600 dark:text-slate-300">
+          {formatTemperature(`${trend.avgLo}°C`)} – {formatTemperature(`${trend.avgHi}°C`)}
+        </span>
+      </div>
+      <div className="space-y-1">
+        {trend.days.slice(0, 7).map((d) => {
+          const left = ((d.tMin - lo) / span) * 100;
+          const width = Math.max(((d.tMax - d.tMin) / span) * 100, 6);
+          const label = new Date(`${d.date}T00:00:00`).toLocaleDateString(undefined, {
+            weekday: 'short',
+            month: 'numeric',
+            day: 'numeric'
+          });
+          return (
+            <div key={d.date} className="flex items-center gap-2 text-[10px] font-mono">
+              <span className="w-16 shrink-0 truncate text-slate-500 dark:text-slate-400">{label}</span>
+              <span className="w-7 text-right text-indigo-500 dark:text-indigo-400 tabular-nums">
+                {Math.round(d.tMin)}°
+              </span>
+              <span className="relative flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                <span
+                  className="absolute h-full rounded-full bg-gradient-to-r from-sky-400 to-amber-400"
+                  style={{ left: `${left}%`, width: `${width}%` }}
+                />
+              </span>
+              <span className="w-7 text-amber-600 dark:text-amber-400 tabular-nums">
+                {Math.round(d.tMax)}°
+              </span>
+              {d.precipProb != null && (
+                <span className="w-9 text-right text-sky-600 dark:text-sky-400 tabular-nums inline-flex items-center justify-end gap-0.5">
+                  <Droplets className="w-2.5 h-2.5" />
+                  {d.precipProb}%
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[9px] text-slate-400 dark:text-slate-500">
+        {trend.source === 'forecast'
+          ? getTranslation('weatherSrcForecast')
+          : getTranslation('weatherSrcClimate')}
+        {' · '}
+        {getTranslation('weatherUpdated')}{' '}
+        {new Date(trend.fetchedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+      </p>
+    </div>
+  );
+};
+
 export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, currentUser }) => {
   // Country knowledge overlay — keeps rules, customs, phrases & currency aligned
   // with the destination even for itineraries saved before the knowledge base existed.
   const guideKb = lookupCountryGuide(`${itinerary.destination} ${itinerary.country || ''}`);
-  const guideNat = itinerary.travelGuide?.travelerNationality || currentUser.country || 'Germany';
+  // Never assume a nationality (the old German default showed strangers' visa
+  // rules). Empty means: ask the traveller to set their passport nationality.
+  const guideNat = (itinerary.travelGuide?.travelerNationality || currentUser.country || '').trim();
   // Concrete apps locals actually use + emergency numbers for this destination
   const guideApps = travelAppsFor(`${itinerary.destination} ${itinerary.country || ''}`);
   const guideEmergency = emergencyNumbersFor(`${itinerary.country || ''} ${itinerary.destination}`);
@@ -314,8 +399,14 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
                 {getTranslation('travelGuideLabel')} · {itinerary.travelGuide.destinationCity || itinerary.destination.split(',')[0]} ({itinerary.travelGuide.destinationCountry})
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {getTranslation('verifiedRun')}{' '}
-                <strong className="text-slate-800 dark:text-slate-200">{itinerary.travelGuide.travelerNationality}</strong>
+                {guideNat ? (
+                  <>
+                    {getTranslation('verifiedRun')}{' '}
+                    <strong className="text-slate-800 dark:text-slate-200">{guideNat}</strong>
+                  </>
+                ) : (
+                  getTranslation('visaNeedNatShort')
+                )}
               </p>
             </div>
           </div>
@@ -336,11 +427,18 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
                 {getTranslation('visaEntryLabel')} · {guideKb.name}
               </div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400">
-                {tv('forPassport', { nat: guideNat })}
+                {guideNat ? tv('forPassport', { nat: guideNat }) : getTranslation('visaNeedNatShort')}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {!guideNat && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-stone-100 dark:bg-stone-800/60 text-stone-600 dark:text-stone-300 border-stone-300/80 dark:border-stone-700">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>{getTranslation('visaNeedNat')}</span>
+              </span>
+            )}
+            {guideNat && (
             <span
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
                 visaVerdict.tone === 'free'
@@ -356,7 +454,8 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
               {visaVerdict.tone === 'free' ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
               <span>{visaChipLabel}</span>
             </span>
-            {visaVerdict.official && (
+            )}
+            {guideNat && visaVerdict.official && (
               <a
                 href={visaVerdict.official}
                 target="_blank"
@@ -385,6 +484,9 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
               <CloudSun className="w-4 h-4 text-amber-600" />
               <span>{getTranslation('cityWeather')}</span>
             </div>
+
+            {/* Real forecast trend — Open-Meteo, synced with the trip dates */}
+            <WeatherTrendBlock itinerary={itinerary} />
 
             {/* Multi-city trips: one weather card per city */}
             {itinerary.cities && itinerary.cities.length > 1 ? (
@@ -525,10 +627,12 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
                           <div className="text-slate-500 dark:text-slate-400 text-[10px] font-semibold uppercase tracking-wide">USD → {tgt}</div>
                           <div className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100 tabular-nums" title={same ? getTranslation('sameCurrency') : undefined}>{usdLine}</div>
                         </div>
+                        {guideNat && (
                         <div className="pt-1.5 border-t border-slate-100 dark:border-slate-700">
                           <div className="text-slate-500 dark:text-slate-400 text-[10px] font-semibold uppercase tracking-wide">{natCode} ({guideNat}) → {tgt}</div>
                           <div className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100 tabular-nums" title={natCode === tgt ? getTranslation('sameCurrency') : undefined}>{natLine}</div>
                         </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -743,7 +847,7 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
       {visaPopupOpen && (() => {
         const itin = itinerary;
         const kb = lookupCountryGuide(`${itin.destination} ${itin.country || ''}`);
-        const nat = itin.travelGuide?.travelerNationality || currentUser.country || 'Germany';
+        const nat = (itin.travelGuide?.travelerNationality || currentUser.country || '').trim();
         const rules = kb.key !== 'generic'
           ? kb.entryRules
           : itin.travelGuide?.arrivalRulesAndApps?.entryRegulations || [];
@@ -762,7 +866,7 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
                     {getTranslation('visaEntryLabel')} · {kb.name}
                   </h3>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400 mt-0.5">
-                    {tv('forPassport', { nat })}
+                    {nat ? tv('forPassport', { nat }) : getTranslation('visaNeedNatShort')}
                   </p>
                 </div>
                 <button
@@ -775,7 +879,7 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
               </div>
 
               <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed pt-4">
-                {visaAdviceFor(nat, kb)}
+                {nat ? visaAdviceFor(nat, kb) : getTranslation('visaNeedNatLong')}
               </p>
 
               {visaVerdict.official && (
