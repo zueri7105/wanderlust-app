@@ -5,13 +5,13 @@ import 'leaflet/dist/leaflet.css';
 import { X } from 'lucide-react';
 import { ItineraryDay, TravelItinerary } from '../types/travel';
 import {
-  findPlaceGeo,
   dayRouteColor,
   estimateLeg,
   estimateLegForMode,
   TRAVEL_MODE_LINE,
   type TravelMode
 } from '../utils/placeGeo';
+import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext } from '../utils/geocode';
 import { haversineKm } from '../utils/units';
 import { getTranslation, tv } from '../utils/i18n';
 
@@ -35,13 +35,18 @@ const splitTasks = (text: string): string[] =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-/** Geocode one day's activities into an ordered stop list. */
-export const stopsForDay = (day: ItineraryDay): RouteStop[] => {
+/**
+ * Geocode one day's activities into an ordered stop list. Local landmark
+ * table first, then the cached/online geocoder anchored to the trip
+ * destination — so any typed place pins to its exact spot, not just the
+ * right country.
+ */
+export const stopsForDay = (day: ItineraryDay, context = ''): RouteStop[] => {
   const stops: RouteStop[] = [];
   let order = 0;
   SLOT_KEYS.forEach(({ key, slot }) => {
     splitTasks(day[key]).forEach((task) => {
-      const geo = findPlaceGeo(task);
+      const geo = geoForTask(task, context);
       if (geo) {
         order += 1;
         stops.push({ label: task, lat: geo.lat, lng: geo.lng, slot, order });
@@ -196,9 +201,27 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   };
   const [pickedLeg, setPickedLeg] = useState<PickedLeg | null>(null);
 
+  // Re-render whenever a queued online geocode lands, and queue lookups for
+  // every stop the local table doesn't know (anchored to this trip's
+  // destination so the pin lands on the exact place).
+  const [geoVer, setGeoVer] = useState(0);
+  useEffect(() => onGeocodeResolved(() => setGeoVer((v) => v + 1)), []);
+  const geoContext = tripGeoContext(destination, itinerary.country);
+  useEffect(() => {
+    days.forEach((d) => {
+      SLOT_KEYS.forEach(({ key }) => {
+        splitTasks(d[key]).forEach((task) => {
+          if (!geoForTask(task, geoContext)) requestGeocode(task, geoContext);
+        });
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days, geoContext, geoVer]);
+
   const stopsByDay = useMemo(
-    () => days.map((d) => ({ day: d, stops: stopsForDay(d) })),
-    [days]
+    () => days.map((d) => ({ day: d, stops: stopsForDay(d, geoContext) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [days, geoContext, geoVer]
   );
   const totalStops = stopsByDay.reduce((n, x) => n + x.stops.length, 0);
 
@@ -253,13 +276,18 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   );
 
   const center: [number, number] = allPoints[0] || (() => {
-    const g = findPlaceGeo(destination);
+    const g = geoForTask(destination, itinerary.country || '');
     return g ? [g.lat, g.lng] : [20, 0];
   })();
   // The map is ALWAYS on — with stops we zoom into them, without any we frame
   // the destination itself (or a world view when the place is unknown).
-  const destGeo = findPlaceGeo(destination);
+  const destGeo = geoForTask(destination, itinerary.country || '');
   const baseZoom = allPoints.length ? 12 : destGeo ? 11 : 2;
+  // Unknown destination? Queue an exact lookup so the map frames it correctly.
+  useEffect(() => {
+    if (!destGeo) requestGeocode(destination, itinerary.country || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destination, itinerary.country, geoVer]);
 
   /** Mode for a leg: the traveller's saved choice, else a distance-based guess. */
   const modeForLeg = (day: ItineraryDay, from: RouteStop, to: RouteStop): { mode: TravelMode; km: number } => {

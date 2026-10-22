@@ -115,34 +115,6 @@ const CITY_GEO: Record<string, { lat: number; lng: number }> = {
 
 const geoFor = (city: string) => CITY_GEO[city.trim().toLowerCase()];
 
-interface TravelerPin {
-  id: string;
-  name: string;
-  destination: string;
-  lat: number;
-  lng: number;
-  isMe: boolean;
-  color: string;
-}
-
-const mkPin = (
-  id: string,
-  name: string,
-  cityKey: string,
-  destinationLabel: string,
-  isMe: boolean,
-  color: string
-): TravelerPin => {
-  const g = CITY_GEO[cityKey];
-  return { id, name, destination: destinationLabel, lat: g.lat, lng: g.lng, isMe, color };
-};
-
-const MAP_TRAVELER_PINS: TravelerPin[] = [
-  mkPin('user_current', 'You', 'kyoto', '', true, '#f43f5e'),
-];
-
-
-
 const U = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
 const DEFAULT_MEMORY_PHOTO = U('photo-1507525428034-b723cf961d3e');
 
@@ -273,21 +245,6 @@ const migrateMemories = (raw: unknown): TravelMemory[] => {
   });
 };
 
-/** Round avatar pin rendered as a Leaflet divIcon — stays glued to its lat/lng at every zoom. */
-const avatarIcon = (url: string, color: string, isSelected: boolean, isMe: boolean) =>
-  L.divIcon({
-    className: 'wl-pin',
-    iconSize: [52, 52],
-    iconAnchor: [26, 26],
-    html: `<div style="
-      width:${isSelected ? 52 : 44}px;height:${isSelected ? 52 : 44}px;border-radius:9999px;
-      border:3px solid #fff;outline:3px solid ${color};overflow:hidden;background:#fff;
-      box-shadow:0 8px 20px -6px ${color}aa;transition:all .2s ease;position:relative;">
-      <img src="${url}" style="width:100%;height:100%;object-fit:cover;" draggable="false"/>
-      ${isMe ? `<span style="position:absolute;inset:-6px;border-radius:9999px;border:2px solid ${color};opacity:.55;animation:wl-ping 1.6s cubic-bezier(0,0,.2,1) infinite;"></span>` : ''}
-    </div>`
-  });
-
 /** Smoothly flies the map when the selected pin changes. */
 const MapFlyer: React.FC<{ target: { lat: number; lng: number } | null }> = ({ target }) => {
   const map = useMap();
@@ -334,7 +291,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   currentUser,
   travelers,
   itineraries = [],
-  onGoToItinerary,
   embedded = false
 }) => {
   const [memories, setMemories] = useState<TravelMemory[]>(() => {
@@ -369,7 +325,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   }, []);
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'Visited' | 'Current Location' | 'Dream Next'>('all');
-  const [selectedPinId, setSelectedPinId] = useState<string>('user_current');
   const [shareCopied, setShareCopied] = useState(false);
   const [isAddMemoryModalOpen, setIsAddMemoryModalOpen] = useState(false);
   const [photoIdx, setPhotoIdx] = useState<Record<string, number>>({});
@@ -404,9 +359,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   // Full-screen map mode (viewport-filling overlay) — opens inline so the top nav stays
   // reachable; go full-screen with the maximise button (Esc / minimise to exit).
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
-  // The little "You are here" card on the map can be tucked away for a clean view
-  const [profileCardOn, setProfileCardOn] = useState(true);
-  const [myPinOn, setMyPinOn] = useState(true);
   const [pinPanelOn, setPinPanelOn] = useState(false);
   // Map fly-to target when a journal entry is tapped
   const [memoryFly, setMemoryFly] = useState<{ lat: number; lng: number } | null>(null);
@@ -654,12 +606,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     .filter((m) => m.status === 'Dream Next')
     .sort((a, b) => parseMemDate(a.date) - parseMemDate(b.date));
 
-  const getTravelerById = (id: string) => {
-    if (id === 'user_current') return currentUser;
-    return travelers.find((t) => t.id === id) || travelers[0];
-  };
-
-
   // Country colouring: each country's strongest status wins (Current > Visited > Dream)
   const countryStatusMap = useMemo(() => {
     const priority: Record<TravelMemory['status'], number> = {
@@ -740,20 +686,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     };
   };
 
-  /** Fresh accounts have no destination yet — no hardcoded pin until they set one. */
+  /** The user's current destination label (used for the share text). */
   const myDestination = (currentUser.currentDestination || '').trim();
-  const myCityGeo = myDestination
-    ? geoFor(myDestination.split(',')[0].trim()) || geoFor(myDestination)
-    : null;
-  const activePinInfo = myDestination
-    ? {
-        ...(MAP_TRAVELER_PINS.find((p) => p.id === selectedPinId) || MAP_TRAVELER_PINS[0]),
-        destination: myDestination,
-        lat: myCityGeo?.lat ?? MAP_TRAVELER_PINS[0].lat,
-        lng: myCityGeo?.lng ?? MAP_TRAVELER_PINS[0].lng
-      }
-    : null;
-  const myPin = activePinInfo;
 
   // Which of MY memory dots render depends on the layer toggles
   const visibleMemoryDots = memories.filter((m) => {
@@ -762,16 +696,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     if (m.status === 'Dream Next') return pinLayers.dream;
     return pinLayers.current;
   });
-
-  const pinIcons = useMemo(() => {
-    const map: Record<string, L.DivIcon> = {};
-    MAP_TRAVELER_PINS.forEach((pin) => {
-      const traveler = getTravelerById(pin.id);
-      map[pin.id] = avatarIcon(traveler.avatar, pin.color, pin.id === selectedPinId, pin.isMe);
-    });
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPinId, travelers, currentUser]);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -836,7 +760,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               maxZoom={19}
             />
             <ZoomWatcher onZoom={setMapZoom} />
-            <MapFlyer target={activePinInfo} />
             <MapFlyer target={memoryFly} />
 
             {/* Country colouring — Visited / Current / Dream countries filled on the world map */}
@@ -868,16 +791,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               ))}
 
             
-
-            {/* My avatar pin — hideable for a clean map (only once you have a destination) */}
-            {myPinOn && myPin && (
-            <Marker
-              key={myPin.id}
-              position={[myPin.lat, myPin.lng]}
-              icon={pinIcons[myPin.id]}
-              eventHandlers={{ click: () => setSelectedPinId(myPin.id) }}
-            />
-            )}
 
 
             
@@ -933,17 +846,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 <div className="px-1 pb-1 text-[9px] font-bold uppercase tracking-wider text-stone-400">
                   Map pinpoints
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMyPinOn((v) => !v)}
-                  className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${myPinOn ? 'bg-rose-500' : 'bg-stone-300 dark:bg-stone-600'}`} />
-                    {getTranslation('pinMe')}
-                  </span>
-                  {myPinOn ? <Eye className="w-3.5 h-3.5 text-stone-500" /> : <EyeOff className="w-3.5 h-3.5 text-stone-400" />}
-                </button>
                 {([
                   ['current', '#10b981', 'Current', pinLayers.current, () => setPinLayers((pl) => ({ ...pl, current: !pl.current }))],
                   ['visited', '#0ea5e9', 'Visited', pinLayers.visited, () => setPinLayers((pl) => ({ ...pl, visited: !pl.visited }))],
@@ -1014,61 +916,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             )}
           </div>
 
-          {/* Active Pin Overlay Card — you only (hideable for a clean map) */}
-          {profileCardOn && activePinInfo && (
-          <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-md bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border border-white/60 dark:border-stone-700 rounded-2xl p-3.5 shadow-2xl z-[500]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <img
-                  src={currentUser.avatar}
-                  alt={currentUser.name}
-                  className="w-11 h-11 rounded-full object-cover shrink-0 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-stone-900"
-                  style={{ ['--tw-ring-color' as any]: activePinInfo.color }}
-                />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="font-bold text-xs text-stone-900 dark:text-stone-50 truncate">
-                      You ({currentUser.name.split(' ')[0]})
-                    </span>
-                    <span className="text-[9px] bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 px-1.5 py-0.5 rounded-full font-bold">
-                      You are here
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-stone-500 dark:text-stone-400 flex items-center gap-1 mt-0.5 truncate">
-                    <MapPin className="w-3 h-3 shrink-0" style={{ color: activePinInfo.color }} />
-                    <span className="truncate">{activePinInfo.destination}</span>
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => onGoToItinerary(myDestination)}
-                className="shrink-0 px-3 py-1.5 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded-2xl text-xs font-bold hover:bg-stone-700 transition-colors cursor-pointer"
-              >
-                My Itinerary
-              </button>
-              <button
-                type="button"
-                onClick={() => setProfileCardOn(false)}
-                className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 border border-stone-200 dark:border-stone-700 bg-white/70 dark:bg-stone-800/70 transition-colors cursor-pointer"
-                title="Hide this card — show only the map"
-              >
-                <EyeOff className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-          )}
-          {!profileCardOn && activePinInfo && (
-            <button
-              type="button"
-              onClick={() => setProfileCardOn(true)}
-              className="absolute bottom-4 left-4 z-[500] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-900/85 dark:bg-stone-800/95 backdrop-blur-md text-white text-[10px] font-bold shadow-xl border border-white/20 hover:bg-stone-900 active:scale-95 transition-all cursor-pointer"
-              title="Show your location card"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>You</span>
-            </button>
-          )}
         </div>
 
       </div>

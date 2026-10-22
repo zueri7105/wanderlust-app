@@ -80,11 +80,18 @@ interface ItineraryViewProps {
 
 
 
+interface FormDayItem {
+  /** Activity heading (pins on the route map). */
+  name: string;
+  /** The box below the heading — notes for this stop. */
+  detail: string;
+}
+
 interface FormDayDraft {
   /** Day heading shown on the dotted timeline. */
   title: string;
-  /** Multiline plan box — one activity per line, stored newline-joined. */
-  plan: string;
+  /** One heading + one write box per activity. */
+  items: FormDayItem[];
 }
 
 
@@ -568,55 +575,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     setEditTripDays((prev) => prev.map((d, i) => (i === index ? { ...d, [field]: val } : d)));
   };
 
-  // Editor activity slots: one box per activity. Splits on the same separators
-  // the day card uses (newlines, "·", "•", ";") so boxes match the display.
-  const editDayLines = (text: string): string[] => {
-    if (!text || !text.trim()) return [''];
-    return text.split(/[\n\r]+|[·•;]\s*/);
-  };
-
-  // Update a single activity box (line) inside a morning/afternoon/evening slot
-  const handleUpdateEditDayActivityLine = (
-    index: number,
-    field: 'morningActivity' | 'afternoonActivity' | 'eveningActivity',
-    lineIdx: number,
-    val: string
-  ) => {
-    setEditTripDays((prev) =>
-      prev.map((d, i) => {
-        if (i !== index) return d;
-        const lines = editDayLines(d[field]);
-        lines[lineIdx] = val;
-        return { ...d, [field]: lines.join('\n') };
-      })
-    );
-  };
-
-  // "+" beside a slot appends a fresh empty activity box to that slot
-  const handleAddEditDayActivityBox = (
-    index: number,
-    field: 'morningActivity' | 'afternoonActivity' | 'eveningActivity'
-  ) => {
-    setEditTripDays((prev) =>
-      prev.map((d, i) => (i === index ? { ...d, [field]: `${editDayLines(d[field]).join('\n')}\n` } : d))
-    );
-  };
-
-  // Small × on a box removes that activity line
-  const handleRemoveEditDayActivityBox = (
-    index: number,
-    field: 'morningActivity' | 'afternoonActivity' | 'eveningActivity',
-    lineIdx: number
-  ) => {
-    setEditTripDays((prev) =>
-      prev.map((d, i) => {
-        if (i !== index) return d;
-        const lines = editDayLines(d[field]).filter((_, li) => li !== lineIdx);
-        return { ...d, [field]: lines.join('\n') };
-      })
-    );
-  };
-
   // New days start completely blank — placeholders guide, no pre-filled text.
   const handleAddEditDay = () => {
     const nextNum = editTripDays.length + 1;
@@ -753,7 +711,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       if (prev.length < targetDays) {
         const added: FormDayDraft[] = [];
         for (let i = prev.length + 1; i <= targetDays; i++) {
-          added.push({ title: `Day ${i}`, plan: '' });
+          added.push({ title: `Day ${i}`, items: [{ name: '', detail: '' }] });
         }
         return [...prev, ...added];
       }
@@ -773,34 +731,55 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     syncDraftDaysCount(dur.days);
   };
 
-  // Dynamic multi-day draft list — one heading + one plan box per day
-  // (one activity per line), matching the dotted-line day cards on the trip page.
+  // Dynamic multi-day draft list — per day a heading, then one heading + one
+  // write box per activity, matching the dotted-line day cards on the trip page.
   const [formDays, setFormDays] = useState<FormDayDraft[]>([
     {
       title: 'Arrival & Old Town First Walk',
-      plan: 'Arrive & check in — airport transfer, settle in\nHistoric square stroll — local cafe stop\nWelcome dinner at a neighborhood tavern'
+      items: [
+        { name: 'Arrive & check in', detail: 'Airport transfer, settle in' },
+        { name: 'Historic square stroll', detail: 'Local cafe stop' },
+        { name: 'Welcome dinner', detail: 'Neighborhood tavern' }
+      ]
     },
     {
       title: 'Iconic Architecture & Viewpoints',
-      plan: 'Early landmark walk before the crowds\nArtisan market crawl\nScenic city viewpoint\nSunset dinner'
+      items: [
+        { name: 'Early landmark walk', detail: 'Before the crowds' },
+        { name: 'Artisan market crawl', detail: '' },
+        { name: 'Scenic city viewpoint', detail: '' },
+        { name: 'Sunset dinner', detail: '' }
+      ]
     },
     {
       title: 'Day Excursion & Outdoor Adventure',
-      plan: 'Day trip — nearby island, national park, or guided tour\nScenic highlights and nature spots\nSunset drinks at a panoramic terrace'
+      items: [
+        { name: 'Day trip out', detail: 'Nearby island, national park, or guided tour' },
+        { name: 'Scenic highlights & nature spots', detail: '' },
+        { name: 'Panoramic terrace', detail: 'Sunset drinks' }
+      ]
     },
     {
       title: 'Cultural Heritage & Sunset Walk',
-      plan: 'Main palace, museum, or heritage monument\nArtisan shopping & promenade coffee\nFarewell dinner at a local terrace'
+      items: [
+        { name: 'Palace / museum visit', detail: 'Main heritage monument' },
+        { name: 'Promenade coffee', detail: 'Artisan shopping' },
+        { name: 'Farewell dinner', detail: 'Local terrace' }
+      ]
     },
     {
       title: 'Morning Views & Departure',
-      plan: 'Cable car or viewpoint for a farewell vista\nPack & airport transfer\nDeparture flight'
+      items: [
+        { name: 'Farewell vista', detail: 'Cable car or viewpoint' },
+        { name: 'Pack & airport transfer', detail: '' },
+        { name: 'Departure flight', detail: '' }
+      ]
     }
   ]);
 
   const handleAddDraftDay = () => {
     const nextNum = formDays.length + 1;
-    setFormDays([...formDays, { title: `Day ${nextNum}`, plan: '' }]);
+    setFormDays([...formDays, { title: `Day ${nextNum}`, items: [{ name: '', detail: '' }] }]);
   };
 
   const handleRemoveDraftDay = (index: number) => {
@@ -808,10 +787,36 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     setFormDays(formDays.filter((_, idx) => idx !== index));
   };
 
-  const handleUpdateDraftDay = (index: number, field: 'title' | 'plan', val: string) => {
+  const handleUpdateDraftDay = (index: number, field: 'title', val: string) => {
     const next = [...formDays];
     next[index] = { ...next[index], [field]: val };
     setFormDays(next);
+  };
+
+  const handleUpdateDayItem = (dayIdx: number, itemIdx: number, field: keyof FormDayItem, val: string) => {
+    setFormDays((prev) =>
+      prev.map((d, i) =>
+        i === dayIdx
+          ? { ...d, items: d.items.map((it, j) => (j === itemIdx ? { ...it, [field]: val } : it)) }
+          : d
+      )
+    );
+  };
+
+  const handleAddDayItem = (dayIdx: number) => {
+    setFormDays((prev) =>
+      prev.map((d, i) => (i === dayIdx ? { ...d, items: [...d.items, { name: '', detail: '' }] } : d))
+    );
+  };
+
+  const handleRemoveDayItem = (dayIdx: number, itemIdx: number) => {
+    setFormDays((prev) =>
+      prev.map((d, i) =>
+        i === dayIdx && d.items.length > 1
+          ? { ...d, items: d.items.filter((_, j) => j !== itemIdx) }
+          : d
+      )
+    );
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -840,18 +845,25 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       companionPurpose: selectedPurposes.length > 0 ? selectedPurposes : ['Solo Exploration'],
       notes: formNotes || `Solo trip to ${formDest}.`,
       days: formDays.map((d, idx) => {
-        // One activity per line in the plan box — stored newline-joined so the
-        // dotted timeline, route map and day view all split them back out.
-        const lines = splitTasks(d.plan);
+        // Each activity is a heading (pins on the route map) with its own write
+        // box — names store newline-joined so the dotted timeline, map and day
+        // view split them back out; boxes land in stopDetails keyed by name.
+        const names = d.items.map((it) => it.name.trim()).filter(Boolean);
+        const details: Record<string, string> = {};
+        d.items.forEach((it) => {
+          const n = it.name.trim();
+          if (n && it.detail.trim()) details[n] = it.detail.trim();
+        });
         const picks = suggestions.slice(idx * 3, idx * 3 + 3);
         return {
           dayNumber: idx + 1,
           title: d.title.trim() || `Day ${idx + 1}`,
-          morningActivity: lines.length
-            ? lines.join('\n')
+          morningActivity: names.length
+            ? names.join('\n')
             : (picks[0] ? `Visit ${picks[0].name}` : 'Free morning to explore at your own pace.'),
-          afternoonActivity: lines.length ? '' : (picks[1] ? `Explore ${picks[1].name}` : 'Free afternoon for spontaneous plans.'),
-          eveningActivity: lines.length ? '' : (picks[2] ? `Evening at ${picks[2].name}` : 'Relaxed evening, dinner nearby.')
+          afternoonActivity: names.length ? '' : (picks[1] ? `Explore ${picks[1].name}` : 'Free afternoon for spontaneous plans.'),
+          eveningActivity: names.length ? '' : (picks[2] ? `Evening at ${picks[2].name}` : 'Relaxed evening, dinner nearby.'),
+          stopDetails: details
         };
       }),
       travelGuide: guide,
@@ -1765,7 +1777,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   Plan New Trip Itinerary & Schedule
                 </h3>
                 <p className="text-xs text-stone-500 dark:text-stone-400 mt-1.5 max-w-md">
-                  Build your day-by-day plan on the dotted line — one heading and one plan box per day, activities one per line.
+                  Build your day-by-day plan on the dotted line — a heading per day, then one heading with its own write box per activity.
                 </p>
               </div>
               <button
@@ -1949,13 +1961,53 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                               </button>
                             )}
                           </div>
-                          <textarea
-                            rows={3}
-                            placeholder={'Plans for this day — one activity per line\ne.g. Fushimi Inari at sunrise\nNishiki Market lunch\nGion evening walk'}
-                            value={d.plan}
-                            onChange={(e) => handleUpdateDraftDay(idx, 'plan', e.target.value)}
-                            className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs leading-relaxed"
-                          />
+                          {/* one heading + one write box per activity */}
+                          <div className="space-y-2">
+                            {d.items.map((it, itemIdx) => (
+                              <div
+                                key={itemIdx}
+                                className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1.5"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-bold text-slate-400 shrink-0 w-4 text-center">
+                                    {itemIdx + 1}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    placeholder={getTranslation('jdNamePh')}
+                                    value={it.name}
+                                    onChange={(e) => handleUpdateDayItem(idx, itemIdx, 'name', e.target.value)}
+                                    className="flex-1 min-w-0 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-semibold"
+                                  />
+                                  {d.items.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveDayItem(idx, itemIdx)}
+                                      className="p-1 text-slate-400 hover:text-red-600 shrink-0 cursor-pointer"
+                                      title="Remove activity"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                                <textarea
+                                  rows={2}
+                                  placeholder={getTranslation('jdStopNotePh')}
+                                  value={it.detail}
+                                  onChange={(e) => handleUpdateDayItem(idx, itemIdx, 'detail', e.target.value)}
+                                  className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px] leading-relaxed"
+                                />
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => handleAddDayItem(idx)}
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-dashed border-rose-300 dark:border-rose-800 rounded-lg hover:bg-rose-100 transition-colors cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              {getTranslation('jdAddActivity')}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -2049,89 +2101,63 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   </button>
                 </div>
 
-                {editTripDays.map((d, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 dark:text-slate-100">{tv('dayN', { n: idx + 1 })}</span>
-                      {editTripDays.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveEditDay(idx)}
-                          className="text-slate-400 hover:text-red-600 cursor-pointer"
-                          title={getTranslation('removeDayTitle')}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    <input
-                      type="text"
-                      value={d.title}
-                      onChange={(e) => handleUpdateEditDay(idx, 'title', e.target.value)}
-                      placeholder={getTranslation('dayTitlePh')}
-                      className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold"
-                    />
-
-                    <div className="space-y-2.5">
-                      {DAY_TIME_ROWS.map(({ key, labelKey, Icon }) => {
-                        const lines = editDayLines(d[key]);
-                        return (
-                          <div key={key}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                <Icon className="w-3 h-3" />
-                                {getTranslation(labelKey)}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleAddEditDayActivityBox(idx, key)}
-                                className="w-6 h-6 shrink-0 inline-flex items-center justify-center rounded-full border border-dashed border-rose-300 dark:border-rose-800 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                                title={`${getTranslation('addActivityBox')} · ${getTranslation(labelKey)}`}
-                              >
-                                <Plus className="w-3.5 h-3.5" />
-                              </button>
+                {/* Per day: one heading + one plan box (one activity per line),
+                    linked on the dotted line — the same layout as the trip page. */}
+                <div className="relative">
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-[15px] top-4 bottom-4 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
+                  />
+                  <div className="space-y-3">
+                    {editTripDays.map((d, idx) => {
+                      const planText = [d.morningActivity, d.afternoonActivity, d.eveningActivity]
+                        .filter((s) => (s || '').trim())
+                        .join('\n');
+                      return (
+                        <div key={idx} className="relative pl-11">
+                          <span
+                            aria-hidden="true"
+                            className="absolute left-0 top-3 w-8 h-8 rounded-full bg-rose-600 text-white text-[11px] font-bold flex items-center justify-center shadow-sm border-2 border-white dark:border-slate-900"
+                          >
+                            {idx + 1}
+                          </span>
+                          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={d.title}
+                                onChange={(e) => handleUpdateEditDay(idx, 'title', e.target.value)}
+                                placeholder={getTranslation('dayTitlePh')}
+                                className="flex-1 min-w-0 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold"
+                              />
+                              {editTripDays.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveEditDay(idx)}
+                                  className="p-1 text-slate-400 hover:text-red-600 cursor-pointer shrink-0"
+                                  title={getTranslation('removeDayTitle')}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
-                            {/* One auto-growing box per activity — no scrolling, no manual resize */}
-                            <div className="space-y-1.5">
-                              {lines.map((line, lineIdx) => (
-                                <div key={lineIdx} className="flex items-start gap-1.5">
-                                  <AutoGrowTextarea
-                                    value={line}
-                                    onChange={(e) => handleUpdateEditDayActivityLine(idx, key, lineIdx, e.target.value)}
-                                    placeholder={getTranslation('activityPh')}
-                                    className="flex-1 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                                  />
-                                  {lines.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveEditDayActivityBox(idx, key, lineIdx)}
-                                      className="mt-1 p-1 text-slate-300 hover:text-red-500 cursor-pointer shrink-0"
-                                      title={getTranslation('removeActivityBox')}
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                            <textarea
+                              rows={Math.max(3, planText.split('\n').length)}
+                              value={planText}
+                              onChange={(e) => {
+                                handleUpdateEditDay(idx, 'morningActivity', e.target.value);
+                                handleUpdateEditDay(idx, 'afternoonActivity', '');
+                                handleUpdateEditDay(idx, 'eveningActivity', '');
+                              }}
+                              placeholder={getTranslation('activityPh')}
+                              className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 leading-relaxed"
+                            />
                           </div>
-                        );
-                      })}
-                    </div>
-
-                    <input
-                      type="text"
-                      value={d.companionGoal || ''}
-                      onChange={(e) => handleUpdateEditDay(idx, 'companionGoal', e.target.value)}
-                      placeholder={getTranslation('companionGoalPh')}
-                      className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px]"
-                    />
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                </div>
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">

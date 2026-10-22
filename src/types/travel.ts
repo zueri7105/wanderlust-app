@@ -139,6 +139,8 @@ export interface ItineraryDay {
   legModes?: Record<string, string>;
   /** Free-form journal note the traveller pens for this specific day */
   note?: string;
+  /** Per-stop write box: stop label → the traveller's notes for that place */
+  stopDetails?: Record<string, string>;
   /** Photos attached to this day (data URLs or image links) */
   photos?: string[];
 }

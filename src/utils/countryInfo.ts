@@ -4399,7 +4399,7 @@ export function visaVerdictFor(travelerNationality: string, text: string): VisaV
     status: v.status,
     days: v.days,
     etaName: v.etaName,
-    official: v.official,
+    official: v.official ?? undefined,
     destName: v.destName,
     note: v.note,
   };

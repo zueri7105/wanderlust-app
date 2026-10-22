@@ -1,7 +1,11 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Footprints,
   TramFront,
+  TrainFront,
+  TrainFrontTunnel,
+  Bus,
+  CarTaxiFront,
   Car,
   Ship,
   Plane,
@@ -18,17 +22,18 @@ import {
   Camera,
   Compass,
   NotebookPen,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Trash2
 } from 'lucide-react';
 import { TravelItinerary, ItineraryDay } from '../types/travel';
 import { TripRouteMap } from './TripRouteMap';
 import {
-  findPlaceGeo,
   estimateLeg,
   estimateLegForMode,
   dayRouteColor,
   TravelMode
 } from '../utils/placeGeo';
+import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext } from '../utils/geocode';
 import { haversineKm } from '../utils/units';
 import { activityImageUrl } from '../utils/activityImages';
 import { getTranslation, tv } from '../utils/i18n';
@@ -63,11 +68,11 @@ interface StopItem {
   lng?: number;
 }
 
-const stopsOf = (day: ItineraryDay): StopItem[] => {
+const stopsOf = (day: ItineraryDay, context = ''): StopItem[] => {
   const out: StopItem[] = [];
   SLOT_KEYS.forEach(({ key, labelKey }) => {
     splitTasks(day[key]).forEach((task) => {
-      const geo = findPlaceGeo(task);
+      const geo = geoForTask(task, context);
       out.push({ label: task, slotLabelKey: labelKey, slotKey: key, lat: geo?.lat, lng: geo?.lng });
     });
   });
@@ -75,8 +80,8 @@ const stopsOf = (day: ItineraryDay): StopItem[] => {
 };
 
 /** Legs between consecutive geocoded stops of a day (distance + travel mode). */
-const legsOf = (day: ItineraryDay) => {
-  const stops = stopsOf(day);
+const legsOf = (day: ItineraryDay, context = '') => {
+  const stops = stopsOf(day, context);
   return stops.slice(1).map((to, i) => {
     const from = stops[i];
     if (from.lat == null || to.lat == null || from.lng == null || to.lng == null) return null;
@@ -133,21 +138,118 @@ const CAT_META: Record<StopCategory, { key: string; cls: string; Icon: typeof Ca
   }
 };
 
+/** Per-mode icon: foot / underground / bus / train / taxi / car / ferry / flight. */
 const modeIcon = (mode: string) => {
   switch (mode) {
     case 'walk':
       return Footprints;
     case 'transit':
+      return TrainFrontTunnel; // underground / metro
     case 'bus':
+      return Bus;
     case 'train':
-      return TramFront;
+      return TrainFront;
+    case 'taxi':
+      return CarTaxiFront;
     case 'ferry':
       return Ship;
     case 'flight':
       return Plane;
-    default:
+    case 'drive':
       return Car;
+    default:
+      return TramFront;
   }
+};
+
+/** Modes offered when the traveller picks how to travel a leg. */
+const LEG_MODE_CHOICES: Array<{ mode: TravelMode; labelKey: string }> = [
+  { mode: 'walk', labelKey: 'modeWalk' },
+  { mode: 'transit', labelKey: 'modeTransit' },
+  { mode: 'bus', labelKey: 'modeBus' },
+  { mode: 'train', labelKey: 'modeTrain' },
+  { mode: 'taxi', labelKey: 'modeTaxi' },
+  { mode: 'drive', labelKey: 'modeDrive' },
+  { mode: 'ferry', labelKey: 'modeFerry' },
+  { mode: 'flight', labelKey: 'modeFlight' }
+];
+
+/* ── Swipe-left-to-delete stop bullet ──────────────────────────────────────── */
+
+const STOP_SWIPE_WIDTH = 72;
+
+/**
+ * One activity bullet in a day card. Swipe (or drag) left to reveal the red
+ * delete zone; release past halfway — or tap the revealed trash — to delete.
+ */
+const SwipeableStop: React.FC<{ onDelete: () => void; children: React.ReactNode }> = ({
+  onDelete,
+  children
+}) => {
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button, input, textarea, a')) return;
+    drag.current = { startX: e.clientX, startOffset: offset, moved: false };
+    try {
+      // keep the gesture on this element even when the pointer leaves the card
+      // (mouse drags otherwise fire pointerleave mid-swipe and cancel it)
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* older browsers — touch devices capture implicitly anyway */
+    }
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    const dx = e.clientX - drag.current.startX;
+    if (!drag.current.moved && Math.abs(dx) < 6) return;
+    drag.current.moved = true;
+    setDragging(true);
+    setOffset(Math.min(0, Math.max(-STOP_SWIPE_WIDTH, drag.current.startOffset + dx)));
+  };
+  const endDrag = () => {
+    if (!drag.current) return;
+    const wasMoved = drag.current.moved;
+    drag.current = null;
+    setDragging(false);
+    if (!wasMoved) {
+      setOffset(0); // plain tap closes an open swipe
+      return;
+    }
+    if (offset <= -STOP_SWIPE_WIDTH + 6) {
+      onDelete(); // full swipe — the bullet is gone, no second tap needed
+      return;
+    }
+    setOffset(offset < -STOP_SWIPE_WIDTH / 2 ? -STOP_SWIPE_WIDTH : 0);
+  };
+
+  return (
+    <div className="relative rounded-xl overflow-hidden">
+      {/* Red delete zone behind the bullet, revealed on swipe-left */}
+      <button
+        type="button"
+        onClick={onDelete}
+        className="absolute inset-y-0 right-0 w-[72px] bg-gradient-to-br from-red-500 to-rose-600 flex flex-col items-center justify-center gap-0.5 text-white cursor-pointer"
+        title="Delete"
+      >
+        <Trash2 className="w-4 h-4" />
+        <span className="text-[9px] font-bold uppercase tracking-wider">Delete</span>
+      </button>
+      <div
+        style={{ transform: `translateX(${offset}px)` }}
+        className={`relative touch-pan-y select-none ${dragging ? '' : 'transition-transform'}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onPointerLeave={endDrag}
+      >
+        {children}
+      </div>
+    </div>
+  );
 };
 
 /** Photo with a graceful activity-symbol tile when the photo service hiccups —
@@ -222,12 +324,73 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
 }) => {
   const [activeDay, setActiveDay] = useState(0); // 0 = Overview, else 1-based day number
 
+  // Exact-place geocoding: re-render when an online lookup lands, and queue
+  // one for any stop the local landmark table doesn't know yet.
+  const geoContext = tripGeoContext(itinerary.destination, itinerary.country);
+  const [geoVer, setGeoVer] = useState(0);
+  useEffect(() => onGeocodeResolved(() => setGeoVer((v) => v + 1)), []);
+  useEffect(() => {
+    itinerary.days.forEach((d) => {
+      SLOT_KEYS.forEach(({ key }) => {
+        splitTasks(d[key]).forEach((task) => {
+          if (!geoForTask(task, geoContext)) requestGeocode(task, geoContext);
+        });
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itinerary.days, geoContext, geoVer]);
+
+  // Which leg's inline transport picker is open: "dayNumber|from→to"
+  const [openLegPicker, setOpenLegPicker] = useState<string | null>(null);
+
+  const chooseLegMode = (day: ItineraryDay, key: string, mode: TravelMode) => {
+    updateDay(day.dayNumber, { legModes: { ...(day.legModes || {}), [key]: mode } });
+    setOpenLegPicker(null);
+  };
+
   // Overview note — tap the box and pen straight away; saves on blur
   const [noteDraft, setNoteDraft] = useState<string | null>(null);
 
   // Double-tap editing: which day card is currently in edit form
   const [editingDay, setEditingDay] = useState<number | null>(null);
-  const [newStopDraft, setNewStopDraft] = useState('');
+  // Draft while editing: day heading + one heading/box pair per activity
+  const [editDraft, setEditDraft] = useState<{
+    dayNumber: number;
+    title: string;
+    items: Array<{ name: string; detail: string }>;
+  } | null>(null);
+
+  const beginEditDay = (d: ItineraryDay) => {
+    const items = stopsOf(d, geoContext).map((s) => ({
+      name: s.label,
+      detail: d.stopDetails?.[s.label] ?? ''
+    }));
+    setEditingDay(d.dayNumber);
+    setEditDraft({
+      dayNumber: d.dayNumber,
+      title: d.title,
+      items: items.length > 0 ? items : [{ name: '', detail: '' }]
+    });
+  };
+
+  const commitEditDraft = () => {
+    if (!editDraft) return;
+    const names = editDraft.items.map((i) => i.name.trim()).filter(Boolean);
+    const details: Record<string, string> = {};
+    editDraft.items.forEach((i) => {
+      const n = i.name.trim();
+      if (n && i.detail.trim()) details[n] = i.detail.trim();
+    });
+    updateDay(editDraft.dayNumber, {
+      title: editDraft.title,
+      morningActivity: names.join('\n'),
+      afternoonActivity: '',
+      eveningActivity: '',
+      stopDetails: details
+    });
+    setEditingDay(null);
+    setEditDraft(null);
+  };
 
   // Trip cover picker (rendered on the trip card back on the Trips list)
   const [coverOpen, setCoverOpen] = useState(false);
@@ -266,8 +429,9 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   };
 
   const totalStops = useMemo(
-    () => itinerary.days.reduce((n, d) => n + stopsOf(d).length, 0),
-    [itinerary.days]
+    () => itinerary.days.reduce((n, d) => n + stopsOf(d, geoContext).length, 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [itinerary.days, geoContext, geoVer]
   );
 
   const updateDay = (dayNumber: number, patch: Partial<ItineraryDay>) => {
@@ -309,20 +473,34 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     const pos = flatPositions(d)[flatIdx];
     if (!pos) return;
     const v = newLabel.trim();
-    if (!v) slots[pos[0]].splice(pos[1], 1); // clearing the text removes the stop
-    else if (slots[pos[0]][pos[1]] === v) return; // unchanged
-    else slots[pos[0]][pos[1]] = v;
-    commitSlots(d.dayNumber, slots);
-  };
-
-  /** Append a new stop to the day (lands in the afternoon slot by default). */
-  const appendStop = (d: ItineraryDay, label: string) => {
-    const v = label.trim();
-    if (!v) return;
+    const oldLabel = slots[pos[0]][pos[1]];
+    let detailsPatch: Record<string, string> | undefined;
+    if (!v) {
+      slots[pos[0]].splice(pos[1], 1); // clearing the text removes the stop…
+      if (d.stopDetails && oldLabel in d.stopDetails) {
+        detailsPatch = { ...d.stopDetails };
+        delete detailsPatch[oldLabel]; // …and its write-box notes go with it
+      }
+    } else if (oldLabel === v) return;
+    else {
+      slots[pos[0]][pos[1]] = v;
+      if (d.stopDetails && oldLabel in d.stopDetails) {
+        detailsPatch = { ...d.stopDetails };
+        detailsPatch[v] = detailsPatch[oldLabel];
+        delete detailsPatch[oldLabel];
+      }
+    }
     updateDay(d.dayNumber, {
-      afternoonActivity: d.afternoonActivity ? `${d.afternoonActivity} · ${v}` : v
+      morningActivity: slots[0].join(' · '),
+      afternoonActivity: slots[1].join(' · '),
+      eveningActivity: slots[2].join(' · '),
+      ...(detailsPatch ? { stopDetails: detailsPatch } : {})
     });
   };
+
+  /** Write-box content for one stop (its own little note under the heading). */
+  const setStopDetail = (d: ItineraryDay, label: string, detail: string) =>
+    updateDay(d.dayNumber, { stopDetails: { ...(d.stopDetails || {}), [label]: detail } });
 
   /** "+ day" pill on the tab bar — appends a blank day and extends the trip. */
   const addDay = () => {
@@ -610,7 +788,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
           {/* Day summary chips — tap to jump into that day */}
           <div className="grid gap-2 sm:grid-cols-2">
             {itinerary.days.map((d, i) => {
-              const dayStops = stopsOf(d);
+              const dayStops = stopsOf(d, geoContext);
               return (
                 <button
                   key={d.dayNumber}
@@ -656,8 +834,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
             <div className="space-y-4">
               {itinerary.days.map((d, dayIdx) => {
                 const dayColor = dayRouteColor(d.dayNumber);
-                const stops = stopsOf(d);
-                const legs = legsOf(d);
+                const stops = stopsOf(d, geoContext);
+                const legs = legsOf(d, geoContext);
                 const editing = editingDay === d.dayNumber;
                 return (
                   <div
@@ -682,8 +860,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                       onDoubleClick={(e) => {
                         const t = e.target as HTMLElement;
                         if (t.closest('textarea, input, button, a, img')) return;
-                        setEditingDay(d.dayNumber);
-                        setNewStopDraft('');
+                        beginEditDay(d);
                       }}
                       className={`rounded-2xl border bg-white dark:bg-slate-900 p-4 space-y-3 min-w-0 [touch-action:manipulation] transition-shadow ${
                         editing
@@ -691,26 +868,105 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                           : 'border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-sm cursor-pointer'
                       }`}
                     >
-                      {/* Heading — display, or editable in the double-tap form */}
-                      {editing ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={d.title}
-                            onChange={(e) => updateDay(d.dayNumber, { title: e.target.value })}
-                            placeholder={getTranslation('jdTitlePh')}
-                            autoFocus
-                            className="flex-1 min-w-0 px-2.5 py-1.5 border border-violet-300 dark:border-violet-700 rounded-lg bg-white dark:bg-slate-800 font-display text-base font-bold text-stone-950 dark:text-stone-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setEditingDay(null)}
-                            className="w-8 h-8 shrink-0 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center hover:scale-105 transition-all cursor-pointer"
-                            title={getTranslation('saveAllChanges')}
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                        </div>
+                      {/* Heading — and DIRECTLY below it one heading + write box
+                          per activity. Display: heading + notes box + picture +
+                          stop bullets (each with its own box). Edit (double-tap):
+                          a heading input, then per activity a name field with its
+                          own box below — never one shared box for all headings. */}
+                      {editing && editDraft && editDraft.dayNumber === d.dayNumber ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editDraft.title}
+                              onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
+                              placeholder={getTranslation('jdTitlePh')}
+                              autoFocus
+                              className="flex-1 min-w-0 px-2.5 py-1.5 border border-violet-300 dark:border-violet-700 rounded-lg bg-white dark:bg-slate-800 font-display text-base font-bold text-stone-950 dark:text-stone-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={commitEditDraft}
+                              className="w-8 h-8 shrink-0 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center hover:scale-105 transition-all cursor-pointer"
+                              title={getTranslation('saveAllChanges')}
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {editDraft.items.map((it, itemIdx) => (
+                              <div
+                                key={itemIdx}
+                                className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-950/20 p-2.5 space-y-1.5"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0"
+                                    style={{ backgroundColor: dayColor }}
+                                  >
+                                    {itemIdx + 1}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={it.name}
+                                    onChange={(e) =>
+                                      setEditDraft({
+                                        ...editDraft,
+                                        items: editDraft.items.map((x, j) =>
+                                          j === itemIdx ? { ...x, name: e.target.value } : x
+                                        )
+                                      })
+                                    }
+                                    placeholder={getTranslation('jdNamePh')}
+                                    className="flex-1 min-w-0 px-2.5 py-1.5 border border-violet-200 dark:border-violet-800 rounded-lg bg-white dark:bg-slate-800 text-xs font-semibold text-stone-900 dark:text-stone-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                                  />
+                                  {editDraft.items.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setEditDraft({
+                                          ...editDraft,
+                                          items: editDraft.items.filter((_, j) => j !== itemIdx)
+                                        })
+                                      }
+                                      className="p-1 text-stone-400 hover:text-red-500 shrink-0 cursor-pointer"
+                                      title="Remove activity"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                                <textarea
+                                  rows={2}
+                                  value={it.detail}
+                                  onChange={(e) =>
+                                    setEditDraft({
+                                      ...editDraft,
+                                      items: editDraft.items.map((x, j) =>
+                                        j === itemIdx ? { ...x, detail: e.target.value } : x
+                                      )
+                                    })
+                                  }
+                                  placeholder={getTranslation('jdStopNotePh')}
+                                  className="w-full px-2.5 py-1.5 border border-violet-200 dark:border-violet-800 rounded-lg bg-white dark:bg-slate-800 text-xs text-stone-900 dark:text-stone-50 leading-relaxed focus:outline-none focus:ring-2 focus:ring-violet-400"
+                                />
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditDraft({
+                                  ...editDraft,
+                                  items: [...editDraft.items, { name: '', detail: '' }]
+                                })
+                              }
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-violet-600 dark:text-violet-400 bg-white dark:bg-slate-900 border border-dashed border-violet-300 dark:border-violet-700 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>{getTranslation('jdAddActivity')}</span>
+                            </button>
+                          </div>
+                        </>
                       ) : (
                         <div className="flex items-baseline gap-2 min-w-0">
                           <span className="flex-1 min-w-0 font-display text-base font-bold text-stone-950 dark:text-stone-50 truncate">
@@ -722,129 +978,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                         </div>
                       )}
 
-                      {/* Per-day picture — auto-generated from the day's places,
-                          or a simple drawing of the activity when generic */}
-                      <SmartImage
-                        src={activityImageUrl(
-                          stops[0]?.label || d.title || itinerary.destination,
-                          itinerary.destination,
-                          'card'
-                        )}
-                        color={dayColor}
-                        className="w-full h-28 sm:h-36 rounded-xl"
-                        iconCls="w-7 h-7"
-                        Icon={stops[0] ? CAT_META[categorize(stops[0].label)].Icon : Camera}
-                      />
-
-                      {stops.length === 0 && !editing && (
-                        <div className="p-4 text-center text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-slate-800/50 border border-dashed border-stone-300 dark:border-stone-700 rounded-xl">
-                          {getTranslation('jdEmptyDay')}
-                        </div>
-                      )}
-
-                      {stops.map((stop, idx) => {
-                        const cat = categorize(stop.label);
-                        const meta = CAT_META[cat];
-                        const leg = idx > 0 ? legs[idx - 1] : null;
-                        const LegIcon = leg ? modeIcon(leg.mode) : null;
-                        return (
-                          <React.Fragment key={`${idx}_${stop.label}`}>
-                            {idx > 0 && (
-                              <div className="flex items-center gap-2 pl-4 py-0.5">
-                                <span className="w-px h-3.5 border-l-2 border-dotted border-stone-300 dark:border-stone-600 ml-[13px]" />
-                                {leg && LegIcon && (
-                                  <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-stone-500 dark:text-stone-400 bg-stone-100/80 dark:bg-stone-800/60 px-2 py-0.5 rounded-full">
-                                    <LegIcon className="w-3 h-3" />
-                                    {tv('jdLeg', { km: leg.km.toFixed(1), min: leg.minutes })}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2.5 p-2.5 bg-stone-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-xl">
-                              <span
-                                className="w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-sm"
-                                style={{ backgroundColor: dayColor }}
-                              >
-                                {idx + 1}
-                              </span>
-                              {editing ? (
-                                <input
-                                  key={`${d.dayNumber}_${idx}_${stop.label}`}
-                                  type="text"
-                                  defaultValue={stop.label}
-                                  onBlur={(e) => renameStop(d, idx, e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                                  }}
-                                  className="flex-1 min-w-0 px-2 py-1 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-xs font-semibold text-stone-900 dark:text-stone-50 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                                />
-                              ) : (
-                                <div className="flex-1 min-w-0">
-                                  <span className="block text-xs font-semibold text-stone-900 dark:text-stone-50 leading-snug">
-                                    {stop.label}
-                                  </span>
-                                  <span
-                                    className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded border ${meta.cls}`}
-                                  >
-                                    {getTranslation(meta.key)}
-                                  </span>
-                                </div>
-                              )}
-                              {/* move the activity up / down (across slots too) */}
-                              <span className="flex flex-col shrink-0 -my-1">
-                                <button
-                                  type="button"
-                                  onClick={() => moveStop(d, idx, -1)}
-                                  disabled={idx === 0}
-                                  className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
-                                  aria-label="Move up"
-                                >
-                                  <ChevronUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => moveStop(d, idx, 1)}
-                                  disabled={idx === stops.length - 1}
-                                  className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
-                                  aria-label="Move down"
-                                >
-                                  <ChevronDown className="w-3.5 h-3.5" />
-                                </button>
-                              </span>
-                            </div>
-                          </React.Fragment>
-                        );
-                      })}
-
-                      {/* Inside the edit form: one blank row to add an activity */}
-                      {editing && (
-                        <div className="flex items-center gap-2.5 p-2.5 border border-dashed border-violet-300 dark:border-violet-700 rounded-xl">
-                          <span className="w-6 h-6 rounded-full border-2 border-dashed border-violet-300 dark:border-violet-600 text-violet-400 flex items-center justify-center shrink-0">
-                            <Plus className="w-3 h-3" />
-                          </span>
-                          <input
-                            type="text"
-                            value={newStopDraft}
-                            onChange={(e) => setNewStopDraft(e.target.value)}
-                            onBlur={() => {
-                              if (newStopDraft.trim()) {
-                                appendStop(d, newStopDraft);
-                                setNewStopDraft('');
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && newStopDraft.trim()) {
-                                appendStop(d, newStopDraft);
-                                setNewStopDraft('');
-                              }
-                            }}
-                            placeholder={getTranslation('jdAddStopPh')}
-                            className="flex-1 min-w-0 px-2 py-1 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-900 text-xs text-stone-900 dark:text-stone-50 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                          />
-                        </div>
-                      )}
-
-                      {/* Remark box — notes for this day + photos */}
+                      {/* Remark box — notes for this day, straight under the heading */}
                       <div className="rounded-xl border border-amber-200/70 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2.5">
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
                           <NotebookPen className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
@@ -894,6 +1028,142 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                           <span>{getTranslation('jdAddPhoto')}</span>
                         </button>
                       </div>
+
+                      {/* Per-day picture — auto-generated from the day's places,
+                          or a simple drawing of the activity when generic */}
+                      <SmartImage
+                        src={activityImageUrl(
+                          stops[0]?.label || d.title || itinerary.destination,
+                          itinerary.destination,
+                          'card'
+                        )}
+                        color={dayColor}
+                        className="w-full h-28 sm:h-36 rounded-xl"
+                        iconCls="w-7 h-7"
+                        Icon={stops[0] ? CAT_META[categorize(stops[0].label)].Icon : Camera}
+                      />
+
+                      {stops.length === 0 && !editing && (
+                        <div className="p-4 text-center text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-slate-800/50 border border-dashed border-stone-300 dark:border-stone-700 rounded-xl">
+                          {getTranslation('jdEmptyDay')}
+                        </div>
+                      )}
+
+                      {!editing &&
+                        stops.map((stop, idx) => {
+                          const cat = categorize(stop.label);
+                          const meta = CAT_META[cat];
+                          const leg = idx > 0 ? legs[idx - 1] : null;
+                          const LegIcon = leg ? modeIcon(leg.mode) : null;
+                          const legPickerKey = leg ? `${d.dayNumber}|${leg.from}→${leg.to}` : '';
+                          const legStoreKey = leg ? `${leg.from}→${leg.to}` : '';
+                          return (
+                            <React.Fragment key={`${idx}_${stop.label}`}>
+                              {idx > 0 && (
+                                <div className="pl-4 py-0.5 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-px h-3.5 border-l-2 border-dotted border-stone-300 dark:border-stone-600 ml-[13px]" />
+                                    {leg && LegIcon && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setOpenLegPicker((cur) => (cur === legPickerKey ? null : legPickerKey))
+                                        }
+                                        className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-stone-500 dark:text-stone-400 bg-stone-100/80 dark:bg-stone-800/60 hover:bg-violet-100 dark:hover:bg-violet-900/40 hover:text-violet-700 dark:hover:text-violet-300 px-2 py-0.5 rounded-full transition-colors cursor-pointer"
+                                        title={getTranslation('travelModeTitle')}
+                                      >
+                                        <LegIcon className="w-3 h-3" />
+                                        {tv('jdLeg', { km: leg.km.toFixed(1), min: leg.minutes })}
+                                      </button>
+                                    )}
+                                  </div>
+                                  {/* Inline transport picker — tap the leg chip, pick a mode,
+                                      compare the minutes, choose what suits best */}
+                                  {leg && openLegPicker === legPickerKey && (
+                                    <div className="flex flex-wrap gap-1 ml-7">
+                                      {LEG_MODE_CHOICES.map(({ mode, labelKey }) => {
+                                        const MIcon = modeIcon(mode);
+                                        const active = leg.mode === mode;
+                                        const mins = estimateLegForMode(leg.km, mode);
+                                        return (
+                                          <button
+                                            key={mode}
+                                            type="button"
+                                            onClick={() => chooseLegMode(d, legStoreKey, mode)}
+                                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg border text-[10px] font-semibold transition-all cursor-pointer ${
+                                              active
+                                                ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 border-transparent'
+                                                : 'bg-white dark:bg-slate-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-violet-400'
+                                            }`}
+                                          >
+                                            <MIcon className="w-3 h-3" />
+                                            <span>{getTranslation(labelKey)}</span>
+                                            <span className={`font-mono tabular-nums text-[9px] ${active ? 'opacity-70' : 'text-stone-400'}`}>
+                                              ~{mins}m
+                                            </span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {/* Stop bullet — heading + its own write box below;
+                                  swipe left to delete the whole bullet */}
+                              <SwipeableStop onDelete={() => renameStop(d, idx, '')}>
+                                <div className="p-2.5 bg-stone-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-800 rounded-xl space-y-2">
+                                  <div className="flex items-center gap-2.5">
+                                    <span
+                                      className="w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-sm"
+                                      style={{ backgroundColor: dayColor }}
+                                    >
+                                      {idx + 1}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <span className="block text-xs font-semibold text-stone-900 dark:text-stone-50 leading-snug">
+                                        {stop.label}
+                                      </span>
+                                      <span
+                                        className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded border ${meta.cls}`}
+                                      >
+                                        {getTranslation(meta.key)}
+                                      </span>
+                                    </div>
+                                    {/* move the activity up / down (across slots too) */}
+                                    <span className="flex flex-col shrink-0 -my-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => moveStop(d, idx, -1)}
+                                        disabled={idx === 0}
+                                        className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
+                                        aria-label="Move up"
+                                      >
+                                        <ChevronUp className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => moveStop(d, idx, 1)}
+                                        disabled={idx === stops.length - 1}
+                                        className="p-1 text-stone-400 hover:text-violet-500 disabled:opacity-25 disabled:hover:text-stone-400 transition-colors cursor-pointer"
+                                        aria-label="Move down"
+                                      >
+                                        <ChevronDown className="w-3.5 h-3.5" />
+                                      </button>
+                                    </span>
+                                  </div>
+                                  {/* the stop's own box — write straight in, saves as you type */}
+                                  <textarea
+                                    value={d.stopDetails?.[stop.label] ?? ''}
+                                    onChange={(e) => setStopDetail(d, stop.label, e.target.value)}
+                                    placeholder={getTranslation('jdStopNotePh')}
+                                    rows={Math.max(1, (d.stopDetails?.[stop.label] ?? '').split('\n').length)}
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-stone-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-violet-400"
+                                  />
+                                </div>
+                              </SwipeableStop>
+                            </React.Fragment>
+                          );
+                        })}
                     </div>
                   </div>
                 );
