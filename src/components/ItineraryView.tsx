@@ -3,7 +3,6 @@ import { TravelItinerary, SoloTraveler, ItineraryDay, TravelGuideInfo, TripScope
 import {
   Calendar,
   CalendarDays,
-  ArrowLeft,
   MapPin,
   Users,
   Compass,
@@ -1769,19 +1768,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
       {/* Plan New Itinerary Modal with Dynamic Multi-Day Builder */}
       {isAddModalOpen && (
-        /* Full new-trip PAGE (not a popup) — “+ Add a new trip” lands here
-           directly; Back / Cancel returns to the trips list. */
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-50 dark:bg-[#0b0714] md:pl-[76px]">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-5">
-            <button
-              type="button"
-              onClick={() => setIsAddModalOpen(false)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-500 dark:text-stone-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>{getTranslation('backToTrips')}</span>
-            </button>
-          <div className="wl-modal-card max-w-2xl p-6 sm:p-7 relative" style={{ maxHeight: 'none', overflow: 'visible' }}>
+        <div className="wl-modal-overlay">
+          <div className="wl-modal-card max-w-2xl p-6 sm:p-7 relative">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
                 <div className="wl-modal-eyebrow">WanderLust Studio</div>
@@ -2064,7 +2052,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 </button>
               </div>
             </form>
-          </div>
           </div>
         </div>
       )}

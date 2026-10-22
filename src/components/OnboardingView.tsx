@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Cake, Globe2, Heart, MapPin, MessageCircle, Plus, Sparkles, Stamp, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Cake, Globe2, Heart, MapPin, MessageCircle, Plus, Sparkles, Stamp, X } from 'lucide-react';
 import { getTranslation, tv } from '../utils/i18n';
 
 export interface OnboardingAnswers {
@@ -20,7 +20,7 @@ interface OnboardingViewProps {
   onSkip: () => void;
 }
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 
 const LANG_CHIPS = [
   'English', '中文', 'Español', 'Français', 'Deutsch', '日本語',
@@ -46,8 +46,8 @@ const inputCls =
 
 /**
  * First-run onboarding: welcome → dream destination → about you → birthday →
- * gender → languages → hobbies → motto. The answers feed the travel passport,
- * the first auto-planned itinerary and the journal (wired up in App).
+ * languages → hobbies → motto. The answers feed the travel passport, the first
+ * auto-planned itinerary and the journal (wired up in App).
  */
 export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSkip }) => {
   const [step, setStep] = useState(0);
@@ -110,7 +110,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
         : 'bg-white dark:bg-slate-900 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-violet-300 dark:hover:border-violet-600'
     }`;
 
-  const stepIcon = [Sparkles, MapPin, Globe2, Cake, Users, MessageCircle, Heart, Stamp][step];
+  const stepIcon = [Sparkles, MapPin, Globe2, Cake, MessageCircle, Heart, Stamp][step];
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-gradient-to-b from-stone-950 via-[#171224] to-violet-950">
@@ -212,24 +212,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
                         {n} {getTranslation('days')}
                       </button>
                     ))}
-                    {/* …or just type the number yourself */}
-                    <span className="inline-flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min={1}
-                        max={60}
-                        value={DAY_OPTIONS.includes(dayCount) ? '' : dayCount}
-                        onChange={(e) => {
-                          const n = Math.max(1, Math.min(60, Number(e.target.value) || 1));
-                          setDayCount(n);
-                        }}
-                        placeholder={getTranslation('obDaysCustom')}
-                        className="w-24 px-3.5 py-2 rounded-2xl text-xs font-semibold border border-dashed border-stone-300 dark:border-stone-600 bg-white dark:bg-slate-900 text-stone-700 dark:text-stone-200 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <span className="text-xs font-semibold text-stone-500 dark:text-stone-400">
-                        {getTranslation('days')}
-                      </span>
-                    </span>
                   </div>
                 </div>
               </div>
@@ -271,6 +253,23 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
                     className={inputCls}
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-200 mb-1.5">
+                    {getTranslation('obGenderQ')}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {GENDER_OPTIONS.map(({ value, key }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setGender(gender === value ? '' : value)}
+                        className={chipCls(gender === value)}
+                      >
+                        {getTranslation(key)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -296,31 +295,8 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
               </div>
             )}
 
-            {/* Step 4 — Gender (its own page, right after birthday) */}
+            {/* Step 4 — Languages */}
             {step === 4 && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="font-display text-2xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
-                    {getTranslation('obGenderQ')}
-                  </h2>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {GENDER_OPTIONS.map(({ value, key }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setGender(gender === value ? '' : value)}
-                      className={chipCls(gender === value)}
-                    >
-                      {getTranslation(key)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Step 5 — Languages */}
-            {step === 5 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="font-display text-2xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
@@ -341,19 +317,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
                       {l}
                     </button>
                   ))}
-                  {/* your own answers join the boxes at the very end */}
-                  {languages
-                    .filter((l) => !LANG_CHIPS.includes(l))
-                    .map((l) => (
-                      <button
-                        key={l}
-                        type="button"
-                        onClick={() => toggle(languages, setLanguages, l)}
-                        className={chipCls(true)}
-                      >
-                        {l}
-                      </button>
-                    ))}
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -377,8 +340,8 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
               </div>
             )}
 
-            {/* Step 6 — Hobbies */}
-            {step === 6 && (
+            {/* Step 5 — Hobbies */}
+            {step === 5 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="font-display text-2xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
@@ -399,19 +362,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
                       {h}
                     </button>
                   ))}
-                  {/* your own answers join the boxes at the very end */}
-                  {hobbies
-                    .filter((h) => !HOBBY_CHIPS.includes(h))
-                    .map((h) => (
-                      <button
-                        key={h}
-                        type="button"
-                        onClick={() => toggle(hobbies, setHobbies, h)}
-                        className={chipCls(true)}
-                      >
-                        {h}
-                      </button>
-                    ))}
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -435,8 +385,8 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete, onSk
               </div>
             )}
 
-            {/* Step 7 — Motto */}
-            {step === 7 && (
+            {/* Step 6 — Motto */}
+            {step === 6 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="font-display text-2xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
