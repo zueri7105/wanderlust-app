@@ -49,7 +49,7 @@ import { generateDestinationTravelGuide } from '../services/geminiService';
 import { formatTemperature, haversineKm } from '../utils/units';
 import { lookupCountryGuide, visaAdviceFor, tippingAdviceFor } from '../utils/countryGuides';
 import { buildBasicGuide } from '../utils/guideBuilder';
-import { resolvePlaceCountry } from '../utils/worldGeo';
+import { canonicalCountrySegment, resolvePlaceCountry } from '../utils/worldGeo';
 import { cardAcceptanceForCountry, tippingForCountry, countryInfoFor, countryNameFor, visaVerdictFor } from '../utils/countryInfo';
 import { taxInfoFor } from '../utils/taxInfo';
 import ActivityImage from './ActivityImage';
@@ -789,7 +789,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     });
     // Any city/region resolves to its real country via the world gazetteer.
     const world = await resolvePlaceCountry(destination);
-    const typedCountry = destination.includes(',') ? destination.split(',').pop()!.trim() : '';
+    const typedRaw = destination.includes(',') ? destination.split(',').pop()!.trim() : '';
+    // Canonicalise the typed tail: "Paris, Texas" resolves to United States,
+    // not a country literally called "Texas".
+    const typedCountry = canonicalCountrySegment(typedRaw);
     const guide = buildBasicGuide(destination, typedCountry || world?.countryName || '', destination.split(',')[0]?.trim(), currentUser.country || '', iso(start), iso(end));
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,

@@ -9,7 +9,7 @@ import {
 } from '../types/travel';
 import { getTranslation } from '../utils/i18n';
 import { buildBasicGuide } from '../utils/guideBuilder';
-import { resolvePlaceCountry } from '../utils/worldGeo';
+import { canonicalCountrySegment, resolvePlaceCountry } from '../utils/worldGeo';
 import { getFxRates, convertAmount } from '../utils/currency';
 import { ItineraryView } from './ItineraryView';
 import { TripCostView } from './TripCostView';
@@ -70,7 +70,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     // offline gazetteer (GeoNames) — never guessed, never left blank when
     // the place is known.
     const world = await resolvePlaceCountry(dest);
-    const typedCountry = dest.includes(',') ? (dest.split(',').pop() || '').trim() : '';
+    const typedRaw = dest.includes(',') ? (dest.split(',').pop() || '').trim() : '';
+    const typedCountry = canonicalCountrySegment(typedRaw);
     const country = typedCountry || world?.countryName || '';
     const guide = buildBasicGuide(
       dest,

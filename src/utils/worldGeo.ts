@@ -51,6 +51,7 @@ let loadPromise: Promise<WorldGeoDb | null> | null = null;
 
 /** name-key → city rows (best first) */
 const cityIndex = new Map<string, WorldGeoHit[]>();
+const cityAliasIndex = new Map<string, WorldGeoHit[]>();
 /** name-key → region rows */
 const regionIndex = new Map<string, WorldGeoHit[]>();
 /** name-key → country row (country names are unique) */
@@ -66,6 +67,7 @@ const addTo = <T,>(map: Map<string, T[]>, key: string, val: T) => {
 const buildIndex = (data: WorldGeoDb) => {
   db = data;
   cityIndex.clear();
+  cityAliasIndex.clear();
   regionIndex.clear();
   countryIndex.clear();
 
@@ -112,16 +114,30 @@ const buildIndex = (data: WorldGeoDb) => {
       kind: 'city',
       pop: (row[5] as number) ?? 0
     };
+    // Primary names (local + ASCII form) rank above alternate names, so a
+    // same-named big city's alias ("Venice" as an old name of Dayton) can
+    // never hijack the place the traveller actually typed.
     const keys = new Set<string>([normPlace(row[0]), normPlace(row[0]).replace(/ /g, '')]);
     if (typeof row[1] === 'string' && row[1]) keys.add(normPlace(row[1]));
+    for (const k of keys) if (k) addTo(cityIndex, k, hit);
     if (typeof row[6] === 'string' && row[6]) {
-      for (const alt of row[6].split('|')) keys.add(normPlace(alt));
+      for (const alt of row[6].split('|')) {
+        const a = (alt || '').trim();
+        // GeoNames alternates include machine transliterations written
+        // all-lowercase ("bali" for Bari, "porto" for Bordeaux) — matching
+        // those hijacks real places. Genuine alternate names are
+        // capitalised ("Firenze", "Köln", "Roma"), so lowercase-ASCII
+        // alternates never enter the index.
+        if (/^[a-z0-9 ]+$/.test(a)) continue;
+        const nk = normPlace(a);
+        if (nk && !keys.has(nk)) addTo(cityAliasIndex, nk, hit);
+      }
     }
-    for (const k of keys) addTo(cityIndex, k, hit);
   }
 
   // Rank each bucket: biggest city first so "Paris" → Paris, France.
   cityIndex.forEach((arr) => arr.sort((a, b) => b.pop - a.pop));
+  cityAliasIndex.forEach((arr) => arr.sort((a, b) => b.pop - a.pop));
 };
 
 export const worldGeoLoaded = () => db !== null;
@@ -147,23 +163,49 @@ export const startWorldGeoLoad = (): Promise<WorldGeoDb | null> => {
 const pickBest = (hits: WorldGeoHit[] | undefined, isoHint: string | null): WorldGeoHit | null => {
   if (!hits || hits.length === 0) return null;
   if (isoHint) {
+    // A country constraint is strict: no in-country match means NO match —
+    // falling back here is what pinned Córdoba onto Argentina when the trip
+    // said Spain.
     const inCountry = hits.filter((h) => h.cc === isoHint);
-    if (inCountry.length > 0) return inCountry[0];
+    return inCountry.length > 0 ? inCountry[0] : null;
   }
   return hits[0];
 };
 
 /**
+ * Famous travel places whose biggest GeoNames name-sake is NOT the one
+ * travellers mean (normalized name → ISO2 of the intended country).
+ */
+const TRAVEL_INTENT_ISO: Record<string, string> = {
+  queenstown: 'NZ', // adventure capital, not Komani (ex-Queenstown), Eastern Cape
+  bali: 'ID', // the island province, not Bāli, India (nor Bari via a junk alias)
+  bari: 'IT', // Puglia's port city, not Somalia's Bari region
+  valencia: 'ES', // not Valencia, Venezuela
+  merida: 'MX', // Yucatán, not Venezuela's Mérida region
+  kochi: 'IN', // Kerala's port city, not Kōchi prefecture
+  trujillo: 'PE', // Chan Chan's city, not Venezuela's Trujillo region
+  munster: 'DE', // Münster, Westphalia — not Ireland's Munster province
+  sucre: 'BO', // Bolivia's constitutional capital, not Venezuela's Sucre state
+  safi: 'MA', // Morocco's ceramic coast, not Malta's hamlet
+  southampton: 'GB', // the UK port city, not Bermuda's Southampton Parish
+  'porto novo': 'BJ', // Benin's capital, not Cape Verde's Porto-Novo
+  'san salvador': 'SV', // El Salvador's capital, not the Bahamian island
+  manchester: 'GB' // the UK city, not Jamaica's Manchester Parish
+};
+
+/**
  * Synchronous lookup (once loaded). `isoHint` constrains the match to a
  * country ("Córdoba" + hint "ES" → Córdoba, Spain instead of Argentina).
- * Cities beat regions beat countries at the same specificity level.
+ * Exact country names win, then exact region/state names, then cities.
  */
 export const lookupWorldGeoSync = (text: string, isoHint?: string | null): WorldGeoHit | null => {
   if (!db) return null;
   const raw = (text || '').trim();
   if (!raw) return null;
-  const iso = isoHint || null;
   const key = normPlace(raw);
+  // Traveller intent beats raw population for a few famously ambiguous spots
+  // (Queenstown NZ, not the bigger Komani/Queenstown in South Africa).
+  const iso = isoHint || TRAVEL_INTENT_ISO[key] || null;
   const squashed = key.replace(/ /g, '');
 
   // Full text → then last comma segment ("Kyoto, Japan" handled by callers,
@@ -172,16 +214,37 @@ export const lookupWorldGeoSync = (text: string, isoHint?: string | null): World
   const lastSeg = raw.includes(',') ? normPlace(raw.split(',').pop() || '') : '';
   if (lastSeg && lastSeg !== key) candidates.push(lastSeg);
 
+  // Travellers mean the most specific named thing they typed: an exact
+  // country ("Japan"), then an exact region/state ("Bali", "Bavaria"),
+  // then the biggest city with that exact name ("Paris").
   for (const k of candidates) {
     if (!k) continue;
-    const city = pickBest(cityIndex.get(k), iso);
-    if (city) return city;
-    const region = pickBest(regionIndex.get(k), iso);
-    if (region) return region;
     const country = countryIndex.get(k);
     if (country && (!iso || country.cc === iso)) return country;
+    const region = pickBest(regionIndex.get(k), iso);
+    if (region) return region;
+    const city = pickBest(cityIndex.get(k), iso);
+    const alias = pickBest(cityAliasIndex.get(k), iso);
+    // Exact-name hits win; an alternate-spelling hit only overrides one when
+    // it is a far bigger place ("Roma" → Rome, Italy, not Roma, Texas).
+    if (city && alias) return alias.pop >= city.pop * 10 ? alias : city;
+    const hit = city || alias;
+    if (hit) return hit;
   }
   return null;
+};
+
+/**
+ * Canonicalise the country segment a traveller typed after a comma:
+ * "Paris, Texas" → "United States" (Texas is a state), "Kyoto, japan" →
+ * "Japan" (canonical spelling). Unknown text passes through unchanged —
+ * never blank out what the traveller wrote.
+ */
+export const canonicalCountrySegment = (seg: string): string => {
+  const t = (seg || '').trim();
+  if (!t || !db) return t;
+  const hit = lookupWorldGeoSync(t);
+  return hit?.countryName || t;
 };
 
 /**
