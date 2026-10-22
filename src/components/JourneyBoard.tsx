@@ -998,57 +998,6 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                         </div>
                       )}
 
-                      {/* Remark box — notes for this day, straight under the heading */}
-                      <div className="rounded-xl border border-amber-200/70 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2.5">
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
-                          <NotebookPen className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                          <span>{getTranslation('myNotes')}</span>
-                        </div>
-                        <textarea
-                          value={d.note ?? ''}
-                          onChange={(e) => updateDay(d.dayNumber, { note: e.target.value })}
-                          placeholder={getTranslation('jdDayNotePh')}
-                          rows={Math.max(2, (d.note ?? '').split('\n').length)}
-                          className="w-full bg-transparent text-xs text-amber-900 dark:text-amber-200 placeholder:text-amber-700/50 dark:placeholder:text-amber-300/40 leading-relaxed resize-none focus:outline-none"
-                        />
-                        {(d.photos || []).length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {(d.photos || []).map((url, i) => (
-                              <span key={i} className="relative group">
-                                <img
-                                  src={url}
-                                  alt=""
-                                  className="w-16 h-16 rounded-xl object-cover border border-stone-200 dark:border-stone-700"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateDay(d.dayNumber, {
-                                      photos: (d.photos || []).filter((_, j) => j !== i)
-                                    })
-                                  }
-                                  className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 w-[18px] h-[18px] rounded-full bg-stone-900 text-white items-center justify-center hidden group-hover:flex"
-                                  aria-label="Remove photo"
-                                >
-                                  <X className="w-2.5 h-2.5" />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            photoDayRef.current = { day: d.dayNumber, stop: null };
-                            fileInputRef.current?.click();
-                          }}
-                          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
-                        >
-                          <ImagePlus className="w-3.5 h-3.5" />
-                          <span>{getTranslation('jdAddPhoto')}</span>
-                        </button>
-                      </div>
-
                       {stops.length === 0 && !editing && (
                         <div className="p-4 text-center text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-slate-800/50 border border-dashed border-stone-300 dark:border-stone-700 rounded-xl">
                           {getTranslation('jdEmptyDay')}
@@ -1157,18 +1106,18 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                       </button>
                                     </span>
                                   </div>
-                                  {/* the stop's own box — notes + photos for this activity,
+                                  {/* notes + photos for this activity — flat, no nested box;
                                       write straight in, saves as you type */}
-                                  <div className="rounded-lg border border-stone-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 focus-within:ring-2 focus-within:ring-violet-400 overflow-hidden">
+                                  <div className="border-t border-dashed border-stone-200 dark:border-slate-700 pt-1.5">
                                     <textarea
                                       value={d.stopDetails?.[stop.label] ?? ''}
                                       onChange={(e) => setStopDetail(d, stop.label, e.target.value)}
                                       placeholder={getTranslation('jdStopNotePh')}
                                       rows={Math.max(1, (d.stopDetails?.[stop.label] ?? '').split('\n').length)}
-                                      className="w-full px-2.5 py-1.5 bg-transparent text-[11px] text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 leading-relaxed resize-none focus:outline-none"
+                                      className="w-full py-1 bg-transparent text-[11px] text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 leading-relaxed resize-none focus:outline-none"
                                     />
                                     {(d.stopPhotos?.[stop.label] || []).length > 0 && (
-                                      <div className="flex flex-wrap gap-1.5 px-2.5 pb-2">
+                                      <div className="flex flex-wrap gap-1.5 pb-1">
                                         {(d.stopPhotos?.[stop.label] || []).map((url, pi) => (
                                           <span key={pi} className="relative group">
                                             <img
@@ -1195,7 +1144,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                         ))}
                                       </div>
                                     )}
-                                    <div className={`flex items-center px-2.5 ${(d.stopPhotos?.[stop.label] || []).length > 0 ? 'pb-1.5' : 'pb-1'}`}>
+                                    <div className={`flex items-center ${(d.stopPhotos?.[stop.label] || []).length > 0 ? 'pb-1' : ''}`}>
                                       <button
                                         type="button"
                                         onClick={() => {

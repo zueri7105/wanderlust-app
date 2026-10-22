@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TravelItinerary, SoloTraveler, ItineraryDay, TravelGuideInfo, TripScope, SoloPersonalExpense, ExpenseItem } from '../types/travel';
 import {
+  CheckCircle2,
   Calendar,
   CalendarDays,
   MapPin,
@@ -377,6 +378,85 @@ const DEFAULT_PACKING_ITEMS = [
   'Pocket WiFi / eSIM (stay connected everywhere)',
   'Power bank (10,000mAh+ for full-day exploring)'
 ];
+
+/** Swipe left on a trip card to delete it — same gesture as deleting a stop. */
+const TRIP_SWIPE_WIDTH = 96;
+const SwipeableTripCard: React.FC<{ onDelete: () => void; children: React.ReactNode }> = ({ onDelete, children }) => {
+  const [offset, setOffset] = useState(0);
+  const drag = useRef<{ startX: number; startY: number; active: boolean; decided: boolean } | null>(null);
+  const swiped = useRef(false);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, textarea, a')) return;
+    // No pointer capture yet — capturing here would retarget the coming click
+    // to this wrapper and the card's own click-to-open would never fire.
+    drag.current = { startX: e.clientX, startY: e.clientY, active: true, decided: false };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d?.active) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    if (!d.decided) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      d.decided = true;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        d.active = false; // vertical scroll, not a swipe
+        return;
+      }
+      // Horizontal swipe — capture now so the drag survives leaving the card.
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        /* harmless */
+      }
+      swiped.current = true;
+    }
+    setOffset(Math.max(-TRIP_SWIPE_WIDTH, Math.min(0, dx)));
+  };
+  const endDrag = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d?.active && offset === 0) return;
+    if (offset <= -TRIP_SWIPE_WIDTH + 10) {
+      onDelete();
+      return;
+    }
+    setOffset(0);
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl">
+      {/* red DELETE zone revealed behind the card */}
+      <div className="absolute inset-y-0 right-0 w-24 bg-rose-600 flex items-center justify-center rounded-r-2xl">
+        <span className="text-[10px] font-black uppercase tracking-widest text-white">
+          {getTranslation('jdDelete')}
+        </span>
+      </div>
+      <div
+        className="relative transition-transform"
+        style={{
+          transform: `translateX(${offset}px)`,
+          transitionDuration: drag.current?.active ? '0ms' : '180ms'
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={(e) => {
+          if (swiped.current) {
+            // a swipe just happened — don't let the card's click open the trip
+            e.preventDefault();
+            e.stopPropagation();
+            swiped.current = false;
+          }
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
 
 export const ItineraryView: React.FC<ItineraryViewProps> = ({
   itineraries,
@@ -992,6 +1072,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   onEditTrip={() => handleOpenEditTrip(itinerary)}
                 />
               ) : (
+              <SwipeableTripCard onDelete={() => onDeleteItinerary?.(itinerary.id)}>
               <div
                 className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-md overflow-hidden transition-all"
               >
@@ -1020,6 +1101,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   const cover = getTripCover(itinerary.id);
                   const dur = computeStayDuration(itinerary.startDate, itinerary.endDate);
                   const cd = countdownFor(itinerary.startDate, itinerary.endDate);
+                  // Big-number form for the countdown badge: 30 + days, 8 + months…
+                  const cdUnit = (() => {
+                    if (cd.kind !== 'future') return null;
+                    if (cd.days === 1) return { n: 1, unit: getTranslation('cdU_Day') };
+                    if (cd.days < 45) return { n: cd.days, unit: getTranslation('cdU_Days') };
+                    if (cd.days < 320) return { n: Math.max(2, Math.round(cd.days / 30.44)), unit: getTranslation('cdU_Months') };
+                    if (cd.days < 550) return { n: 1, unit: getTranslation('cdU_Year') };
+                    return { n: Math.round((cd.days / 365.25) * 10) / 10, unit: getTranslation('cdU_Years') };
+                  })();
                   const cdCls =
                     cd.kind === 'today'
                       ? 'bg-violet-600 text-white border-violet-500'
@@ -1055,16 +1145,33 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   )}
 
                   <div className="relative flex items-start gap-4">
-                    {/* Countdown clock — in X days / months / years until departure */}
-                    <div className="min-w-11 w-auto max-w-[92px] h-11 px-1.5 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex flex-col items-center justify-center shrink-0 shadow-xs">
+                    {/* Countdown clock — big number + unit until departure */}
+                    <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl shrink-0 shadow-xs ${
+                      cover
+                        ? 'bg-white/15 backdrop-blur-sm text-white border border-white/20'
+                        : 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'
+                    }`}>
                       {cd.kind === 'today' || cd.kind === 'now' ? (
-                        <Sparkles className="w-3.5 h-3.5 mb-0.5" />
+                        <Sparkles className="w-5 h-5" />
+                      ) : cd.kind === 'past' ? (
+                        <CheckCircle2 className="w-5 h-5 opacity-90" />
                       ) : (
-                        <Clock className="w-3.5 h-3.5 mb-0.5 opacity-90" />
+                        <Clock className="w-5 h-5 opacity-90" />
                       )}
-                      <span className="text-[8px] font-bold uppercase tracking-tight leading-none text-center">
-                        {countdownLabel(cd)}
-                      </span>
+                      {cdUnit ? (
+                        <span className="leading-none">
+                          <span className="block font-display text-2xl font-extrabold tabular-nums leading-none">
+                            {cdUnit.n}
+                          </span>
+                          <span className="block text-[9px] font-bold uppercase tracking-[0.18em] opacity-80 mt-1">
+                            {cdUnit.unit}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-black uppercase tracking-wider leading-tight max-w-[88px]">
+                          {countdownLabel(cd)}
+                        </span>
+                      )}
                     </div>
 
                     <div className="space-y-1.5 min-w-0 flex-1">
@@ -1133,12 +1240,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         }`}>
                           <MapPin className="w-3 h-3" />
                           {itinerary.country || itinerary.destination || getTranslation('untitledTrip')}
-                        </span>
-                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded border ${cdCls}`}>
-                          <Clock className="w-3 h-3" />
-                          {itinerary.days.length} {getTranslation('days')}
-                        </span>
-                        <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-2 py-0.5 rounded">
+                          <span className="opacity-50">·</span>
                           {tv('placesCount', { n: placesCount })}
                         </span>
                       </div>
@@ -1467,6 +1569,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   </div>
                 )}
               </div>
+              </SwipeableTripCard>
               )}
               </div>
             );

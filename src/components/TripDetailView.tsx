@@ -59,8 +59,11 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   // destination input; committing it names the trip and builds its guide.
   const [destDraft, setDestDraft] = useState('');
   const [destSaving, setDestSaving] = useState(false);
-  const commitDestination = async () => {
-    const dest = destDraft.trim();
+  // Rename mode: double-tap the big title to edit the city/country in place.
+  const [renaming, setRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState('');
+  const applyDestination = async (raw: string) => {
+    const dest = raw.trim();
     if (!dest || destSaving) return;
     setDestSaving(true);
     // Any city or region in the world resolves to its real country via the
@@ -84,6 +87,13 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       travelGuide: guide
     });
     setDestSaving(false);
+  };
+  const commitDestination = () => applyDestination(destDraft);
+  const commitRename = async () => {
+    const dest = renameDraft.trim();
+    setRenaming(false);
+    if (!dest || dest === itinerary.destination) return;
+    await applyDestination(dest);
   };
 
   // Per-trip spend (destination-prefix match, converted to USD for the chip)
@@ -140,10 +150,36 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
             {getTranslation('myTripsTitle')} · {itinerary.country || itinerary.destination.split(',').pop()?.trim()}
           </div>
         )}
-        {itinerary.destination.trim() ? (
-          <h1 className="font-display text-3xl sm:text-6xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 leading-[1.05] break-words">
+        {itinerary.destination.trim() && !renaming ? (
+          <h1
+            onDoubleClick={() => { setRenameDraft(itinerary.destination); setRenaming(true); }}
+            title={getTranslation('tapToRename')}
+            className="font-display text-3xl sm:text-6xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 leading-[1.05] break-words cursor-text select-none"
+          >
             {itinerary.destination}
           </h1>
+        ) : itinerary.destination.trim() && renaming ? (
+          <div className="max-w-xl">
+            <input
+              autoFocus
+              value={renameDraft}
+              onChange={(e) => setRenameDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void commitRename();
+                } else if (e.key === 'Escape') {
+                  setRenaming(false);
+                }
+              }}
+              onBlur={() => { void commitRename(); }}
+              placeholder={getTranslation('whereToPh')}
+              className="w-full font-display text-2xl sm:text-4xl font-extrabold tracking-tight bg-white dark:bg-stone-900 border-2 border-dashed border-violet-300 dark:border-violet-700 rounded-2xl px-4 py-3 text-stone-950 dark:text-stone-50 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-violet-500"
+            />
+            {destSaving && (
+              <p className="mt-2 text-xs font-semibold text-violet-500">…</p>
+            )}
+          </div>
         ) : (
           <div className="max-w-xl">
             <input
