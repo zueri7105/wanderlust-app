@@ -762,6 +762,138 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     return pinLayers.current;
   });
 
+  // Dream trail placement: with no current/visited memories yet, the dream
+  // countries lead the journal; otherwise they follow as the amber finish.
+  const dreamsFirst = timelineMemories.length === 0 && dreamMemories.length > 0;
+  const dreamTrail = (
+  <>
+  {/* ── What's next? Stay tuned… — the amber dream trail ── */}
+  <div className={`relative pb-2 ${dreamsFirst ? '' : 'mt-10'}`}>
+    {/* amber continuation of the star-trail */}
+    <span
+      aria-hidden="true"
+      className="wl-timeline-line-dream absolute left-4 sm:left-1/2 top-0 bottom-24 sm:-translate-x-1/2"
+    />
+    <Reveal className="relative">
+      <div className="text-center py-2">
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase tracking-[0.25em] shadow-xs">
+          <Sparkles className="w-3 h-3" />
+          {getTranslation('whatsNext')}
+        </span>
+      </div>
+    </Reveal>
+
+    {dreamMemories.length > 0 && (
+      <div className="space-y-5 mt-4">
+        {dreamMemories.map((mem, i) => {
+          const leftSide = (timelineMemories.length + i) % 2 === 0;
+          return (
+            <Reveal key={mem.id} side={leftSide ? 'left' : 'right'} delay={(i % 3) * 90}>
+              <div className="relative sm:grid sm:grid-cols-2 sm:gap-10 items-start">
+                <span
+                  aria-hidden="true"
+                  className="absolute left-4 sm:left-1/2 top-4 w-3 h-3 rounded-full -translate-x-1/2 z-10"
+                  style={{ background: '#f59e0b', boxShadow: '0 0 0 3px #f59e0b33, 0 0 10px #f59e0b88' }}
+                />
+                <div className={`pl-10 sm:pl-0 ${leftSide ? 'sm:col-start-1 sm:pr-2' : 'sm:col-start-2 sm:pl-2'}`}>
+                  <div className="rounded-2xl border border-dashed border-amber-300 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-950/20 px-3.5 py-3">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full text-white bg-amber-500">
+                        {getTranslation('dreamBadge')}
+                      </span>
+                      <span className="font-bold text-xs text-stone-900 dark:text-stone-100">
+                        {mem.country ? `${mem.destination}, ${mem.country}` : mem.destination}
+                      </span>
+                    </div>
+                    <div className="text-[10px] font-mono text-amber-600/80 dark:text-amber-400/70 mt-0.5 flex items-center gap-1">
+                      <Calendar className="w-2.5 h-2.5" />
+                      {mem.date.replace(/^Planned /, '') || 'Someday'}
+                    </div>
+                    {/* same 4 functions as current/visited memories */}
+                    <div className="mt-2 pt-1.5 border-t border-amber-200/70 dark:border-amber-800/50 flex items-center justify-end gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => flyToMemory(mem)}
+                        className="p-1.5 text-stone-400 hover:text-emerald-600 transition-colors cursor-pointer"
+                        title="Show on map"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditMemory(mem)}
+                        className="p-1.5 text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
+                        title="Edit this memory"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleShareMemory(mem)}
+                        className="p-1.5 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        title="Share this memory"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMemory(mem.id)}
+                        className="p-1.5 text-stone-400 hover:text-red-600 transition-colors cursor-pointer"
+                        title="Remove memory"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          );
+        })}
+      </div>
+    )}
+
+    {/* decorative horizon: landmark silhouettes, a rocket and a plane */}
+    <Reveal className="relative mt-8">
+      <div className="relative h-28 overflow-hidden" aria-hidden="true">
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 600 112" preserveAspectRatio="none">
+          <path
+            d="M-10 86 Q 150 34 300 62 T 610 42"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeDasharray="0.5 8"
+            strokeLinecap="round"
+            className="text-amber-300/70 dark:text-amber-400/40"
+          />
+        </svg>
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-center gap-6 sm:gap-10 text-stone-300 dark:text-violet-300/25">
+          {['cairo', 'paris', 'london', 'sydney', 'tokyo'].map((c) => (
+            <svg key={c} viewBox="0 0 24 24" className="w-9 h-9 sm:w-11 sm:h-11">
+              {landmarkArtFor(c)}
+            </svg>
+          ))}
+        </div>
+        <Rocket
+          className="wl-float absolute left-[16%] top-1 w-5 h-5 text-orange-400/80"
+          style={{ ['--wl-rot' as any]: '-45deg' }}
+        />
+        <Plane
+          className="wl-float absolute right-[18%] top-4 w-4 h-4 text-violet-400/70"
+          style={{ ['--wl-rot' as any]: '45deg', animationDelay: '1.4s' }}
+        />
+      </div>
+      <p className="text-center font-display italic text-sm text-stone-400 dark:text-stone-500 mt-2">
+        {getTranslation('stayTuned')}
+      </p>
+      <p className="text-center text-[10px] uppercase tracking-[0.3em] text-stone-300 dark:text-stone-600 mt-1">
+        {getTranslation('nextChapter')}
+      </p>
+    </Reveal>
+  </div>
+  </>
+  );
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Leaflet pin pulse keyframes */}
@@ -1019,7 +1151,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         {/* Fixed frame with internal scroll — the page never grows with more trips */}
         <div className="relative rounded-3xl border border-stone-200 dark:border-stone-800 bg-white/60 dark:bg-stone-900/40 shadow-xs">
           <div className="h-[26rem] sm:h-[30rem] overflow-y-auto overscroll-contain px-4 sm:px-8 py-6 scrollbar-thin">
-            {timelineMemories.length === 0 ? (
+            {!dreamsFirst && (timelineMemories.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center gap-2 text-stone-400">
                 <MapPin className="w-6 h-6" />
                 <p className="text-xs">No memories yet — record where you are or where you have been.</p>
@@ -1188,132 +1320,11 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   })}
                 </div>
               </div>
-            )}
+            ))}
 
-            {/* ── What's next? Stay tuned… — the amber dream trail ── */}
-            <div className="relative mt-10 pb-2">
-              {/* amber continuation of the star-trail */}
-              <span
-                aria-hidden="true"
-                className="wl-timeline-line-dream absolute left-4 sm:left-1/2 top-0 bottom-24 sm:-translate-x-1/2"
-              />
-              <Reveal className="relative">
-                <div className="text-center py-2">
-                  <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase tracking-[0.25em] shadow-xs">
-                    <Sparkles className="w-3 h-3" />
-                    {getTranslation('whatsNext')}
-                  </span>
-                </div>
-              </Reveal>
-
-              {dreamMemories.length > 0 && (
-                <div className="space-y-5 mt-4">
-                  {dreamMemories.map((mem, i) => {
-                    const leftSide = (timelineMemories.length + i) % 2 === 0;
-                    return (
-                      <Reveal key={mem.id} side={leftSide ? 'left' : 'right'} delay={(i % 3) * 90}>
-                        <div className="relative sm:grid sm:grid-cols-2 sm:gap-10 items-start">
-                          <span
-                            aria-hidden="true"
-                            className="absolute left-4 sm:left-1/2 top-4 w-3 h-3 rounded-full -translate-x-1/2 z-10"
-                            style={{ background: '#f59e0b', boxShadow: '0 0 0 3px #f59e0b33, 0 0 10px #f59e0b88' }}
-                          />
-                          <div className={`pl-10 sm:pl-0 ${leftSide ? 'sm:col-start-1 sm:pr-2' : 'sm:col-start-2 sm:pl-2'}`}>
-                            <div className="rounded-2xl border border-dashed border-amber-300 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-950/20 px-3.5 py-3">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full text-white bg-amber-500">
-                                  {getTranslation('dreamBadge')}
-                                </span>
-                                <span className="font-bold text-xs text-stone-900 dark:text-stone-100">
-                                  {mem.country ? `${mem.destination}, ${mem.country}` : mem.destination}
-                                </span>
-                              </div>
-                              <div className="text-[10px] font-mono text-amber-600/80 dark:text-amber-400/70 mt-0.5 flex items-center gap-1">
-                                <Calendar className="w-2.5 h-2.5" />
-                                {mem.date.replace(/^Planned /, '') || 'Someday'}
-                              </div>
-                              {/* same 4 functions as current/visited memories */}
-                              <div className="mt-2 pt-1.5 border-t border-amber-200/70 dark:border-amber-800/50 flex items-center justify-end gap-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => flyToMemory(mem)}
-                                  className="p-1.5 text-stone-400 hover:text-emerald-600 transition-colors cursor-pointer"
-                                  title="Show on map"
-                                >
-                                  <MapPin className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditMemory(mem)}
-                                  className="p-1.5 text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-colors cursor-pointer"
-                                  title="Edit this memory"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleShareMemory(mem)}
-                                  className="p-1.5 text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
-                                  title="Share this memory"
-                                >
-                                  <Share2 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteMemory(mem.id)}
-                                  className="p-1.5 text-stone-400 hover:text-red-600 transition-colors cursor-pointer"
-                                  title="Remove memory"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Reveal>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* decorative horizon: landmark silhouettes, a rocket and a plane */}
-              <Reveal className="relative mt-8">
-                <div className="relative h-28 overflow-hidden" aria-hidden="true">
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 600 112" preserveAspectRatio="none">
-                    <path
-                      d="M-10 86 Q 150 34 300 62 T 610 42"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.4"
-                      strokeDasharray="0.5 8"
-                      strokeLinecap="round"
-                      className="text-amber-300/70 dark:text-amber-400/40"
-                    />
-                  </svg>
-                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-center gap-6 sm:gap-10 text-stone-300 dark:text-violet-300/25">
-                    {['cairo', 'paris', 'london', 'sydney', 'tokyo'].map((c) => (
-                      <svg key={c} viewBox="0 0 24 24" className="w-9 h-9 sm:w-11 sm:h-11">
-                        {landmarkArtFor(c)}
-                      </svg>
-                    ))}
-                  </div>
-                  <Rocket
-                    className="wl-float absolute left-[16%] top-1 w-5 h-5 text-orange-400/80"
-                    style={{ ['--wl-rot' as any]: '-45deg' }}
-                  />
-                  <Plane
-                    className="wl-float absolute right-[18%] top-4 w-4 h-4 text-violet-400/70"
-                    style={{ ['--wl-rot' as any]: '45deg', animationDelay: '1.4s' }}
-                  />
-                </div>
-                <p className="text-center font-display italic text-sm text-stone-400 dark:text-stone-500 mt-2">
-                  {getTranslation('stayTuned')}
-                </p>
-                <p className="text-center text-[10px] uppercase tracking-[0.3em] text-stone-300 dark:text-stone-600 mt-1">
-                  {getTranslation('nextChapter')}
-                </p>
-              </Reveal>
-            </div>
+            {/* What's next — dream countries lead when nothing travelled yet,
+                otherwise they finish the trail after current & visited */}
+            {dreamTrail}
           </div>
           {/* fade hint at the frame's bottom when there is more to scroll */}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-b-3xl bg-gradient-to-t from-white/80 dark:from-[#0b0620]/80 to-transparent" />

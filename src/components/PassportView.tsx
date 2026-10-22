@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Trophy,
   Edit3,
+  Camera,
   X
 } from 'lucide-react';
 import { SoloTraveler, TravelItinerary, SoloPersonalExpense, ExpenseItem } from '../types/travel';
@@ -136,6 +137,30 @@ export const PassportView: React.FC<PassportViewProps> = ({
   const [editBio, setEditBio] = useState(currentUser.bio);
   const [editInstagram, setEditInstagram] = useState(currentUser.instagram || '');
   const [editWebsite, setEditWebsite] = useState(currentUser.website || '');
+  const [editAvatar, setEditAvatar] = useState(currentUser.avatar || '');
+  const avatarFileRef = useRef<HTMLInputElement>(null);
+
+  /** Profile photo upload — downscaled so the data URL stays storage-friendly. */
+  const handleAvatarFile = (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 512;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setEditAvatar(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => setEditAvatar(String(reader.result));
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
   const [editLanguages, setEditLanguages] = useState(languages.join(', '));
   const [editHobbies, setEditHobbies] = useState(hobbies.join(', '));
   const openEditor = () => {
@@ -145,6 +170,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
     setEditBio(currentUser.bio);
     setEditInstagram(currentUser.instagram || '');
     setEditWebsite(currentUser.website || '');
+    setEditAvatar(currentUser.avatar || '');
     setEditLanguages((currentUser.languages || []).join(', '));
     setEditHobbies((currentUser.interests || []).join(', '));
     setIsEditing(true);
@@ -158,6 +184,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
       bio: editBio.trim(),
       instagram: editInstagram.replace(/^@/, '').trim(),
       website: editWebsite.trim(),
+      avatar: editAvatar,
       languages: editLanguages.split(',').map((x) => x.trim()).filter(Boolean),
       interests: editHobbies.split(',').map((x) => x.trim()).filter(Boolean)
     });
@@ -254,8 +281,9 @@ export const PassportView: React.FC<PassportViewProps> = ({
                     <p className="mt-2 text-sm text-stone-400 max-w-md">{getTranslation('passportSub')}</p>
                   </div>
 
-                  {/* photo + home immigration stamp */}
-                  <div className="flex items-start gap-5 shrink-0">
+                  {/* photo + home immigration stamp — stamp sits at the far
+                      right edge on desktop, clear of the profile photo */}
+                  <div className="flex items-start gap-5 shrink-0 sm:flex-1 sm:justify-between sm:pl-8">
                     <div className="flex flex-col items-center gap-2">
                       {currentUser.avatar ? (
                         <img
@@ -297,13 +325,17 @@ export const PassportView: React.FC<PassportViewProps> = ({
                       </div>
                     </div>
 
-                    {/* home stamp — immigration cleared */}
+                    {/* home stamp — immigration cleared; inked badge on its own
+                        backdrop so the design reads on the dark header */}
                     {homeStamp && (
-                      <div className="w-24 h-24 sm:w-28 sm:h-28 -rotate-6 text-emerald-600 dark:text-emerald-400 shrink-0 select-none" title={`${homeStamp.country} · Immigration Cleared`}>
+                      <div
+                        className="w-28 h-28 sm:w-32 sm:h-32 -rotate-6 shrink-0 select-none rounded-full bg-white/[0.06] ring-1 ring-emerald-300/30 p-1.5 text-emerald-400 shadow-[0_0_24px_-6px_rgba(52,211,153,0.45)]"
+                        title={`${homeStamp.country} · Immigration Cleared`}
+                      >
                         <PassportStamp
                           country={homeStamp.country}
                           year="HOME"
-                          cities={homeStamp.cities}
+                          cities={homeStamp.cities.length > 0 ? homeStamp.cities : ['home']}
                           bottomText={getTranslation('immigrationCleared')}
                           className="w-full h-full"
                         />
@@ -545,6 +577,53 @@ export const PassportView: React.FC<PassportViewProps> = ({
             <h3 className="wl-modal-title mb-5">{getTranslation('editProfileBtn')}</h3>
 
             <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+              {/* Profile photo — upload your own picture for the passport */}
+              <div className="flex items-center gap-4">
+                {editAvatar ? (
+                  <img
+                    src={editAvatar}
+                    alt=""
+                    className="w-16 h-16 rounded-2xl object-cover border-2 border-violet-300/70 rotate-2 shadow-md"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-2xl bg-violet-300 text-stone-950 flex items-center justify-center font-display font-extrabold text-lg rotate-2 shadow-md">
+                    {(editName || currentUser.name).split(' ').map((x) => x[0]).slice(0, 2).join('')}
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300">Profile photo</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => avatarFileRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 font-bold hover:brightness-110 cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      {editAvatar ? 'Change photo' : 'Add photo'}
+                    </button>
+                    {editAvatar && (
+                      <button
+                        type="button"
+                        onClick={() => setEditAvatar('')}
+                        className="px-2.5 py-1.5 rounded-lg border border-stone-300 dark:border-stone-600 text-stone-500 dark:text-stone-400 font-semibold hover:text-rose-500 cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={avatarFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      handleAvatarFile(e.target.files);
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">Full name</label>
@@ -555,8 +634,10 @@ export const PassportView: React.FC<PassportViewProps> = ({
                   <input type="text" required value={editCountry} onChange={(e) => setEditCountry(e.target.value)} className="w-full" />
                 </div>
                 <div>
-                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">Home city</label>
-                  <input type="text" required value={editHomeCity} onChange={(e) => setEditHomeCity(e.target.value)} className="w-full" />
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                    Home city <span className="font-normal text-stone-400">(optional)</span>
+                  </label>
+                  <input type="text" value={editHomeCity} onChange={(e) => setEditHomeCity(e.target.value)} className="w-full" />
                 </div>
                 <div>
                   <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">

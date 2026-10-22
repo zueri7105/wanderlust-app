@@ -1055,12 +1055,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   )}
 
                   <div className="relative flex items-start gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex flex-col items-center justify-center shrink-0 shadow-xs">
-                      <span className="text-[10px] font-bold uppercase font-mono tracking-wider">
-                        {itinerary.days.length}
-                      </span>
-                      <span className="text-[9px] uppercase tracking-tight opacity-80">
-                        Days
+                    {/* Countdown clock — in X days / months / years until departure */}
+                    <div className="min-w-11 w-auto max-w-[92px] h-11 px-1.5 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex flex-col items-center justify-center shrink-0 shadow-xs">
+                      {cd.kind === 'today' || cd.kind === 'now' ? (
+                        <Sparkles className="w-3.5 h-3.5 mb-0.5" />
+                      ) : (
+                        <Clock className="w-3.5 h-3.5 mb-0.5 opacity-90" />
+                      )}
+                      <span className="text-[8px] font-bold uppercase tracking-tight leading-none text-center">
+                        {countdownLabel(cd)}
                       </span>
                     </div>
 
@@ -1132,8 +1135,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           {itinerary.country || itinerary.destination || getTranslation('untitledTrip')}
                         </span>
                         <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded border ${cdCls}`}>
-                          {cd.kind === 'today' ? <Sparkles className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                          {countdownLabel(cd)}
+                          <Clock className="w-3 h-3" />
+                          {itinerary.days.length} {getTranslation('days')}
                         </span>
                         <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-2 py-0.5 rounded">
                           {tv('placesCount', { n: placesCount })}

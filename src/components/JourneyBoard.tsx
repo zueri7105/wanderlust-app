@@ -418,7 +418,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   const checked = useMemo(() => loadChecked(), [checklistVer]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const photoDayRef = useRef<number>(0); // which day the open file picker belongs to
+  const photoDayRef = useRef<{ day: number; stop: string | null }>({ day: 0, stop: null }); // where the open file picker's photos go
   const dayRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const dayDate = (idx: number): string => {
@@ -475,11 +475,16 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     const v = newLabel.trim();
     const oldLabel = slots[pos[0]][pos[1]];
     let detailsPatch: Record<string, string> | undefined;
+    let photosPatch: Record<string, string[]> | undefined;
     if (!v) {
       slots[pos[0]].splice(pos[1], 1); // clearing the text removes the stop…
       if (d.stopDetails && oldLabel in d.stopDetails) {
         detailsPatch = { ...d.stopDetails };
         delete detailsPatch[oldLabel]; // …and its write-box notes go with it
+      }
+      if (d.stopPhotos && oldLabel in d.stopPhotos) {
+        photosPatch = { ...d.stopPhotos };
+        delete photosPatch[oldLabel]; // …and its photos too
       }
     } else if (oldLabel === v) return;
     else {
@@ -489,12 +494,18 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
         detailsPatch[v] = detailsPatch[oldLabel];
         delete detailsPatch[oldLabel];
       }
+      if (d.stopPhotos && oldLabel in d.stopPhotos) {
+        photosPatch = { ...d.stopPhotos };
+        photosPatch[v] = photosPatch[oldLabel];
+        delete photosPatch[oldLabel];
+      }
     }
     updateDay(d.dayNumber, {
       morningActivity: slots[0].join(' · '),
       afternoonActivity: slots[1].join(' · '),
       eveningActivity: slots[2].join(' · '),
-      ...(detailsPatch ? { stopDetails: detailsPatch } : {})
+      ...(detailsPatch ? { stopDetails: detailsPatch } : {}),
+      ...(photosPatch ? { stopPhotos: photosPatch } : {})
     });
   };
 
@@ -520,7 +531,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
 
   const addPhotos = async (files: FileList | null) => {
     if (!files) return;
-    const d = itinerary.days.find((x) => x.dayNumber === photoDayRef.current);
+    const target = photoDayRef.current;
+    const d = itinerary.days.find((x) => x.dayNumber === target.day);
     if (!d) return;
     const urls: string[] = [];
     for (const f of Array.from(files).slice(0, 6)) {
@@ -530,7 +542,15 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
         /* skip unreadable files */
       }
     }
-    if (urls.length) updateDay(d.dayNumber, { photos: [...(d.photos || []), ...urls] });
+    if (!urls.length) return;
+    if (target.stop) {
+      // photos belong to this activity's own box under its heading
+      updateDay(d.dayNumber, {
+        stopPhotos: { ...(d.stopPhotos || {}), [target.stop]: [...(d.stopPhotos?.[target.stop] || []), ...urls] }
+      });
+    } else {
+      updateDay(d.dayNumber, { photos: [...(d.photos || []), ...urls] });
+    }
   };
 
   const pickCover = async (files: FileList | null) => {
@@ -1019,7 +1039,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            photoDayRef.current = d.dayNumber;
+                            photoDayRef.current = { day: d.dayNumber, stop: null };
                             fileInputRef.current?.click();
                           }}
                           className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
@@ -1028,20 +1048,6 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                           <span>{getTranslation('jdAddPhoto')}</span>
                         </button>
                       </div>
-
-                      {/* Per-day picture — auto-generated from the day's places,
-                          or a simple drawing of the activity when generic */}
-                      <SmartImage
-                        src={activityImageUrl(
-                          stops[0]?.label || d.title || itinerary.destination,
-                          itinerary.destination,
-                          'card'
-                        )}
-                        color={dayColor}
-                        className="w-full h-28 sm:h-36 rounded-xl"
-                        iconCls="w-7 h-7"
-                        Icon={stops[0] ? CAT_META[categorize(stops[0].label)].Icon : Camera}
-                      />
 
                       {stops.length === 0 && !editing && (
                         <div className="p-4 text-center text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-slate-800/50 border border-dashed border-stone-300 dark:border-stone-700 rounded-xl">
@@ -1151,14 +1157,58 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                       </button>
                                     </span>
                                   </div>
-                                  {/* the stop's own box — write straight in, saves as you type */}
-                                  <textarea
-                                    value={d.stopDetails?.[stop.label] ?? ''}
-                                    onChange={(e) => setStopDetail(d, stop.label, e.target.value)}
-                                    placeholder={getTranslation('jdStopNotePh')}
-                                    rows={Math.max(1, (d.stopDetails?.[stop.label] ?? '').split('\n').length)}
-                                    className="w-full px-2.5 py-1.5 rounded-lg border border-stone-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-violet-400"
-                                  />
+                                  {/* the stop's own box — notes + photos for this activity,
+                                      write straight in, saves as you type */}
+                                  <div className="rounded-lg border border-stone-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 focus-within:ring-2 focus-within:ring-violet-400 overflow-hidden">
+                                    <textarea
+                                      value={d.stopDetails?.[stop.label] ?? ''}
+                                      onChange={(e) => setStopDetail(d, stop.label, e.target.value)}
+                                      placeholder={getTranslation('jdStopNotePh')}
+                                      rows={Math.max(1, (d.stopDetails?.[stop.label] ?? '').split('\n').length)}
+                                      className="w-full px-2.5 py-1.5 bg-transparent text-[11px] text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 leading-relaxed resize-none focus:outline-none"
+                                    />
+                                    {(d.stopPhotos?.[stop.label] || []).length > 0 && (
+                                      <div className="flex flex-wrap gap-1.5 px-2.5 pb-2">
+                                        {(d.stopPhotos?.[stop.label] || []).map((url, pi) => (
+                                          <span key={pi} className="relative group">
+                                            <img
+                                              src={url}
+                                              alt=""
+                                              className="w-14 h-14 rounded-lg object-cover border border-stone-200 dark:border-stone-700"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                updateDay(d.dayNumber, {
+                                                  stopPhotos: {
+                                                    ...(d.stopPhotos || {}),
+                                                    [stop.label]: (d.stopPhotos?.[stop.label] || []).filter((_, j) => j !== pi)
+                                                  }
+                                                })
+                                              }
+                                              className="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] rounded-full bg-stone-900 text-white items-center justify-center hidden group-hover:flex"
+                                              aria-label="Remove photo"
+                                            >
+                                              <X className="w-2.5 h-2.5" />
+                                            </button>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div className={`flex items-center px-2.5 ${(d.stopPhotos?.[stop.label] || []).length > 0 ? 'pb-1.5' : 'pb-1'}`}>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          photoDayRef.current = { day: d.dayNumber, stop: stop.label };
+                                          fileInputRef.current?.click();
+                                        }}
+                                        className="inline-flex items-center gap-1 text-[10px] font-bold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
+                                      >
+                                        <ImagePlus className="w-3 h-3" />
+                                        <span>{getTranslation('jdAddPhoto')}</span>
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
                               </SwipeableStop>
                             </React.Fragment>

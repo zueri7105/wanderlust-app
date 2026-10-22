@@ -141,6 +141,8 @@ export interface ItineraryDay {
   note?: string;
   /** Per-stop write box: stop label → the traveller's notes for that place */
   stopDetails?: Record<string, string>;
+  /** Per-stop photo box: stop label → photos attached to that activity */
+  stopPhotos?: Record<string, string[]>;
   /** Photos attached to this day (data URLs or image links) */
   photos?: string[];
 }

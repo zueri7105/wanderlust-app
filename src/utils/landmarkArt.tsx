@@ -71,9 +71,15 @@ const GENERIC_ART = (
   <>{P('M5 20 V12 H9 V20 M9 20 V8 H13 V20 M13 20 V14 H17 V20 M17 20 V16 H20 V20 M11 8 V5 M4 20 H21')}</>
 );
 
+/** House glyph — the home stamp's centrepiece when no home city is set. */
+const HOME_ART = (
+  <>{P('M12 3 L2.5 11 H5.5 V21 H18.5 V11 H21.5 Z M10 21 V14.5 H14 V21')}</>
+);
+
 /** Look up a city's landmark art (case/space-insensitive, matches "City, Country" too). */
 export const landmarkArtFor = (city: string): React.ReactNode => {
   const key = city.trim().toLowerCase().split(',')[0].trim();
+  if (key === 'home') return HOME_ART;
   if (CITY_ART[key]) return CITY_ART[key];
   // try loose contains match, longest key first
   const hit = Object.keys(CITY_ART)
