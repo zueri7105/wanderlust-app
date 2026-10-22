@@ -9,6 +9,7 @@ import {
 } from '../types/travel';
 import { getTranslation } from '../utils/i18n';
 import { buildBasicGuide } from '../utils/guideBuilder';
+import { resolvePlaceCountry } from '../utils/worldGeo';
 import { getFxRates, convertAmount } from '../utils/currency';
 import { ItineraryView } from './ItineraryView';
 import { TripCostView } from './TripCostView';
@@ -62,7 +63,12 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     const dest = destDraft.trim();
     if (!dest || destSaving) return;
     setDestSaving(true);
-    const country = dest.includes(',') ? (dest.split(',').pop() || '').trim() : '';
+    // Any city or region in the world resolves to its real country via the
+    // offline gazetteer (GeoNames) — never guessed, never left blank when
+    // the place is known.
+    const world = await resolvePlaceCountry(dest);
+    const typedCountry = dest.includes(',') ? (dest.split(',').pop() || '').trim() : '';
+    const country = typedCountry || world?.countryName || '';
     const guide = buildBasicGuide(
       dest,
       country,

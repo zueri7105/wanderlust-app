@@ -48,6 +48,7 @@ import { generateDestinationTravelGuide } from '../services/geminiService';
 import { formatTemperature, haversineKm } from '../utils/units';
 import { lookupCountryGuide, visaAdviceFor, tippingAdviceFor } from '../utils/countryGuides';
 import { buildBasicGuide } from '../utils/guideBuilder';
+import { resolvePlaceCountry } from '../utils/worldGeo';
 import { cardAcceptanceForCountry, tippingForCountry, countryInfoFor, countryNameFor, visaVerdictFor } from '../utils/countryInfo';
 import { taxInfoFor } from '../utils/taxInfo';
 import ActivityImage from './ActivityImage';
@@ -706,12 +707,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         eveningActivity: picks[2] ? `Evening at ${picks[2].name}` : ''
       };
     });
-    const guide = buildBasicGuide(destination, '', destination.split(',')[0]?.trim(), currentUser.country || '', iso(start), iso(end));
+    // Any city/region resolves to its real country via the world gazetteer.
+    const world = await resolvePlaceCountry(destination);
+    const typedCountry = destination.includes(',') ? destination.split(',').pop()!.trim() : '';
+    const guide = buildBasicGuide(destination, typedCountry || world?.countryName || '', destination.split(',')[0]?.trim(), currentUser.country || '', iso(start), iso(end));
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,
       travelerId: currentUser.id,
       destination,
-      country: destination.includes(',') ? destination.split(',').pop()!.trim() : guide.destinationCountry,
+      country: typedCountry || world?.countryName || guide.destinationCountry,
       startDate: iso(start),
       endDate: iso(end),
       companionPurpose: [],

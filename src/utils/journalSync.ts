@@ -13,6 +13,8 @@
 import { TravelItinerary, TravelMemory } from '../types/travel';
 import { findPlaceGeo } from './placeGeo';
 import { getTripCover } from './tripCovers';
+import { lookupWorldGeoSync } from './worldGeo';
+import { iso2ForCountry } from './geocode';
 
 const STORAGE_KEY = 'wanderlust_travel_memories';
 
@@ -52,8 +54,22 @@ const dayLinesFor = (it: TravelItinerary): string[] =>
 /** Build the journal memory for a trip (used on create; edits merge instead). */
 const memoryFromItinerary = (it: TravelItinerary): TravelMemory => {
   const city = it.cities?.[0] || it.destination.split(',')[0].trim();
-  const country = (it.country || it.destination.split(',').slice(-1)[0] || '').trim();
-  const geo = findPlaceGeo(city) || findPlaceGeo(it.destination) || findPlaceGeo(country);
+  // World gazetteer: any typed city/region resolves to its real country, so
+  // the journal colours exactly the country the pin lands in. The lookup is
+  // constrained to the trip's country, so "Córdoba, Spain" pins Córdoba,
+  // Spain — never Córdoba, Argentina.
+  const isoHint = iso2ForCountry(it.country || it.destination);
+  const world = it.country
+    ? // Country already known: the pin must stay inside it.
+      lookupWorldGeoSync(city, isoHint) || lookupWorldGeoSync(it.destination, isoHint)
+    : // Country unknown: the same hit that places the pin also names the country.
+      lookupWorldGeoSync(city) || lookupWorldGeoSync(it.destination);
+  const country = (it.country || world?.countryName || it.destination.split(',').slice(-1)[0] || '').trim();
+  const geo =
+    findPlaceGeo(city) ||
+    findPlaceGeo(it.destination) ||
+    findPlaceGeo(country) ||
+    (world ? { lat: world.lat, lng: world.lng, name: world.name } : null);
   const start = new Date(it.startDate);
   const dayLines = dayLinesFor(it);
   // Photo syncs with the trip card cover; with no cover we store none and the

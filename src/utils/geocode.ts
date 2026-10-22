@@ -311,6 +311,8 @@ const FILLER_RE =
  * Trim a typed stop down to the place itself: drop " — anything the traveller
  * added as a note" and time-of-day filler, collapse leftover punctuation.
  */
+import { lookupWorldGeoSync } from './worldGeo';
+
 export const cleanPlaceQuery = (task: string): string => {
   let q = (task || '').split(/\s+[—–]\s+/)[0]; // em/en dash introduces a personal note
   q = q.replace(FILLER_RE, ' ');
@@ -328,6 +330,10 @@ export const cleanPlaceQuery = (task: string): string => {
 export const geoForTask = (task: string, context: string): PlaceGeo | null => {
   const local = findPlaceGeo(task) || findPlaceGeo(cleanPlaceQuery(task));
   if (local) return local;
+  // World gazetteer (when loaded): any city/region on Earth, constrained to
+  // the trip's country so same-name cities can't cross borders.
+  const world = lookupWorldGeoSync(cleanPlaceQuery(task), iso2FromContext(context));
+  if (world) return { lat: world.lat, lng: world.lng, name: world.name };
   const hit = loadCache()[cacheKey(task, context)];
   if (hit && !hit.fail && hit.lat != null && hit.lng != null) {
     return { lat: hit.lat, lng: hit.lng, name: hit.name || task };

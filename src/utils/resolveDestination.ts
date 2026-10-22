@@ -2,6 +2,8 @@ import { findPlaceGeo, titleCasePlace, PlaceGeo } from './placeGeo';
 import { lookupCountryGuide } from './countryGuides';
 import { countryNameFor } from './countryInfo';
 import { searchCities, normalizePlace } from '../data/cityIndex';
+import { lookupWorldGeoSync } from './worldGeo';
+import { iso2ForCountry } from './geocode';
 
 export interface ResolvedDestination {
   /** Canonical city name, or null when the traveller typed a country. */
@@ -30,9 +32,20 @@ export function resolveDestination(input: string): ResolvedDestination {
     const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
     const city = titleCasePlace(parts[0].toLowerCase());
     const typedCountry = parts[parts.length - 1];
-    const country = countryNameFor(typedCountry) || titleCasePlace(typedCountry.toLowerCase());
+    const country =
+      countryNameFor(typedCountry) ||
+      lookupWorldGeoSync(typedCountry)?.countryName ||
+      titleCasePlace(typedCountry.toLowerCase());
     const display = parts.length > 1 ? `${city}, ${country}` : city;
-    return { city, country, display, geo: findPlaceGeo(city) || findPlaceGeo(display) };
+    // Coordinates constrained to the typed country — "Córdoba, Spain" maps to
+    // Córdoba, Spain, never the bigger Córdoba in Argentina.
+    const w = lookupWorldGeoSync(city, iso2ForCountry(country));
+    return {
+      city,
+      country,
+      display,
+      geo: findPlaceGeo(city) || findPlaceGeo(display) || (w ? { lat: w.lat, lng: w.lng, name: w.name } : null)
+    };
   }
 
   // Bare country name → just the country on the card
@@ -61,6 +74,28 @@ export function resolveDestination(input: string): ResolvedDestination {
   if (kb.key !== 'generic') {
     const city = titleCasePlace(raw.toLowerCase());
     return { city, country: kb.name, display: `${city}, ${kb.name}`, geo: findPlaceGeo(raw) };
+  }
+
+  // World gazetteer — any city, province/state/region or country on Earth
+  // (GeoNames, 236k cities). Loaded in the background at app start; when it
+  // is ready this resolves even the smallest town to its country.
+  const world = lookupWorldGeoSync(raw);
+  if (world) {
+    if (world.kind === 'country') {
+      return {
+        city: null,
+        country: world.countryName,
+        display: world.countryName,
+        geo: { lat: world.lat, lng: world.lng, name: world.name }
+      };
+    }
+    const city = titleCasePlace(raw.toLowerCase());
+    return {
+      city,
+      country: world.countryName,
+      display: `${city}, ${world.countryName}`,
+      geo: { lat: world.lat, lng: world.lng, name: world.name }
+    };
   }
 
   // Unknown place — keep what the traveller wrote, guess nothing

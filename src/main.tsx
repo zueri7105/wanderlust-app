@@ -1,6 +1,7 @@
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { startWorldGeoLoad } from './utils/worldGeo';
 
 // ── Fresh-platform reset ─────────────────────────────────────────────────
 // One-time migration: wipe any previously stored demo data (trips, itineraries,
@@ -16,5 +17,9 @@ if (!localStorage.getItem('wanderlust_fresh_v1')) {
   });
   localStorage.setItem('wanderlust_fresh_v1', '1');
 }
+
+// World gazetteer (all countries, provinces/states/regions, 236k cities) —
+// downloads once in the background so any typed place resolves to its country.
+void startWorldGeoLoad();
 
 createRoot(document.getElementById('root')!).render(<App />);
