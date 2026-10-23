@@ -13,6 +13,26 @@
     <!-- Fonts are intentionally NOT loaded from Google here: in some preview
          environments the fonts.gstatic fetch stalls and the browser blocks on
          it, leaving the page white. We rely on system-font fallbacks instead. -->
+    <!-- Apply the dark galaxy background BEFORE the app bundle loads, so the
+         page is never a flash of white while JS/CSS download. -->
+    <script>
+      (function () {
+        try {
+          var s = localStorage.getItem('wanderlust_app_settings');
+          var theme = s ? (JSON.parse(s).theme || 'dark') : 'dark';
+          var dark = theme === 'dark' ||
+            (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+          document.documentElement.style.backgroundColor = dark ? '#06030f' : '#F8FAFC';
+          document.addEventListener('DOMContentLoaded', function () {
+            document.body.style.backgroundColor = dark ? '#06030f' : '#F8FAFC';
+          });
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.style.backgroundColor = '#06030f';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

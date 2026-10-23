@@ -19,7 +19,9 @@ if (!localStorage.getItem('wanderlust_fresh_v1')) {
 }
 
 // World gazetteer (all countries, provinces/states/regions, 236k cities) —
-// downloads once in the background so any typed place resolves to its country.
-void startWorldGeoLoad();
-
+// downloads in the background AFTER the UI mounts, so the 12 MB fetch can never
+// delay or blank the first paint. The app is fully interactive before it lands.
 createRoot(document.getElementById('root')!).render(<App />);
+requestIdleCallback
+  ? requestIdleCallback(() => void startWorldGeoLoad())
+  : setTimeout(() => void startWorldGeoLoad(), 800);

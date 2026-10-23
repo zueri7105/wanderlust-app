@@ -167,16 +167,24 @@ export const worldGeoLoaded = () => db !== null;
 export const startWorldGeoLoad = (): Promise<WorldGeoDb | null> => {
   if (db) return Promise.resolve(db);
   if (!loadPromise) {
-    loadPromise = fetch(URL_PATH)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: WorldGeoDb | null) => {
+    loadPromise = (async () => {
+      // The 12 MB gazetteer must never stall the app — give it a bounded wait
+      // and bail to "not loaded" (the app still works, lookups just use the
+      // local table + online geocoder) rather than hanging forever.
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 25000) : null;
+      try {
+        const res = await fetch(URL_PATH, ctrl ? { signal: ctrl.signal } : undefined);
+        if (!res.ok) return null;
+        const data = (await res.json()) as WorldGeoDb | null;
         if (data && Array.isArray(data.t)) buildIndex(data);
         return db;
-      })
-      .catch(() => {
-        loadPromise = null; // network hiccup — the next lookup retries
-        return null;
-      });
+      } catch {
+        return null; // network hiccup / timeout — the next lookup retries
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    })();
   }
   return loadPromise;
 };
