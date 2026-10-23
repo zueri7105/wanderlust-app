@@ -330,12 +330,34 @@ export const cleanPlaceQuery = (task: string): string => {
 /** Raw coordinates typed into a location box resolve without any lookup. */
 const COORDS_RE = /^\s*(-?\d{1,2}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
 
-export const geoForTask = (task: string, context: string): PlaceGeo | null => {
+/** Heuristics for "this is a street address or postcode, not a place name". */
+const POSTCODE_RE = /[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}\b/i; // UK-style "SW1A 1AA"
+const STREET_NO_RE = /\b\d{1,5}\s+[A-Z]/i; // leading house number: "221 Baker St"
+const ADDRESS_WORD_RE = /\b(street|st\.?|avenue|ave\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|court|ct\.?|boulevard|blvd\.?|square|sq\.?|terrace|high street|main street|highway|hwy\.?)\b/i;
+
+export const isAddressQuery = (task: string): boolean => {
+  const t = (task || '').trim();
+  if (!t) return false;
+  if (POSTCODE_RE.test(t)) return true;
+  if (t.includes(',') && ADDRESS_WORD_RE.test(t)) return true;
+  if (STREET_NO_RE.test(t) && ADDRESS_WORD_RE.test(t)) return true;
+  return false;
+};
+
+export const geoForTask = (task: string, context = ''): PlaceGeo | null => {
   const coords = task.match(COORDS_RE);
   if (coords) {
     const lat = Number(coords[1]);
     const lng = Number(coords[2]);
     if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng, name: task.trim() };
+  }
+  // Addresses: the gazetteer only knows cities — never let a city centroid
+  // swallow a street-level query.
+  if (isAddressQuery(task)) {
+    const hit = loadCache()[cacheKey(task, context)];
+    return hit && !hit.fail && hit.lat != null && hit.lng != null
+      ? { lat: hit.lat, lng: hit.lng, name: hit.name || task.trim() }
+      : null;
   }
   const local = findPlaceGeo(task) || findPlaceGeo(cleanPlaceQuery(task));
   if (local) return local;
@@ -354,6 +376,9 @@ interface QueueItem {
   task: string;
   context: string;
   iso: string | null;
+  /** A street-address / postcode query: never answer with a city-centroid
+      match, and never let the local gazetteer swallow it. */
+  exact: boolean;
 }
 
 const queue: QueueItem[] = [];
@@ -370,20 +395,32 @@ export const onGeocodeResolved = (fn: () => void): (() => void) => {
 const notify = () => listeners.forEach((fn) => fn());
 
 /** Returns a cacheable entry, 'miss' (geocoder answered, no match), or null
- *  (network hiccup — leave uncached so a later session can retry). */
-const fetchNominatim = async (q: string, iso: string | null): Promise<CacheEntry | 'miss' | null> => {
+ *  (network hiccup — leave uncached so a later session can retry).
+ *  `exact` = street address / postcode query: only building-level matches. */
+const fetchNominatim = async (q: string, iso: string | null, exact: boolean): Promise<CacheEntry | 'miss' | null> => {
   try {
-    let url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+    let url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=${encodeURIComponent(q)}`;
     if (iso) url += `&countrycodes=${iso.toLowerCase()}`;
+    if (exact) {
+      // Prefer building / street / amenity level matches over a whole city,
+      // and hint the postal code when the query looks like one.
+      url += '&extratags=1';
+      if (POSTCODE_RE.test(q)) url += `&postalcode=${encodeURIComponent((q.match(POSTCODE_RE) || [''])[0])}`;
+    }
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
     const json = await res.json();
-    const first = Array.isArray(json) ? json[0] : null;
-    if (!first || first.lat == null || first.lon == null) return 'miss';
+    const arr = Array.isArray(json) ? json : [];
+    // Exact queries reject city/region/country-scale matches — the user
+    // asked for a street address, so only building-level hits count.
+    const usable = exact
+      ? arr.find((r) => r?.lat != null && r?.lon != null && !/^city|region|state|country$/.test(r?.type || ''))
+      : arr.find((r) => r?.lat != null && r?.lon != null);
+    if (!usable) return 'miss';
     return {
-      lat: Number(first.lat),
-      lng: Number(first.lon),
-      name: String(first.display_name || q).split(',')[0],
+      lat: Number(usable.lat),
+      lng: Number(usable.lon),
+      name: String(usable.display_name || q).split(',')[0],
       t: Date.now()
     };
   } catch {
@@ -395,20 +432,24 @@ const drain = (): Promise<void> => {
   if (drainPromise) return drainPromise;
   drainPromise = (async () => {
     while (queue.length > 0) {
-      const { task, context, iso } = queue.shift()!;
+      const { task, context, iso, exact } = queue.shift()!;
       const key = cacheKey(task, context);
       queuedKeys.delete(key);
       const cleaned = cleanPlaceQuery(task);
-      // The task may carry its own context ("Skytree, Tokyo") — use it
-      // verbatim, otherwise anchor the query to the trip destination.
-      const anchored = task.includes(',') || !context ? cleaned : `${cleaned}, ${context}`;
-      let result = await fetchNominatim(anchored, iso);
+      // Address-level queries: send verbatim with postcode + country hints
+      // so Nominatim resolves the exact building, not the nearest city.
+      const anchored = exact
+        ? cleaned
+        : task.includes(',') || !context
+        ? cleaned
+        : `${cleaned}, ${context}`;
+      let result = await fetchNominatim(anchored, iso, exact);
       // Second chance: the destination anchor sometimes confuses the geocoder
       // (e.g. region vs city) — retry the cleaned place name on its own,
       // still pinned to the trip country.
-      if (result === 'miss' && anchored !== cleaned) {
+      if (result === 'miss' && !exact && anchored !== cleaned) {
         await new Promise((r) => setTimeout(r, 1100));
-        result = await fetchNominatim(cleaned, iso);
+        result = await fetchNominatim(cleaned, iso, false);
       }
       if (result) {
         loadCache()[key] = result === 'miss' ? { fail: true, t: Date.now() } : result;
@@ -426,10 +467,12 @@ const drain = (): Promise<void> => {
 /**
  * Queue an online lookup for a place the local table doesn't know. Misses are
  * cached for a day so we don't hammer the API for unresolvable scribbles.
+ * `exact` marks street-address / postcode queries (building-level only).
  */
-export const requestGeocode = (task: string, context: string): void => {
+export const requestGeocode = (task: string, context = '', exact = false): void => {
   if (!task.trim()) return;
-  if (findPlaceGeo(task) || findPlaceGeo(cleanPlaceQuery(task))) return; // local table knows it
+  const isExact = exact || isAddressQuery(task);
+  if (!isExact && (findPlaceGeo(task) || findPlaceGeo(cleanPlaceQuery(task)))) return; // local table knows it
   const key = cacheKey(task, context);
   const hit = loadCache()[key];
   if (hit) {
@@ -438,6 +481,137 @@ export const requestGeocode = (task: string, context: string): void => {
   }
   if (queuedKeys.has(key)) return;
   queuedKeys.add(key);
-  queue.push({ task, context, iso: iso2FromContext(context) });
+  queue.push({ task, context, iso: iso2FromContext(context), exact: isExact });
   void drain();
+};
+
+/**
+ * Store an exact coordinate for a text query NOW (synchronously) — used when
+ * a precise address resolves online; the pin appears instantly, without
+ * waiting for the drain queue.
+ */
+export const storeGeocode = (task: string, context: string, lat: number, lng: number, name?: string): void => {
+  loadCache()[cacheKey(task, context)] = { lat, lng, name: name || task.trim(), t: Date.now() };
+  saveCache();
+  notify();
+};
+
+export interface GeocodeCandidate {
+  lat: number;
+  lng: number;
+  display: string;
+  /** OSM feature type (house/street/city…) — coarse matches get rejected for address queries. */
+  type?: string;
+}
+
+/** JSON from a search endpoint that answers {lat, lng, display}. */
+interface RawSearchHit {
+  lat: number | null;
+  lon: number | null;
+  display_name?: string;
+  type?: string;
+}
+
+/** Building-level (street/amenity/house) results only — never city centroids. */
+const FINE_TYPES = new Set([
+  'house', 'house_number', 'building', 'addr:housenumber',
+  'street', 'residential', 'unclassified', 'tertiary', 'secondary', 'primary',
+  'living_street', 'pedestrian', 'service', 'track', 'path',
+  'yes', // Nominatim building=yes is a real address
+  'museum', 'attraction', 'tourism', 'hotel', 'restaurant', 'cafe', 'shop',
+  'amenity', 'place_of_worship', 'church', 'temple', 'stadium', 'theatre'
+]);
+
+const shapeHits = (arr: RawSearchHit[]): GeocodeCandidate[] =>
+  arr
+    .filter((r) => r?.lat != null && r?.lon != null)
+    .map((r) => ({ lat: Number(r.lat), lng: Number(r.lon), display: String(r.display_name || ''), type: r.type || '' }))
+    .filter((c) => c.display);
+
+/** Photon (OSM-based): primary address geocoder — fast, autocomplete-friendly. */
+const photonSearch = async (q: string, iso: string | null): Promise<GeocodeCandidate[]> => {
+  let url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5`;
+  if (iso) url += `&countrycode=${iso.toLowerCase()}`;
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) return [];
+  const json = await res.json();
+  const feats = Array.isArray(json?.features) ? json.features : [];
+  return feats
+    .map((f: any) => {
+      const [lng, lat] = f?.geometry?.coordinates || [null, null];
+      const p = f?.properties || {};
+      const type = String(p.osm_value || p.type || '');
+      const parts = [p.name, p.street, p.housenumber, p.city, p.state, p.country]
+        .filter(Boolean).join(', ');
+      return { lat: Number(lat), lng: Number(lng), display: parts || p.name || '', type };
+    })
+    .filter((c: GeocodeCandidate) => c.lat != null && c.lng != null && c.display);
+};
+
+/** Nominatim (OSM): fallback when Photon is unreachable. */
+const nominatimSearch = async (q: string, iso: string | null): Promise<RawSearchHit[]> => {
+  let url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&extratags=1&q=${encodeURIComponent(q)}`;
+  if (iso) url += `&countrycodes=${iso.toLowerCase()}`;
+  if (POSTCODE_RE.test(q)) url += `&postalcode=${encodeURIComponent((q.match(POSTCODE_RE) || [''])[0])}`;
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) return [];
+  const json = await res.json();
+  return Array.isArray(json) ? json : [];
+};
+
+/** Building-level results first; city/region-scale matches only as a last resort. */
+const isCoarse = (c: GeocodeCandidate) =>
+  !FINE_TYPES.has((c.type || '').toLowerCase()) && /,\s*(city|state|region|country)\b/i.test(`, ${c.type || ''}`);
+
+/** Photon surfaces osm_value as type; coarse place levels for address queries. */
+const isCoarsePhoton = (c: GeocodeCandidate) => {
+  const t = (c.type || '').toLowerCase();
+  return t === 'city' || t === 'administrative' || t === 'boundary' || t === 'state' || t === 'county';
+};
+
+const rankCandidates = (arr: GeocodeCandidate[], strict: boolean): GeocodeCandidate[] => {
+  const fine = arr.filter((c) => !(isCoarse(c) || isCoarsePhoton(c)));
+  if (strict && fine.length === 0) return []; // address query: never fall back to a city centroid
+  return fine.length > 0 ? fine : arr;
+};
+
+/** Prefer building/street hits; returns candidates or [] when nothing usable. */
+const searchAddresses = async (q: string, iso: string | null, strict: boolean): Promise<GeocodeCandidate[]> => {
+  try {
+    const p = await photonSearch(q, iso);
+    const ranked = rankCandidates(p, strict);
+    if (ranked.length > 0) return ranked;
+  } catch {
+    /* Photon unreachable — try Nominatim */
+  }
+  try {
+    const n = shapeHits(await nominatimSearch(q, iso));
+    return rankCandidates(n, strict);
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Resolve a typed address/postcode to its exact building-level coordinate.
+ * Returns the best candidate plus alternatives (for a confirmation dropdown).
+ * 'miss' = online but no match; null = network error (uncached).
+ */
+export const geocodeAddress = async (
+  query: string,
+  context = ''
+): Promise<{ best: GeocodeCandidate | null; candidates: GeocodeCandidate[] } | 'miss' | null> => {
+  const q = (query || '').trim();
+  if (!q) return 'miss';
+  const iso = iso2FromContext(context);
+  // Addresses go verbatim; plain place names get the trip context appended.
+  const full = isAddressQuery(q) || q.includes(',') || !context ? q : `${q}, ${context}`;
+  const strict = isAddressQuery(q); // typed an address: building-level only
+  try {
+    const candidates = await searchAddresses(full, iso, strict);
+    if (candidates.length === 0) return 'miss';
+    return { best: candidates[0], candidates: candidates.slice(0, 5) };
+  } catch {
+    return null;
+  }
 };

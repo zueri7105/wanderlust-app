@@ -36,7 +36,7 @@ import {
   dayRouteColor,
   TravelMode
 } from '../utils/placeGeo';
-import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext } from '../utils/geocode';
+import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, isAddressQuery, geocodeAddress, storeGeocode, GeocodeCandidate } from '../utils/geocode';
 import { haversineKm } from '../utils/units';
 import { activityImageUrl } from '../utils/activityImages';
 import { getTranslation, tv } from '../utils/i18n';
@@ -535,6 +535,68 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   /** Pinpoint override for one stop — address / street / postcode / coords. */
   const setStopLocation = (d: ItineraryDay, label: string, loc: string) =>
     updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: loc } });
+
+  /* ── Exact pin resolution: a typed address is looked up live (building
+     level, not city centroid), candidates drop down to pick from, and the
+     chosen one is stored as precise coordinates so the map + legs use it. ── */
+  const [locSuggest, setLocSuggest] = useState<{
+    label: string;
+    q: string;
+    candidates: GeocodeCandidate[];
+    best: GeocodeCandidate | null;
+    searching: boolean;
+  }>({ label: '', q: '', candidates: [], best: null, searching: false });
+
+  /** Non-null when the override already resolves to an exact point. */
+  const locOverrideGeo = (d: ItineraryDay, label: string) => {
+    const v = (d.locationOverrides?.[label] || '').trim();
+    return v ? geoForTask(v, geoContext) : null;
+  };
+
+  const applyPin = (d: ItineraryDay, label: string, coords: string, display: string) => {
+    // Store the exact point under the raw address so future lookups hit it
+    // instantly, and keep the coordinates as the override (precise by nature).
+    storeGeocode(display, geoContext, Number(coords.split(',')[0]), Number(coords.split(',')[1]));
+    storeGeocode(label, geoContext, Number(coords.split(',')[0]), Number(coords.split(',')[1]));
+    updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: coords } });
+    setLocSuggest((s) => ({ ...s, candidates: [], best: null, searching: false }));
+  };
+
+  const resolvePin = (d: ItineraryDay, label: string) => {
+    const v = (d.locationOverrides?.[label] || '').trim();
+    if (!v) return;
+    // Coordinates: exact already — just store under the stop label.
+    const g = geoForTask(v, geoContext);
+    if (/^\s*-?\d/.test(v) && g) {
+      storeGeocode(label, geoContext, g.lat, g.lng);
+      return;
+    }
+    setLocSuggest((s) => ({ ...s, label, q: v, searching: true, candidates: [], best: null }));
+    void (async () => {
+      const res = await geocodeAddress(v, geoContext);
+      setLocSuggest((s) => {
+        if (s.label !== label || s.q !== v) return { ...s, searching: false };
+        if (res && res !== 'miss' && res.best) {
+          // Pin immediately at the best match — exact for addresses.
+          applyPinQuiet(label, res.best);
+          return { ...s, searching: false, best: res.best, candidates: res.candidates.slice(1) };
+        }
+        // No building-level hit — fall back to the queued geocoder (city).
+        requestGeocode(v, geoContext, isAddressQuery(v));
+        return { ...s, searching: false, candidates: [], best: null };
+      });
+    })();
+  };
+
+  /** Store + pin without touching React state from inside the async callback. */
+  const applyPinQuiet = (label: string, c: GeocodeCandidate) => {
+    storeGeocode(c.display, geoContext, c.lat, c.lng);
+    storeGeocode(label, geoContext, c.lat, c.lng);
+    const d = itinerary.days.find((x) => x.locationOverrides && label in x.locationOverrides);
+    if (d) {
+      updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` } });
+    }
+  };
 
   /** Write-box content for one stop (its own little note under the heading). */
   const setStopDetail = (d: ItineraryDay, label: string, detail: string) =>
@@ -1148,22 +1210,65 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                       rows={Math.max(1, (d.stopDetails?.[stop.label] ?? '').split('\n').length)}
                                       className="w-full py-1 bg-transparent text-[11px] text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 leading-relaxed resize-none focus:outline-none"
                                     />
-                                    {/* pinpoint box — address, street, postcode or raw
-                                        coordinates sharpen this stop's map pin */}
-                                    <div className="flex items-center gap-1.5 pb-1">
-                                      <MapPin className="w-3 h-3 text-stone-400 shrink-0" />
-                                      <input
-                                        type="text"
-                                        value={d.locationOverrides?.[stop.label] ?? ''}
-                                        onChange={(e) => setStopLocation(d, stop.label, e.target.value)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                                        onBlur={() => {
-                                          const v = (d.locationOverrides?.[stop.label] || '').trim();
-                                          if (v) requestGeocode(v, geoContext);
-                                        }}
-                                        placeholder={getTranslation('jdLocationPh')}
-                                        className="flex-1 min-w-0 py-0.5 bg-transparent text-[10px] text-stone-600 dark:text-stone-300 placeholder:text-stone-400/70 dark:placeholder:text-stone-500 focus:outline-none border-b border-transparent focus:border-violet-400 transition-colors"
-                                      />
+                                    {/* pinpoint box — type an address, street,
+                                        postcode or coordinates and the map pins
+                                        the EXACT spot; candidates drop down so
+                                        you pick the right one */}
+                                    <div className="relative">
+                                      <div className="flex items-center gap-1.5 pb-1">
+                                        <MapPin className="w-3 h-3 text-stone-400 shrink-0" />
+                                        <input
+                                          type="text"
+                                          value={d.locationOverrides?.[stop.label] ?? ''}
+                                          onChange={(e) => {
+                                            setStopLocation(d, stop.label, e.target.value);
+                                            const v = e.target.value.trim();
+                                            if (locSuggest.label !== stop.label || locSuggest.q !== v) {
+                                              setLocSuggest((s) => ({ ...s, label: stop.label, q: v, candidates: [], best: null, searching: false }));
+                                            }
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              const sug = locSuggest;
+                                              if (sug.label === stop.label && sug.best) {
+                                                applyPin(d, stop.label, `${sug.best.lat.toFixed(6)}, ${sug.best.lng.toFixed(6)}`, sug.best.display);
+                                              } else {
+                                                (e.target as HTMLInputElement).blur();
+                                              }
+                                            }
+                                          }}
+                                          onBlur={() => resolvePin(d, stop.label)}
+                                          placeholder={getTranslation('jdLocationPh')}
+                                          className="flex-1 min-w-0 py-0.5 bg-transparent text-[10px] text-stone-600 dark:text-stone-300 placeholder:text-stone-400/70 dark:placeholder:text-stone-500 focus:outline-none border-b border-transparent focus:border-violet-400 transition-colors"
+                                        />
+                                        {locSuggest.label === stop.label && locSuggest.searching && (
+                                          <span className="w-3 h-3 rounded-full border-2 border-violet-400 border-t-transparent animate-spin shrink-0" aria-label="Locating" />
+                                        )}
+                                        {locSuggest.label === stop.label && !locSuggest.searching && (locOverrideGeo(d, stop.label) ? locSuggest.best || geoForTask((d.locationOverrides?.[stop.label] || '').trim(), geoContext) : null) && (
+                                          <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0" title={typeof (locSuggest.best?.display) === 'string' ? locSuggest.best!.display : 'Pinned'}>
+                                            ✓ precise pin
+                                          </span>
+                                        )}
+                                      </div>
+                                      {locSuggest.label === stop.label && locSuggest.candidates.length > 0 && (
+                                        <div className="absolute left-4 right-0 top-full mt-0.5 z-30 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
+                                          {locSuggest.candidates.map((c, ci) => (
+                                            <button
+                                              key={ci}
+                                              type="button"
+                                              onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                applyPin(d, stop.label, `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`, c.display);
+                                              }}
+                                              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer"
+                                            >
+                                              <MapPin className="w-3 h-3 text-violet-500 shrink-0" />
+                                              <span className="flex-1 min-w-0 text-[10px] text-stone-700 dark:text-stone-200 truncate">{c.display}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                     {(d.stopPhotos?.[stop.label] || []).length > 0 && (
                                       <div className="flex flex-wrap gap-1.5 pb-1">
