@@ -48,6 +48,8 @@ export const normPlace = (s: string): string =>
 
 let db: WorldGeoDb | null = null;
 let loadPromise: Promise<WorldGeoDb | null> | null = null;
+/** Sorted normalized name keys for prefix autocomplete (built with the index). */
+let searchKeys: string[] | null = null;
 
 /** name-key → city rows (best first) */
 const cityIndex = new Map<string, WorldGeoHit[]>();
@@ -138,7 +140,26 @@ const buildIndex = (data: WorldGeoDb) => {
   // Rank each bucket: biggest city first so "Paris" → Paris, France.
   cityIndex.forEach((arr) => arr.sort((a, b) => b.pop - a.pop));
   cityAliasIndex.forEach((arr) => arr.sort((a, b) => b.pop - a.pop));
+
+  // One sorted key list over every name the gazetteer knows, so typed-place
+  // autocomplete can binary-search a prefix instead of scanning 240k entries.
+  searchKeys = Array.from(
+    new Set([
+      ...countryIndex.keys(),
+      ...regionIndex.keys(),
+      ...cityIndex.keys(),
+      ...cityAliasIndex.keys()
+    ])
+  ).sort();
 };
+
+/** All index buckets a normalized name key may live in. */
+const hitsForKey = (key: string): WorldGeoHit[] => [
+  ...(countryIndex.has(key) ? [countryIndex.get(key)!] : []),
+  ...(regionIndex.get(key) || []),
+  ...(cityIndex.get(key) || []),
+  ...(cityAliasIndex.get(key) || [])
+];
 
 export const worldGeoLoaded = () => db !== null;
 
@@ -269,4 +290,60 @@ export const resolvePlaceCountry = async (text: string): Promise<WorldGeoHit | n
     }
   }
   return lookupWorldGeoSync(raw);
+};
+
+/**
+ * Type-ahead search over every place the gazetteer knows (countries, regions,
+ * cities and their genuine alternate names). Returns the biggest matches for
+ * a typed prefix — "par" → Paris, París… — each labelled with its country so
+ * travellers pick the exact place instead of a lookalike. Empty until the
+ * database has finished loading (startWorldGeoLoad).
+ */
+export const searchPlaces = (query: string, limit = 8): WorldGeoHit[] => {
+  if (!db || !searchKeys) return [];
+  const q = normPlace(query);
+  if (q.length < 2) return [];
+
+  // Binary search the sorted key list for the first key >= q, then walk the
+  // prefix run.
+  let lo = 0;
+  let hi = searchKeys.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (searchKeys[mid] < q) lo = mid + 1;
+    else hi = mid;
+  }
+  const seen = new Set<string>();
+  const prefixHits: WorldGeoHit[] = [];
+  const wordHits: WorldGeoHit[] = [];
+  const push = (hit: WorldGeoHit, bucket: WorldGeoHit[]) => {
+    const dk = `${normPlace(hit.name)}|${hit.cc}|${hit.kind}`;
+    if (seen.has(dk)) return;
+    seen.add(dk);
+    bucket.push(hit);
+  };
+  for (let i = lo; i < searchKeys.length && searchKeys[i].startsWith(q); i++) {
+    for (const h of hitsForKey(searchKeys[i])) push(h, prefixHits);
+    if (prefixHits.length >= 80) break;
+  }
+  // Fallback: a word inside the name starts with the query ("york" → New York).
+  if (prefixHits.length < limit) {
+    const needle = ` ${q}`;
+    for (const k of searchKeys) {
+      if (k.includes(needle)) {
+        for (const h of hitsForKey(k)) push(h, wordHits);
+        if (wordHits.length >= 80) break;
+      }
+    }
+  }
+  const byPop = (a: WorldGeoHit, b: WorldGeoHit) => b.pop - a.pop;
+  prefixHits.sort(byPop);
+  wordHits.sort(byPop);
+  // Countries and regions float to the top of their bucket — a typed country
+  // should offer the country, not just its biggest same-named city.
+  const rank = (h: WorldGeoHit) => (h.kind === 'country' ? 2 : h.kind === 'region' ? 1 : 0);
+  const byKindThenPop = (a: WorldGeoHit, b: WorldGeoHit) => rank(b) - rank(a) || byPop(a, b);
+  prefixHits.sort(byKindThenPop);
+  wordHits.sort(byKindThenPop);
+  return [...prefixHits, ...wordHits].slice(0, limit);
 };

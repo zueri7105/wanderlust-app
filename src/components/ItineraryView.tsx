@@ -57,6 +57,7 @@ import { travelAppsFor } from '../data/travelApps';
 import { emergencyNumbersFor } from '../data/emergencyNumbers';
 import { getTranslation, tv } from '../utils/i18n';
 import AutoGrowTextarea from './AutoGrowTextarea';
+import { PlaceTypeahead } from './PlaceTypeahead';
 import { TripRouteMap } from './TripRouteMap';
 import { JourneyBoard } from './JourneyBoard';
 import { findPlaceGeo, estimateLeg, optimizeStopOrder, suggestPlacesFor, type TravelMode } from '../utils/placeGeo';
@@ -964,15 +965,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
           {createTab === 'quick' ? (
             <div className="flex gap-2">
-              <input
-                type="text"
+              <PlaceTypeahead
                 value={quickText}
-                onChange={(e) => setQuickText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleQuickCreate();
+                onChange={setQuickText}
+                onEnter={handleQuickCreate}
+                onPick={(hit) => {
+                  // Keep any typed day count: "bucha 4 days" → "Bucharest, Romania 4 days"
+                  const m = quickText.match(/(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
+                  const days = m ? ` ${m[1]} days${m[2] ? ` ${m[2]} nights` : ''}` : '';
+                  const label = hit.kind === 'country' ? hit.name : `${hit.name}, ${hit.countryName}`;
+                  setQuickText(`${label}${days}`);
                 }}
                 placeholder={getTranslation('quickCreatePh')}
-                className="flex-1 min-w-0 px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                wrapperClassName="flex-1 min-w-0"
               />
               <button
                 type="button"
@@ -1646,18 +1652,23 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                         <div key={idx} className="relative pl-11">
                           <span
                             aria-hidden="true"
-                            className="absolute left-0 top-3 w-8 h-8 rounded-full bg-rose-600 text-white text-[11px] font-bold flex items-center justify-center shadow-sm border-2 border-white dark:border-slate-900"
+                            className="absolute left-0 top-3 w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-sm border-2 border-white dark:border-slate-900"
                           >
-                            {idx + 1}
+                            <CalendarDays className="w-4 h-4" />
                           </span>
-                          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                            {/* One box per day: the title is the box's header row,
+                                the plan lines sit right under it — no nested boxes */}
                             <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-500 dark:text-rose-400 shrink-0">
+                                {tv('dayN', { n: idx + 1 })}
+                              </span>
                               <input
                                 type="text"
                                 value={d.title}
                                 onChange={(e) => handleUpdateEditDay(idx, 'title', e.target.value)}
                                 placeholder={getTranslation('dayTitlePh')}
-                                className="flex-1 min-w-0 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold"
+                                className="flex-1 min-w-0 py-1 bg-transparent border-b border-transparent focus:border-rose-300 dark:focus:border-rose-700 text-slate-900 dark:text-slate-100 font-semibold focus:outline-none transition-colors"
                               />
                               {editTripDays.length > 1 && (
                                 <button
@@ -1679,7 +1690,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                 handleUpdateEditDay(idx, 'eveningActivity', '');
                               }}
                               placeholder={getTranslation('activityPh')}
-                              className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 leading-relaxed"
+                              className="w-full mt-1.5 py-1 bg-transparent border-t border-dashed border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 leading-relaxed focus:outline-none resize-none"
                             />
                           </div>
                         </div>

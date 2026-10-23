@@ -24,7 +24,8 @@ import {
   NotebookPen,
   Image as ImageIcon,
   Trash2,
-  MapPin
+  MapPin,
+  CalendarDays
 } from 'lucide-react';
 import { TravelItinerary, ItineraryDay } from '../types/travel';
 import { TripRouteMap } from './TripRouteMap';
@@ -843,10 +844,11 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                   className="flex items-center gap-3 p-3 text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-violet-300 dark:hover:border-violet-600 hover:shadow-sm transition-all cursor-pointer min-w-0"
                 >
                   <span
-                    className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-sm"
+                    className="w-7 h-7 rounded-full text-white flex items-center justify-center shrink-0 shadow-sm"
                     style={{ backgroundColor: dayRouteColor(d.dayNumber) }}
+                    aria-hidden
                   >
-                    {d.dayNumber}
+                    <CalendarDays className="w-3.5 h-3.5" />
                   </span>
                   <span className="min-w-0">
                     <span className="block text-xs font-bold text-stone-900 dark:text-stone-100 truncate">
@@ -891,15 +893,17 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                     }}
                     className="relative pl-11 scroll-mt-24"
                   >
-                    {/* Day badge sitting on the dotted line — tap to focus the map */}
+                    {/* Day badge sitting on the dotted line — a calendar marks
+                        the DAY so its number never fights the 1-2-3 activity
+                        numbers inside the card. Tap to focus the map. */}
                     <button
                       type="button"
                       onClick={() => setActiveDay(d.dayNumber)}
-                      className="absolute left-0 top-3.5 w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shadow-md cursor-pointer hover:scale-110 transition-transform z-10"
+                      className="absolute left-0 top-3.5 w-8 h-8 rounded-full text-white flex items-center justify-center shadow-md cursor-pointer hover:scale-110 transition-transform z-10"
                       style={{ backgroundColor: dayColor }}
                       aria-label={tv('dayN', { n: d.dayNumber })}
                     >
-                      {d.dayNumber}
+                      <CalendarDays className="w-4 h-4" />
                     </button>
 
                     <div
@@ -943,8 +947,10 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                             {editDraft.items.map((it, itemIdx) => (
                               <div
                                 key={itemIdx}
-                                className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-950/20 p-2.5 space-y-1.5"
+                                className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-950/20 p-2.5"
                               >
+                                {/* one box per activity: the name is the box's
+                                    header row, its note sits right under it */}
                                 <div className="flex items-center gap-2">
                                   <span
                                     className="w-5 h-5 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0"
@@ -964,7 +970,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                       })
                                     }
                                     placeholder={getTranslation('jdNamePh')}
-                                    className="flex-1 min-w-0 px-2.5 py-1.5 border border-violet-200 dark:border-violet-800 rounded-lg bg-white dark:bg-slate-800 text-xs font-semibold text-stone-900 dark:text-stone-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                                    className="flex-1 min-w-0 py-1 bg-transparent border-b border-transparent focus:border-violet-400 text-xs font-semibold text-stone-900 dark:text-stone-50 placeholder:text-stone-400 focus:outline-none transition-colors"
                                   />
                                   {editDraft.items.length > 1 && (
                                     <button
@@ -994,7 +1000,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                     })
                                   }
                                   placeholder={getTranslation('jdStopNotePh')}
-                                  className="w-full px-2.5 py-1.5 border border-violet-200 dark:border-violet-800 rounded-lg bg-white dark:bg-slate-800 text-xs text-stone-900 dark:text-stone-50 leading-relaxed focus:outline-none focus:ring-2 focus:ring-violet-400"
+                                  className="w-full mt-1 pt-1.5 bg-transparent border-t border-dashed border-violet-200 dark:border-violet-800 text-xs text-stone-900 dark:text-stone-50 placeholder:text-stone-400 leading-relaxed focus:outline-none resize-none"
                                 />
                               </div>
                             ))}
@@ -1100,12 +1106,12 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                     >
                                       {idx + 1}
                                     </span>
-                                    <div className="flex-1 min-w-0">
-                                      <span className="block text-xs font-semibold text-stone-900 dark:text-stone-50 leading-snug">
+                                    <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                      <span className="text-xs font-semibold text-stone-900 dark:text-stone-50 leading-snug">
                                         {stop.label}
                                       </span>
                                       <span
-                                        className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded border ${meta.cls}`}
+                                        className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${meta.cls}`}
                                       >
                                         {getTranslation(meta.key)}
                                       </span>

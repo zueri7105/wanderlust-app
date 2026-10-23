@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Cake, Globe2, Heart, MapPin, MessageCircle, Plus, Sparkles, Stamp, Users } from 'lucide-react';
 import { getTranslation, tv } from '../utils/i18n';
 import { COUNTRY_INFO } from '../utils/countryInfo';
+import { PlaceTypeahead } from './PlaceTypeahead';
 
 export interface OnboardingAnswers {
   name: string;
@@ -199,12 +200,11 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                     {getTranslation('obDestSub')}
                   </p>
                 </div>
-                <input
+                <PlaceTypeahead
                   autoFocus
-                  type="text"
                   value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && advance()}
+                  onChange={setDestination}
+                  onEnter={advance}
                   placeholder={getTranslation('obDestPh')}
                   className={inputCls}
                 />
@@ -306,11 +306,10 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                   <label className="block text-xs font-bold text-stone-700 dark:text-stone-200 mb-1.5">
                     {getTranslation('obCityQ')}
                   </label>
-                  <input
-                    type="text"
+                  <PlaceTypeahead
                     value={homeCity}
-                    onChange={(e) => setHomeCity(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && advance()}
+                    onChange={setHomeCity}
+                    onEnter={advance}
                     placeholder="Berlin"
                     className={inputCls}
                   />
