@@ -451,6 +451,9 @@ html.dark .wl-timeline-line-dream {
 
 /* ── Passport book page flip ────────────────────────────────────────────── */
 .wl-book { perspective: 1800px; }
+/* A real passport page is always bound on the LEFT spine: flipping forward
+   swings the page in from the right; flipping back swings it out to the
+   right (it rotates away over the fore-edge). Both hinge on the left. */
 .wl-book-page { transform-origin: left center; backface-visibility: hidden; }
 @keyframes wlPageNext {
   from { transform: rotateY(-72deg); opacity: 0.25; }
@@ -461,7 +464,7 @@ html.dark .wl-timeline-line-dream {
   from { transform: rotateY(72deg); opacity: 0.25; }
   to { transform: rotateY(0deg); opacity: 1; }
 }
-.wl-flip-prev { transform-origin: right center; animation: wlPagePrev 0.6s cubic-bezier(0.25, 0.9, 0.3, 1) both; }
+.wl-flip-prev { animation: wlPagePrev 0.6s cubic-bezier(0.25, 0.9, 0.3, 1) both; }
 
 /* ── Trip-day celebration: plane flyover with dotted trail + firework pops ── */
 @keyframes wl-plane-fly {

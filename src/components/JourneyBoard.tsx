@@ -914,7 +914,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                       }}
                       className={`rounded-2xl border bg-white dark:bg-slate-900 p-4 space-y-3 min-w-0 [touch-action:manipulation] transition-shadow ${
                         editing
-                          ? 'border-violet-400 dark:border-violet-500 ring-2 ring-violet-200 dark:ring-violet-900 shadow-md'
+                          ? 'border-violet-200 dark:border-violet-800/70 shadow-md'
                           : 'border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-sm cursor-pointer'
                       }`}
                     >
@@ -932,12 +932,12 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                               onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
                               placeholder={getTranslation('jdTitlePh')}
                               autoFocus
-                              className="flex-1 min-w-0 px-2.5 py-1.5 border border-violet-300 dark:border-violet-700 rounded-lg bg-white dark:bg-slate-800 font-display text-base font-bold text-stone-950 dark:text-stone-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                              className="flex-1 min-w-0 py-1.5 bg-transparent border-b-2 border-violet-200 dark:border-violet-800 font-display text-base font-bold text-stone-950 dark:text-stone-50 placeholder:text-stone-400 focus:outline-none focus:border-violet-400 transition-colors"
                             />
                             <button
                               type="button"
                               onClick={commitEditDraft}
-                              className="w-8 h-8 shrink-0 rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center hover:scale-105 transition-all cursor-pointer"
+                              className="w-8 h-8 shrink-0 rounded-full bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center hover:scale-105 transition-all cursor-pointer"
                               title={getTranslation('saveAllChanges')}
                             >
                               <Check className="w-4 h-4" />
@@ -947,7 +947,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                             {editDraft.items.map((it, itemIdx) => (
                               <div
                                 key={itemIdx}
-                                className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-950/20 p-2.5"
+                                className="rounded-xl bg-stone-50/80 dark:bg-slate-800/40 px-3 py-2 border border-stone-200/70 dark:border-slate-700/50"
                               >
                                 {/* one box per activity: the name is the box's
                                     header row, its note sits right under it */}
@@ -1000,7 +1000,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                     })
                                   }
                                   placeholder={getTranslation('jdStopNotePh')}
-                                  className="w-full mt-1 pt-1.5 bg-transparent border-t border-dashed border-violet-200 dark:border-violet-800 text-xs text-stone-900 dark:text-stone-50 placeholder:text-stone-400 leading-relaxed focus:outline-none resize-none"
+                                  className="w-full mt-1 pt-1.5 bg-transparent border-t border-dashed border-stone-200 dark:border-slate-700 text-xs text-stone-900 dark:text-stone-50 placeholder:text-stone-400 leading-relaxed focus:outline-none resize-none"
                                 />
                               </div>
                             ))}
@@ -1012,7 +1012,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                   items: [...editDraft.items, { name: '', detail: '' }]
                                 })
                               }
-                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-violet-600 dark:text-violet-400 bg-white dark:bg-slate-900 border border-dashed border-violet-300 dark:border-violet-700 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer"
+                              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-stone-500 dark:text-stone-400 bg-white dark:bg-slate-900 border border-dashed border-stone-300 dark:border-stone-600 rounded-xl hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-colors cursor-pointer"
                             >
                               <Plus className="w-3.5 h-3.5" />
                               <span>{getTranslation('jdAddActivity')}</span>
