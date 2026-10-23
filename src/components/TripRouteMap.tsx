@@ -8,6 +8,7 @@ import {
   dayRouteColor,
   estimateLeg,
   estimateLegForMode,
+  isAirportLeg,
   TRAVEL_MODE_LINE,
   type TravelMode
 } from '../utils/placeGeo';
@@ -46,7 +47,10 @@ export const stopsForDay = (day: ItineraryDay, context = ''): RouteStop[] => {
   let order = 0;
   SLOT_KEYS.forEach(({ key, slot }) => {
     splitTasks(day[key]).forEach((task) => {
-      const geo = geoForTask(task, context);
+      // A typed pinpoint (address / street / postcode / coords) outranks the
+      // guessed geocode of the stop's name.
+      const override = day.locationOverrides?.[task]?.trim();
+      const geo = (override ? geoForTask(override, context) : null) || geoForTask(task, context);
       if (geo) {
         order += 1;
         stops.push({ label: task, lat: geo.lat, lng: geo.lng, slot, order });
@@ -211,7 +215,10 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
     days.forEach((d) => {
       SLOT_KEYS.forEach(({ key }) => {
         splitTasks(d[key]).forEach((task) => {
-          if (!geoForTask(task, geoContext)) requestGeocode(task, geoContext);
+          const override = d.locationOverrides?.[task]?.trim();
+          if (override) {
+            if (!geoForTask(override, geoContext)) requestGeocode(override, geoContext);
+          } else if (!geoForTask(task, geoContext)) requestGeocode(task, geoContext);
         });
       });
     });
@@ -289,11 +296,12 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination, itinerary.country, geoVer]);
 
-  /** Mode for a leg: the traveller's saved choice, else a distance-based guess. */
+  /** Mode for a leg: the traveller's saved choice, else airport⇄airport flies, else a distance-based guess. */
   const modeForLeg = (day: ItineraryDay, from: RouteStop, to: RouteStop): { mode: TravelMode; km: number } => {
     const km = haversineKm(from.lat, from.lng, to.lat, to.lng);
     const saved = day.legModes?.[legKey(from, to)] as TravelMode | undefined;
     if (saved && LEG_MODES.some((m) => m.mode === saved)) return { mode: saved, km };
+    if (isAirportLeg(from.label, to.label)) return { mode: 'flight', km };
     return { mode: estimateLeg(km).mode, km };
   };
 

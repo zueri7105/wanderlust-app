@@ -23,13 +23,15 @@ import {
   Compass,
   NotebookPen,
   Image as ImageIcon,
-  Trash2
+  Trash2,
+  MapPin
 } from 'lucide-react';
 import { TravelItinerary, ItineraryDay } from '../types/travel';
 import { TripRouteMap } from './TripRouteMap';
 import {
   estimateLeg,
   estimateLegForMode,
+  isAirportLeg,
   dayRouteColor,
   TravelMode
 } from '../utils/placeGeo';
@@ -72,7 +74,10 @@ const stopsOf = (day: ItineraryDay, context = ''): StopItem[] => {
   const out: StopItem[] = [];
   SLOT_KEYS.forEach(({ key, labelKey }) => {
     splitTasks(day[key]).forEach((task) => {
-      const geo = geoForTask(task, context);
+      // A typed pinpoint (address / street / postcode / coords) outranks the
+      // guessed geocode of the stop's name.
+      const override = day.locationOverrides?.[task]?.trim();
+      const geo = (override ? geoForTask(override, context) : null) || geoForTask(task, context);
       out.push({ label: task, slotLabelKey: labelKey, slotKey: key, lat: geo?.lat, lng: geo?.lng });
     });
   });
@@ -87,8 +92,11 @@ const legsOf = (day: ItineraryDay, context = '') => {
     if (from.lat == null || to.lat == null || from.lng == null || to.lng == null) return null;
     const km = haversineKm(from.lat, from.lng, to.lat, to.lng);
     const chosen = day.legModes?.[`${from.label}→${to.label}`] as TravelMode | undefined;
+    // Airport ⇄ airport defaults to flying — nobody drives between airports.
     const est = chosen
       ? { km, minutes: estimateLegForMode(km, chosen), mode: chosen }
+      : isAirportLeg(from.label, to.label)
+      ? { km, minutes: estimateLegForMode(km, 'flight'), mode: 'flight' as TravelMode }
       : estimateLeg(km);
     return { from: from.label, to: to.label, ...est };
   });
@@ -333,7 +341,10 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     itinerary.days.forEach((d) => {
       SLOT_KEYS.forEach(({ key }) => {
         splitTasks(d[key]).forEach((task) => {
-          if (!geoForTask(task, geoContext)) requestGeocode(task, geoContext);
+          const override = d.locationOverrides?.[task]?.trim();
+          if (override) {
+            if (!geoForTask(override, geoContext)) requestGeocode(override, geoContext);
+          } else if (!geoForTask(task, geoContext)) requestGeocode(task, geoContext);
         });
       });
     });
@@ -476,6 +487,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     const oldLabel = slots[pos[0]][pos[1]];
     let detailsPatch: Record<string, string> | undefined;
     let photosPatch: Record<string, string[]> | undefined;
+    let locPatch: Record<string, string> | undefined;
     if (!v) {
       slots[pos[0]].splice(pos[1], 1); // clearing the text removes the stop…
       if (d.stopDetails && oldLabel in d.stopDetails) {
@@ -485,6 +497,10 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
       if (d.stopPhotos && oldLabel in d.stopPhotos) {
         photosPatch = { ...d.stopPhotos };
         delete photosPatch[oldLabel]; // …and its photos too
+      }
+      if (d.locationOverrides && oldLabel in d.locationOverrides) {
+        locPatch = { ...d.locationOverrides };
+        delete locPatch[oldLabel]; // …and its pinpoint override
       }
     } else if (oldLabel === v) return;
     else {
@@ -499,15 +515,25 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
         photosPatch[v] = photosPatch[oldLabel];
         delete photosPatch[oldLabel];
       }
+      if (d.locationOverrides && oldLabel in d.locationOverrides) {
+        locPatch = { ...d.locationOverrides };
+        locPatch[v] = locPatch[oldLabel];
+        delete locPatch[oldLabel];
+      }
     }
     updateDay(d.dayNumber, {
       morningActivity: slots[0].join(' · '),
       afternoonActivity: slots[1].join(' · '),
       eveningActivity: slots[2].join(' · '),
       ...(detailsPatch ? { stopDetails: detailsPatch } : {}),
-      ...(photosPatch ? { stopPhotos: photosPatch } : {})
+      ...(photosPatch ? { stopPhotos: photosPatch } : {}),
+      ...(locPatch ? { locationOverrides: locPatch } : {})
     });
   };
+
+  /** Pinpoint override for one stop — address / street / postcode / coords. */
+  const setStopLocation = (d: ItineraryDay, label: string, loc: string) =>
+    updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: loc } });
 
   /** Write-box content for one stop (its own little note under the heading). */
   const setStopDetail = (d: ItineraryDay, label: string, detail: string) =>
@@ -1116,6 +1142,23 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                       rows={Math.max(1, (d.stopDetails?.[stop.label] ?? '').split('\n').length)}
                                       className="w-full py-1 bg-transparent text-[11px] text-stone-800 dark:text-stone-200 placeholder:text-stone-400 dark:placeholder:text-stone-500 leading-relaxed resize-none focus:outline-none"
                                     />
+                                    {/* pinpoint box — address, street, postcode or raw
+                                        coordinates sharpen this stop's map pin */}
+                                    <div className="flex items-center gap-1.5 pb-1">
+                                      <MapPin className="w-3 h-3 text-stone-400 shrink-0" />
+                                      <input
+                                        type="text"
+                                        value={d.locationOverrides?.[stop.label] ?? ''}
+                                        onChange={(e) => setStopLocation(d, stop.label, e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                                        onBlur={() => {
+                                          const v = (d.locationOverrides?.[stop.label] || '').trim();
+                                          if (v) requestGeocode(v, geoContext);
+                                        }}
+                                        placeholder={getTranslation('jdLocationPh')}
+                                        className="flex-1 min-w-0 py-0.5 bg-transparent text-[10px] text-stone-600 dark:text-stone-300 placeholder:text-stone-400/70 dark:placeholder:text-stone-500 focus:outline-none border-b border-transparent focus:border-violet-400 transition-colors"
+                                      />
+                                    </div>
                                     {(d.stopPhotos?.[stop.label] || []).length > 0 && (
                                       <div className="flex flex-wrap gap-1.5 pb-1">
                                         {(d.stopPhotos?.[stop.label] || []).map((url, pi) => (

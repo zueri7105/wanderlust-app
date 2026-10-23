@@ -537,9 +537,6 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
                 <span className="font-semibold text-slate-900 dark:text-slate-100">{getTranslation('locationLabel')}</span>{' '}
                 {itinerary.travelGuide.weatherOutlook?.cityName || itinerary.travelGuide.destinationCity || itinerary.destination}
               </div>
-              <div className="font-mono tabular-nums text-slate-950 dark:text-slate-50 font-bold text-sm">
-                {getTranslation('tempRange')} {formatTemperature(itinerary.travelGuide.weatherOutlook?.temperatureRange || '14°C – 23°C')}
-              </div>
               <div className="grid grid-cols-2 gap-2 py-1 text-[11px] font-mono">
                 <div className="bg-amber-50 dark:bg-amber-950/30 p-2 rounded border border-amber-200 dark:border-amber-800">
                   <span className="text-amber-700 dark:text-amber-400 block">{getTranslation('daytimeHigh')}</span>

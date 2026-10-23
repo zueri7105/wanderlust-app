@@ -145,6 +145,9 @@ export interface ItineraryDay {
   stopPhotos?: Record<string, string[]>;
   /** Photos attached to this day (data URLs or image links) */
   photos?: string[];
+  /** Per-stop pinpoint override: stop label → the address / street / postal
+      code / coordinates the traveller typed for a more accurate map pin */
+  locationOverrides?: Record<string, string>;
 }
 
 export interface CityWeatherOutlook {

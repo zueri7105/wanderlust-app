@@ -812,24 +812,29 @@ export function lookupCountryGuide(destinationText: string): CountryGuideData {
   const t = destinationText
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
+    .replace(/[\u0300-\u036f]/g, '');
+  const canonical = countryNameFor(destinationText);
+  // An exact country mention ("Romania" in "Bucharest, Romania") outranks
+  // every city alias — city nicknames must never override a stated country.
+  if (canonical) {
+    const exact = COUNTRY_GUIDES.find(
+      (g) => g.key === canonical.toLowerCase() || g.name.toLowerCase() === canonical.toLowerCase()
+    );
+    if (exact) return exact;
+  }
   for (const g of COUNTRY_GUIDES) {
     if (t.includes(g.key) || t.includes(g.name.toLowerCase())) return g;
   }
   for (const g of COUNTRY_GUIDES) {
-    // Short aliases ("la", "us") need word boundaries or "atlantis" → Los Angeles
-    if (
-      g.aliases.some((a) =>
-        a.length <= 3 ? new RegExp(`\\b${a}\\b`, 'i').test(t) : t.includes(a)
-      )
-    )
+    // Aliases always need word boundaries — "roma" must never match
+    // "Romania", and "la" must never light up inside "atlantis".
+    if (g.aliases.some((a) => new RegExp(`\\b${a.replace(/ /g, '\\s+')}\\b`, 'i').test(t)))
       return g;
   }
   // Full 197-country coverage: build a country-specific guide from countryInfo
   // so currency, greetings, entry rules and visa advice are ALWAYS for the
   // actual destination country — never a generic USD/EUR/English fallback.
   const info = countryInfoFor(destinationText);
-  const canonical = countryNameFor(destinationText);
   if (info && canonical) {
     return {
       key: canonical.toLowerCase(),

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Cake, Globe2, Heart, MapPin, MessageCircle, Plus, Sparkles, Stamp, Users } from 'lucide-react';
 import { getTranslation, tv } from '../utils/i18n';
+import { COUNTRY_INFO } from '../utils/countryInfo';
 
 export interface OnboardingAnswers {
   name: string;
@@ -33,6 +34,9 @@ const HOBBY_CHIPS = [
 
 const DAY_OPTIONS = [2, 3, 5, 7, 10, 14];
 
+/** Every recognised country, alphabetically — feeds the nationality type-ahead. */
+const ALL_COUNTRIES = Object.keys(COUNTRY_INFO).sort((a, b) => a.localeCompare(b));
+
 const GENDER_OPTIONS = [
   { value: 'female', key: 'genderFemale' },
   { value: 'male', key: 'genderMale' },
@@ -52,7 +56,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [destination, setDestination] = useState('');
-  const [dayCount, setDayCount] = useState(3);
+  const [dayCount, setDayCount] = useState(2);
   const [nationality, setNationality] = useState('');
   const [homeCity, setHomeCity] = useState('');
   const [gender, setGender] = useState('');
@@ -62,6 +66,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
   const [langDraft, setLangDraft] = useState('');
   const [hobbyDraft, setHobbyDraft] = useState('');
   const [motto, setMotto] = useState('');
+  const [natOpen, setNatOpen] = useState(false);
 
   const toggle = (list: string[], setList: (v: string[]) => void, value: string) =>
     setList(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
@@ -78,9 +83,22 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
     setDraft('');
   };
 
+  // Every question must be answered before the Next button does anything —
+  // tapping it without an answer just shakes the missing field, no skip.
   const isLast = step === TOTAL_STEPS - 1;
-  const canNext =
-    step === 1 ? destination.trim().length > 1 : step === 2 ? nationality.trim().length > 1 : true;
+  const canNext = (() => {
+    switch (step) {
+      case 0: return name.trim().length > 0;
+      case 1: return destination.trim().length > 1;
+      case 2: return nationality.trim().length > 1 && homeCity.trim().length > 1;
+      case 3: return birthday.trim().length > 0;
+      case 4: return gender.length > 0;
+      case 5: return languages.length > 0;
+      case 6: return hobbies.length > 0;
+      case 7: return motto.trim().length > 0;
+      default: return true;
+    }
+  })();
 
   const advance = () => {
     if (!canNext) return;
@@ -194,7 +212,30 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                   <label className="block text-xs font-bold text-stone-700 dark:text-stone-200 mb-1.5">
                     {getTranslation('obDaysQ')}
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* type any number first — deleting it empties the box, it
+                        never snaps back; preset boxes follow after it */}
+                    <span className="inline-flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={dayCount === 0 ? '' : dayCount}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '') {
+                            setDayCount(0); // cleared — stays empty until a number is typed
+                            return;
+                          }
+                          setDayCount(Math.max(1, Math.min(60, Number(v) || 1)));
+                        }}
+                        placeholder={getTranslation('obDaysCustom')}
+                        className="w-24 px-3.5 py-2 rounded-2xl text-xs font-semibold border-2 border-violet-300 dark:border-violet-600 bg-white dark:bg-slate-900 text-stone-700 dark:text-stone-200 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <span className="text-xs font-semibold text-stone-500 dark:text-stone-400">
+                        {getTranslation('days')}
+                      </span>
+                    </span>
                     {DAY_OPTIONS.map((n) => (
                       <button
                         key={n}
@@ -205,24 +246,6 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                         {n} {getTranslation('days')}
                       </button>
                     ))}
-                    {/* …or just type the number yourself */}
-                    <span className="inline-flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min={1}
-                        max={60}
-                        value={DAY_OPTIONS.includes(dayCount) ? '' : dayCount}
-                        onChange={(e) => {
-                          const n = Math.max(1, Math.min(60, Number(e.target.value) || 1));
-                          setDayCount(n);
-                        }}
-                        placeholder={getTranslation('obDaysCustom')}
-                        className="w-24 px-3.5 py-2 rounded-2xl text-xs font-semibold border border-dashed border-stone-300 dark:border-stone-600 bg-white dark:bg-slate-900 text-stone-700 dark:text-stone-200 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <span className="text-xs font-semibold text-stone-500 dark:text-stone-400">
-                        {getTranslation('days')}
-                      </span>
-                    </span>
                   </div>
                 </div>
               </div>
@@ -234,7 +257,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                 <h2 className="font-display text-2xl font-bold text-stone-950 dark:text-stone-50 tracking-tight">
                   {getTranslation('obNatTitle')}
                 </h2>
-                <div>
+                <div className="relative">
                   <label className="block text-xs font-bold text-stone-700 dark:text-stone-200 mb-1.5">
                     {getTranslation('obNatQ')}
                   </label>
@@ -242,18 +265,46 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                     autoFocus
                     type="text"
                     value={nationality}
-                    onChange={(e) => setNationality(e.target.value)}
+                    onChange={(e) => {
+                      setNationality(e.target.value);
+                      setNatOpen(true);
+                    }}
+                    onFocus={() => setNatOpen(true)}
+                    onBlur={() => window.setTimeout(() => setNatOpen(false), 150)}
                     onKeyDown={(e) => e.key === 'Enter' && advance()}
-                    placeholder="Germany"
+                    placeholder={getTranslation('obNatPh')}
                     className={inputCls}
                   />
+                  {/* type-ahead: "a" lists every country starting with A,
+                      "al" narrows to Albania, Algeria… — alphabetical */}
+                  {natOpen && nationality.trim() && (() => {
+                    const q = nationality.trim().toLowerCase();
+                    const hits = ALL_COUNTRIES.filter((c) => c.toLowerCase().startsWith(q));
+                    const shown = (hits.length > 0 ? hits : ALL_COUNTRIES.filter((c) => c.toLowerCase().includes(q))).slice(0, 8);
+                    if (shown.length === 0 || (shown.length === 1 && shown[0].toLowerCase() === q)) return null;
+                    return (
+                      <div className="absolute z-10 left-0 right-0 mt-1.5 rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
+                        {shown.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault(); // keep focus; blur timer closes the list
+                              setNationality(c);
+                              setNatOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm font-semibold text-stone-700 dark:text-stone-200 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer"
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-stone-700 dark:text-stone-200 mb-1.5">
                     {getTranslation('obCityQ')}
-                    <span className="ml-1.5 font-medium text-stone-400">
-                      · {getTranslation('obCityPh')}
-                    </span>
                   </label>
                   <input
                     type="text"
@@ -302,7 +353,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                     <button
                       key={value}
                       type="button"
-                      onClick={() => setGender(gender === value ? '' : value)}
+                      onClick={() => setGender(value)}
                       className={chipCls(gender === value)}
                     >
                       {getTranslation(key)}

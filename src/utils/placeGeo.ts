@@ -449,6 +449,12 @@ export interface LegEstimate {
   mode: TravelMode;
 }
 
+/** Airport-to-airport legs are flights by default, whatever the distance. */
+const AIRPORT_LEG_RE = /\b(airport|intl airport|international airport|aeroport|flughafen|aeropuerto|aeroporto|aerodrom)\b|\([A-Z]{3}\)|\b[A-Z]{3} airport\b/i;
+
+export const isAirportLeg = (fromLabel: string, toLabel: string): boolean =>
+  AIRPORT_LEG_RE.test(fromLabel) && AIRPORT_LEG_RE.test(toLabel);
+
 /** Rough solo-traveller leg estimate from straight-line distance. */
 export const estimateLeg = (km: number): LegEstimate => {
   if (km <= 1.5) return { km, minutes: Math.max(3, Math.round(km * 12)), mode: 'walk' };

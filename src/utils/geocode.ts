@@ -327,7 +327,16 @@ export const cleanPlaceQuery = (task: string): string => {
  * has never been resolved — callers should then queue requestGeocode and
  * re-render once it lands.
  */
+/** Raw coordinates typed into a location box resolve without any lookup. */
+const COORDS_RE = /^\s*(-?\d{1,2}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
+
 export const geoForTask = (task: string, context: string): PlaceGeo | null => {
+  const coords = task.match(COORDS_RE);
+  if (coords) {
+    const lat = Number(coords[1]);
+    const lng = Number(coords[2]);
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng, name: task.trim() };
+  }
   const local = findPlaceGeo(task) || findPlaceGeo(cleanPlaceQuery(task));
   if (local) return local;
   // World gazetteer (when loaded): any city/region on Earth, constrained to

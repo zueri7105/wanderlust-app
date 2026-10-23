@@ -4190,6 +4190,12 @@ const COUNTRY_ALIASES: Record<string, string> = {
   'usa': 'United States',
   'us': 'United States',
   'america': 'United States',
+  'romania': 'Romania',
+  'mexico': 'Mexico',
+  'georgia': 'Georgia',
+  'the netherlands': 'Netherlands',
+  'netherlands': 'Netherlands',
+  'macao': 'China',
   'cape verde': 'Cabo Verde',
   'east timor': 'Timor-Leste',
   'congo': 'Republic of the Congo',
@@ -4222,26 +4228,66 @@ const NORM_LOOKUP: Record<string, string> = (() => {
 })();
 
 /**
+ * Word-boundary substring test: "japan" matches inside "kyoto japan" but
+ * "congo" must never match inside "bingo hall", nor "romania" inside
+ * "abromania".
+ */
+const containsWord = (haystack: string, needle: string): boolean => {
+  if (!needle) return false;
+  let idx = haystack.indexOf(needle);
+  while (idx >= 0) {
+    const before = idx === 0 ? '' : haystack[idx - 1];
+    const after = idx + needle.length >= haystack.length ? '' : haystack[idx + needle.length];
+    if (!/[a-z]/.test(before) && !/[a-z]/.test(after)) return true;
+    idx = haystack.indexOf(needle, idx + 1);
+  }
+  return false;
+};
+
+// Exact keys first, then longer keys first — "south korea" beats "korea"
+// when both appear in one string.
+const NORM_KEYS_BY_LENGTH = Object.keys(NORM_LOOKUP).sort((a, b) => b.length - a.length);
+
+/**
  * Resolve any free text ("Kyoto, Japan", "japan", "Ivory Coast") to a
- * country's info. Matches the canonical name inside the text.
+ * country's info. Exact whole-text match first; otherwise the LAST
+ * word-boundary country mention wins — in "Bucharest, Romania" the country
+ * is always Romania, never whichever country name happens to appear first
+ * in the lookup table.
  */
 export function countryInfoFor(text: string): CountryInfo | null {
   if (!text) return null;
   const t = norm(text);
-  for (const [key, name] of Object.entries(NORM_LOOKUP)) {
-    if (t === key || t.includes(key)) return COUNTRY_INFO[name];
+  if (NORM_LOOKUP[t]) return COUNTRY_INFO[NORM_LOOKUP[t]];
+  let found: string | null = null;
+  let foundIdx = -1;
+  for (const key of NORM_KEYS_BY_LENGTH) {
+    if (!containsWord(t, key)) continue;
+    const idx = t.lastIndexOf(key);
+    if (idx > foundIdx) {
+      foundIdx = idx;
+      found = NORM_LOOKUP[key];
+    }
   }
-  return null;
+  return found ? COUNTRY_INFO[found] : null;
 }
 
 /** Canonical display name for free text, or null when no country matched. */
 export function countryNameFor(text: string): string | null {
   if (!text) return null;
   const t = norm(text);
-  for (const [key, name] of Object.entries(NORM_LOOKUP)) {
-    if (t === key || t.includes(key)) return name;
+  if (NORM_LOOKUP[t]) return NORM_LOOKUP[t];
+  let found: string | null = null;
+  let foundIdx = -1;
+  for (const key of NORM_KEYS_BY_LENGTH) {
+    if (!containsWord(t, key)) continue;
+    const idx = t.lastIndexOf(key);
+    if (idx > foundIdx) {
+      foundIdx = idx;
+      found = NORM_LOOKUP[key];
+    }
   }
-  return null;
+  return found;
 }
 
 export function currencyForCountry(text: string): CountryCurrency | null {
