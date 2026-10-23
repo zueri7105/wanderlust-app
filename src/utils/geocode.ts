@@ -529,9 +529,12 @@ const shapeHits = (arr: RawSearchHit[]): GeocodeCandidate[] =>
     .filter((c) => c.display);
 
 /** Photon (OSM-based): primary address geocoder — fast, autocomplete-friendly. */
-const photonSearch = async (q: string, iso: string | null): Promise<GeocodeCandidate[]> => {
-  let url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5`;
+const photonSearch = async (q: string, iso: string | null, bias: [number, number] | null): Promise<GeocodeCandidate[]> => {
+  let url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8`;
   if (iso) url += `&countrycode=${iso.toLowerCase()}`;
+  // Bias toward the trip's area so common street names resolve to the right
+  // city — Photon ranks matches near this point first (same city, exact street).
+  if (bias) url += `&lat=${bias[0]}&lon=${bias[1]}`;
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) return [];
   const json = await res.json();
@@ -576,9 +579,14 @@ const rankCandidates = (arr: GeocodeCandidate[], strict: boolean): GeocodeCandid
 };
 
 /** Prefer building/street hits; returns candidates or [] when nothing usable. */
-const searchAddresses = async (q: string, iso: string | null, strict: boolean): Promise<GeocodeCandidate[]> => {
+const searchAddresses = async (
+  q: string,
+  iso: string | null,
+  strict: boolean,
+  bias: [number, number] | null
+): Promise<GeocodeCandidate[]> => {
   try {
-    const p = await photonSearch(q, iso);
+    const p = await photonSearch(q, iso, bias);
     const ranked = rankCandidates(p, strict);
     if (ranked.length > 0) return ranked;
   } catch {
@@ -607,8 +615,11 @@ export const geocodeAddress = async (
   // Addresses go verbatim; plain place names get the trip context appended.
   const full = isAddressQuery(q) || q.includes(',') || !context ? q : `${q}, ${context}`;
   const strict = isAddressQuery(q); // typed an address: building-level only
+  // Bias to the trip's own location (city/destination) for a tighter match.
+  const ctxGeo = geoForTask(context, '');
+  const bias: [number, number] | null = ctxGeo ? [ctxGeo.lat, ctxGeo.lng] : null;
   try {
-    const candidates = await searchAddresses(full, iso, strict);
+    const candidates = await searchAddresses(full, iso, strict, bias);
     if (candidates.length === 0) return 'miss';
     return { best: candidates[0], candidates: candidates.slice(0, 5) };
   } catch {
