@@ -1108,7 +1108,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 <JourneyBoard
                   itinerary={itinerary}
                   onUpdateItinerary={onUpdateItinerary}
-                  onEditTrip={() => handleOpenEditTrip(itinerary)}
                 />
               ) : (
               <SwipeableTripCard onDelete={() => onDeleteItinerary?.(itinerary.id)}>

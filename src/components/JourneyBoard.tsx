@@ -10,7 +10,6 @@ import {
   Ship,
   Plane,
   Plus,
-  Pencil,
   Route as RouteIcon,
   ImagePlus,
   X,
@@ -346,7 +345,6 @@ const fileToDataUrl = (file: File): Promise<string> =>
 interface JourneyBoardProps {
   itinerary: TravelItinerary;
   onUpdateItinerary?: (itinerary: TravelItinerary) => void;
-  onEditTrip: () => void;
 }
 
 /**
@@ -357,8 +355,7 @@ interface JourneyBoardProps {
  */
 export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   itinerary,
-  onUpdateItinerary,
-  onEditTrip
+  onUpdateItinerary
 }) => {
   const [activeDay, setActiveDay] = useState(0); // 0 = Overview, else 1-based day number
 
@@ -463,15 +460,17 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   const [coverVer, setCoverVer] = useState(0);
   const coverFileRef = useRef<HTMLInputElement>(null);
   const cover = getTripCover(itinerary.id); // eslint-disable-line react-hooks/exhaustive-deps -- coverVer forces re-read
-  const coverOptions = useMemo(
-    () =>
-      [
-        activityImageUrl(itinerary.destination, itinerary.destination, 'card'),
-        ...itinerary.days.flatMap((d) => d.photos || [])
-      ].slice(0, 8),
+  // The remote stock-photo URL is only offered when it actually loads —
+  // an unreachable host renders the browser's broken-image glyph (the
+  // "question mark picture") in the picker, so it's swapped for a clean
+  // gradient tile below.
+  const [stockCoverOk, setStockCoverOk] = useState(true);
+  const coverOptions = useMemo(() => {
+    const options: string[] = [];
+    if (stockCoverOk) options.push(activityImageUrl(itinerary.destination, itinerary.destination, 'card'));
+    return options.concat(itinerary.days.flatMap((d) => d.photos || [])).slice(0, 8);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [itinerary.destination, itinerary.days, coverVer]
-  );
+  }, [itinerary.destination, itinerary.days, coverVer, stockCoverOk]);
 
   // Checklist (shared store with the trips list)
   const [checklistVer, setChecklistVer] = useState(0);
@@ -799,14 +798,6 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
               <ImageIcon className="w-3.5 h-3.5" />
               <span>{getTranslation('coverBtn')}</span>
             </button>
-            <button
-              type="button"
-              onClick={onEditTrip}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:scale-[1.03] transition-all cursor-pointer shadow-xs"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              <span>{getTranslation('editTrip')}</span>
-            </button>
           </div>
 
           {/* Cover picker — the chosen picture becomes the trip card background */}
@@ -830,7 +821,16 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                         : 'border-transparent hover:border-violet-300'
                     }`}
                   >
-                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    {url === coverOptions[0] && stockCoverOk ? (
+                      <img
+                        src={url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={() => setStockCoverOk(false)}
+                      />
+                    ) : (
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    )}
                     {cover === url && (
                       <span className="absolute inset-0 flex items-center justify-center bg-stone-950/30">
                         <Check className="w-4 h-4 text-white" />
