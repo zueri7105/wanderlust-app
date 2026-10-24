@@ -329,15 +329,20 @@ export const searchPlaces = (query: string, limit = 8, countryName?: string): Wo
   const seen = new Set<string>();
   const prefixHits: WorldGeoHit[] = [];
   const wordHits: WorldGeoHit[] = [];
-  const push = (hit: WorldGeoHit, bucket: WorldGeoHit[]) => {
+  // Exact-name matches outrank fuzzy accent-folded ones, so typing "Seoul"
+  // (q="seoul") lists the real Seoul before tiny Séoulétié — whose name only
+  // matches after stripping accents. Preference order below mirrors this.
+  const exactKey = new Set<string>();
+  const push = (hit: WorldGeoHit, bucket: WorldGeoHit[], key?: string) => {
     const dk = `${normPlace(hit.name)}|${hit.cc}|${hit.kind}`;
     if (seen.has(dk)) return;
     seen.add(dk);
+    if (key && normPlace(hit.name) === q) exactKey.add(dk);
     bucket.push(hit);
   };
   const cap = countryName ? 600 : 80; // filtered scans discard most hits — dig deeper
   for (let i = lo; i < searchKeys.length && searchKeys[i].startsWith(q); i++) {
-    for (const h of hitsForKey(searchKeys[i])) push(h, prefixHits);
+    for (const h of hitsForKey(searchKeys[i])) push(h, prefixHits, searchKeys[i]);
     if (prefixHits.length >= cap) break;
   }
   // Fallback: a word inside the name starts with the query ("york" → New York).
@@ -353,12 +358,14 @@ export const searchPlaces = (query: string, limit = 8, countryName?: string): Wo
   const byPop = (a: WorldGeoHit, b: WorldGeoHit) => b.pop - a.pop;
   prefixHits.sort(byPop);
   wordHits.sort(byPop);
-  // Countries and regions float to the top of their bucket — a typed country
-  // should offer the country, not just its biggest same-named city.
+  // Exact matches, then countries/regions, then biggest cities — so the
+  // place the traveller actually typed tops the list, not a lookalike.
+  const dkOf = (h: WorldGeoHit) => `${normPlace(h.name)}|${h.cc}|${h.kind}`;
   const rank = (h: WorldGeoHit) => (h.kind === 'country' ? 2 : h.kind === 'region' ? 1 : 0);
-  const byKindThenPop = (a: WorldGeoHit, b: WorldGeoHit) => rank(b) - rank(a) || byPop(a, b);
-  prefixHits.sort(byKindThenPop);
-  wordHits.sort(byKindThenPop);
+  const score = (h: WorldGeoHit) => (exactKey.has(dkOf(h)) ? 3 : rank(h));
+  const byExactKindPop = (a: WorldGeoHit, b: WorldGeoHit) => score(b) - score(a) || byPop(a, b);
+  prefixHits.sort(byExactKindPop);
+  wordHits.sort(byExactKindPop);
   const merged = [...prefixHits, ...wordHits];
   if (countryName) {
     const want = normPlace(countryName);
