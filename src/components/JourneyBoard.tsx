@@ -196,11 +196,16 @@ const SwipeableStop: React.FC<{ onDelete: () => void; children: React.ReactNode 
   children
 }) => {
   const [offset, setOffset] = useState(0);
+  const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
+  // After a real drag, the browser still fires a click on release — that
+  // phantom click must not immediately close the zone we just opened.
+  const suppressClick = useRef(false);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button, input, textarea, a')) return;
+    suppressClick.current = false;
     drag.current = { startX: e.clientX, startOffset: offset, moved: false };
     try {
       // keep the gesture on this element even when the pointer leaves the card
@@ -223,29 +228,37 @@ const SwipeableStop: React.FC<{ onDelete: () => void; children: React.ReactNode 
     const wasMoved = drag.current.moved;
     drag.current = null;
     setDragging(false);
-    if (!wasMoved) {
-      setOffset(0); // plain tap closes an open swipe
-      return;
-    }
+    if (!wasMoved) return; // plain tap — the open/close is handled by click capture
+    suppressClick.current = true;
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 350);
     if (offset <= -STOP_SWIPE_WIDTH + 6) {
       onDelete(); // full swipe — the bullet is gone, no second tap needed
       return;
     }
-    setOffset(offset < -STOP_SWIPE_WIDTH / 2 ? -STOP_SWIPE_WIDTH : 0);
+    const staysOpen = offset < -STOP_SWIPE_WIDTH / 2;
+    setOpen(staysOpen);
+    setOffset(staysOpen ? -STOP_SWIPE_WIDTH : 0);
   };
 
   return (
-    <div className="relative rounded-xl overflow-hidden">
-      {/* Red delete zone behind the bullet, revealed on swipe-left */}
-      <button
-        type="button"
-        onClick={onDelete}
-        className="absolute inset-y-0 right-0 w-[72px] bg-gradient-to-br from-red-500 to-rose-600 flex flex-col items-center justify-center gap-0.5 text-white cursor-pointer"
-        title="Delete"
-      >
-        <Trash2 className="w-4 h-4" />
-        <span className="text-[9px] font-bold uppercase tracking-wider">Delete</span>
-      </button>
+    <div className="relative rounded-xl">
+      {/* Red delete zone behind the bullet, revealed on swipe-left. Only
+          mounted while open so it never pokes out behind the bullet — in
+          Daybreak (light mode) the bullet's translucent light card would
+          otherwise show a red sliver at the right edge. */}
+      {open && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="absolute inset-y-0 right-0 w-[72px] rounded-r-xl bg-gradient-to-br from-red-500 to-rose-600 flex flex-col items-center justify-center gap-0.5 text-white cursor-pointer shadow-lg"
+          title="Delete"
+        >
+          <Trash2 className="w-4 h-4" />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Delete</span>
+        </button>
+      )}
       <div
         style={{ transform: `translateX(${offset}px)` }}
         className={`relative touch-pan-y select-none ${dragging ? '' : 'transition-transform'}`}
@@ -254,6 +267,19 @@ const SwipeableStop: React.FC<{ onDelete: () => void; children: React.ReactNode 
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onPointerLeave={endDrag}
+        onClickCapture={(e) => {
+          if (open) {
+            // open + plain tap (not the trash) → close instead of bubbling a
+            // click through to whatever's inside the bullet. Clicks that
+            // immediately follow a drag are phantom release-clicks — swallow
+            // them but keep the zone open.
+            e.preventDefault();
+            e.stopPropagation();
+            if (suppressClick.current) return;
+            setOpen(false);
+            setOffset(0);
+          }
+        }}
       >
         {children}
       </div>
