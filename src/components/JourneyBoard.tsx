@@ -25,7 +25,9 @@ import {
   Image as ImageIcon,
   Trash2,
   MapPin,
-  CalendarDays
+  CalendarDays,
+  Sparkles,
+  Star
 } from 'lucide-react';
 import { TravelItinerary, ItineraryDay } from '../types/travel';
 import { TripRouteMap } from './TripRouteMap';
@@ -48,6 +50,7 @@ import {
   toggleChecked
 } from '../utils/checklistStore';
 import { getTripCover, setTripCover } from '../utils/tripCovers';
+import TripRescueModal from './TripRescueModal';
 
 /* ── Stop parsing (mirrors TripRouteMap, but keeps non-geocodable tasks) ──── */
 
@@ -358,6 +361,31 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   onEditTrip
 }) => {
   const [activeDay, setActiveDay] = useState(0); // 0 = Overview, else 1-based day number
+
+  // Trip Rescue (AI day planner): which day's modal is open, and the
+  // must-see stars a traveller pins on stops. Stars persist across sessions.
+  const [rescueDay, setRescueDay] = useState<ItineraryDay | null>(null);
+  const MUSTSEE_KEY = 'wanderlust_mustsee_v1';
+  const [stopImportance, setStopImportance] = useState<Record<string, 1 | 2>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(MUSTSEE_KEY) || '{}');
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(MUSTSEE_KEY, JSON.stringify(stopImportance));
+    } catch {
+      /* storage full/blocked — stars just won't persist */
+    }
+  }, [stopImportance]);
+  const toggleImportance = (label: string) =>
+    setStopImportance((prev) => ({ ...prev, [label]: prev[label] === 2 ? 1 : 2 }));
+  const applyRescue = (dayNumber: number, slots: string[][]) => {
+    commitSlots(dayNumber, slots);
+    setRescueDay(null);
+  };
 
   // Exact-place geocoding: re-render when an online lookup lands, and queue
   // one for any stop the local landmark table doesn't know yet.
@@ -1123,10 +1151,23 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                           </div>
                         </>
                       ) : (
-                        <div className="flex items-baseline gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span className="flex-1 min-w-0 font-display text-base font-bold text-stone-950 dark:text-stone-50 truncate">
                             {d.title || tv('dayN', { n: d.dayNumber })}
                           </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRescueDay(d);
+                            }}
+                            disabled={stops.length < 2}
+                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="AI day planner — rescue this day or optimize its route"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            Rescue
+                          </button>
                           <span className="text-[11px] font-medium text-stone-400 shrink-0">
                             {dayDate(dayIdx)} · {tv('jdStops', { n: stops.length })}
                           </span>
@@ -1218,6 +1259,21 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                       >
                                         {getTranslation(meta.key)}
                                       </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleImportance(stop.label)}
+                                        className="shrink-0 cursor-pointer ml-auto"
+                                        title={stopImportance[stop.label] === 2 ? 'Must-see (tap to unstar)' : 'Mark as must-see for Trip Rescue'}
+                                        aria-label={`Must-see ${stop.label}`}
+                                      >
+                                        <Star
+                                          className={`w-3.5 h-3.5 transition-colors ${
+                                            stopImportance[stop.label] === 2
+                                              ? 'fill-amber-400 text-amber-400'
+                                              : 'text-stone-300 dark:text-stone-600 hover:text-amber-400'
+                                          }`}
+                                        />
+                                      </button>
                                     </div>
                                     {/* move the activity up / down (across slots too) */}
                                     <span className="flex flex-col shrink-0 -my-1">
@@ -1376,6 +1432,20 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
             }}
           />
         </div>
+      )}
+
+      {/* Trip Rescue (AI day planner) — pick the best of a broken day, or
+          re-order the whole day for least travel. */}
+      {rescueDay && (
+        <TripRescueModal
+          day={rescueDay}
+          dayDateLabel={dayDate(Math.max(0, itinerary.days.findIndex((d) => d.dayNumber === rescueDay.dayNumber)))}
+          geoContext={geoContext}
+          importance={stopImportance}
+          onToggleImportance={toggleImportance}
+          onApply={(slots) => applyRescue(rescueDay.dayNumber, slots)}
+          onClose={() => setRescueDay(null)}
+        />
       )}
     </div>
   );

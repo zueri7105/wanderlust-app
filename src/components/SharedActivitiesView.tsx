@@ -647,7 +647,11 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Date pickers: native <input type="date"> controls refuse to
+                  shrink below their intrinsic width, so on phone widths two
+                  side-by-side boxes overlap. Stack until the modal is wide
+                  enough to host them comfortably. */}
+              <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
                 <div>
                   <label className="block font-medium text-stone-700 mb-1">
                     Start Date
@@ -657,7 +661,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                     required
                     value={formDate}
                     onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
+                    className="w-full min-w-0 px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
                   />
                 </div>
 
@@ -670,7 +674,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                     min={formDate}
                     value={formEndDate}
                     onChange={(e) => setFormEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
+                    className="w-full min-w-0 px-3 py-2 border border-stone-300 rounded-md bg-white text-stone-900 font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-stone-900"
                   />
                 </div>
               </div>
