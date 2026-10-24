@@ -614,7 +614,7 @@ export default function App() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-transparent flex flex-col text-slate-900 dark:text-slate-100 transition-colors md:pl-[76px]">
+    <div className="min-h-screen flex flex-col text-slate-900 dark:text-slate-100 transition-colors md:pl-[76px]">
       {/* Navigation */}
       <Navigation
         activeTab={activeTab}
