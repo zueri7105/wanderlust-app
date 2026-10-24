@@ -2,6 +2,7 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { startWorldGeoLoad } from './utils/worldGeo';
+import { AppErrorBoundary } from './utils/errorBoundary.tsx';
 
 // ── Fresh-platform reset ─────────────────────────────────────────────────
 // One-time migration: wipe any previously stored demo data (trips, itineraries,
@@ -21,7 +22,11 @@ if (!localStorage.getItem('wanderlust_fresh_v1')) {
 // World gazetteer (all countries, provinces/states/regions, 236k cities) —
 // downloads in the background AFTER the UI mounts, so the 12 MB fetch can never
 // delay or blank the first paint. The app is fully interactive before it lands.
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>
+);
 requestIdleCallback
   ? requestIdleCallback(() => void startWorldGeoLoad())
   : setTimeout(() => void startWorldGeoLoad(), 800);

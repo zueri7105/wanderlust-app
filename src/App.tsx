@@ -42,6 +42,11 @@ import { upsertMemoryFromItinerary, removeMemoryForItinerary } from './utils/jou
 import { BellRing, X } from 'lucide-react';
 
 export default function App() {
+  // Crash-test hook (harmless): ?__crash_test=1 throws during render so the
+  // error boundary's recovery screen can be verified end-to-end.
+  if (new URLSearchParams(window.location.search).has('__crash_test')) {
+    throw new Error('intentional crash test');
+  }
   const [activeTab, setActiveTab] = useState<NavTab>('itinerary');
   // Trip detail page — set when a trip card is tapped; cleared by "Back to trips"
   const [detailTripId, setDetailTripId] = useState<string | null>(null);

@@ -1,5 +1,8 @@
 <!doctype html>
-<html lang="en">
+<!-- Static dark defaults: even if EVERY script is blocked or fails, the page
+     is deep-space dark, never white. App remount logic flips to light for
+     travellers who chose a light theme. -->
+<html lang="en" class="dark" style="background-color:#06030f">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -34,7 +37,7 @@
       })();
     </script>
   </head>
-  <body>
+  <body style="background-color:#06030f">
     <div id="root"></div>
     <noscript>
       <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#06030f;color:#e9d5ff;font-family:system-ui,sans-serif;text-align:center;padding:24px;">

@@ -2,9 +2,16 @@ export function formatTemperature(
   tempStringOrNum: string | number,
   unitSystem?: 'metric' | 'imperial'
 ): string {
-  const currentUnit = unitSystem || (localStorage.getItem('wanderlust_app_settings')
-    ? JSON.parse(localStorage.getItem('wanderlust_app_settings')!).unitSystem
-    : 'metric');
+  let currentUnit = unitSystem;
+  if (!currentUnit) {
+    // Corrupted/partial settings must never crash a render — fall back to metric.
+    try {
+      const raw = localStorage.getItem('wanderlust_app_settings');
+      currentUnit = raw ? (JSON.parse(raw)?.unitSystem ?? 'metric') : 'metric';
+    } catch {
+      currentUnit = 'metric';
+    }
+  }
 
   if (typeof tempStringOrNum === 'number') {
     if (currentUnit === 'imperial') {
