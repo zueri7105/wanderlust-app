@@ -184,7 +184,10 @@ export default function App() {
           }
         }
         const fresh = localStorage.getItem('wanderlust_app_settings');
-        const theme = fresh ? JSON.parse(fresh).theme : 'dark';
+        // Settings stored before the theme field existed have no `theme` —
+        // those sessions are Galaxy users, so a missing value must fall back
+        // to dark (getAppSettings applies the same default for the UI).
+        const theme = fresh ? JSON.parse(fresh).theme || 'dark' : 'dark';
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
         document.documentElement.classList.toggle('dark', isDark);
