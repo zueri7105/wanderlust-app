@@ -437,7 +437,7 @@ const SwipeableTripCard: React.FC<{ onDelete: () => void; children: React.ReactN
       {/* red DELETE button revealed behind the card — tappable, but the
           swipe itself never deletes; the trip only goes when this is pressed */}
       <div
-        className="absolute inset-y-0 right-0 bg-rose-600 flex items-center justify-center rounded-r-2xl"
+        className="absolute inset-y-0 right-0 flex items-center justify-center rounded-r-2xl"
         style={{ width: TRIP_SWIPE_WIDTH }}
       >
         <button
@@ -446,13 +446,11 @@ const SwipeableTripCard: React.FC<{ onDelete: () => void; children: React.ReactN
             close();
             onDelete();
           }}
-          className="w-full h-full flex flex-col items-center justify-center gap-1 text-white hover:bg-rose-500/40 active:bg-rose-700 transition-colors cursor-pointer"
+          className="w-11 h-11 rounded-full bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white flex items-center justify-center shadow-lg shadow-rose-900/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
           aria-label={getTranslation('deleteThisTrip')}
+          title={getTranslation('deleteThisTrip')}
         >
-          <Trash2 className="w-5 h-5" />
-          <span className="text-[9px] font-black uppercase tracking-widest">
-            {getTranslation('jdDelete')}
-          </span>
+          <Trash2 className="w-4.5 h-4.5" />
         </button>
       </div>
       <div
