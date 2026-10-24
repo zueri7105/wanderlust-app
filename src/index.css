@@ -467,14 +467,15 @@ html.dark .wl-timeline-line-dream {
   backface-visibility: hidden;
   pointer-events: none;
 }
-/* Backward: the same motion mirrored — the current page flips back out
-   toward the right, revealing the previous page waiting underneath. */
-@keyframes wlFlipAwayPrev {
-  from { transform: rotateY(0deg); opacity: 1; }
-  to { transform: rotateY(80deg); opacity: 0; }
+/* Backward turn, book-style: NOT a mirrored swing-away — in a real book the
+   previous page swings back IN over the spine from the left while the page
+   you were on stays put. It lands from rotateY(-80°) to flat, on top. */
+@keyframes wlFlipInPrev {
+  from { transform: rotateY(-80deg); opacity: 0; }
+  to { transform: rotateY(0deg); opacity: 1; }
 }
-.wl-flip-away-prev {
-  animation: wlFlipAwayPrev 0.38s cubic-bezier(0.55, 0.06, 0.55, 0.9) forwards;
+.wl-flip-in-prev {
+  animation: wlFlipInPrev 0.38s cubic-bezier(0.55, 0.06, 0.55, 0.9) forwards;
   transform-origin: left center;
   backface-visibility: hidden;
   pointer-events: none;

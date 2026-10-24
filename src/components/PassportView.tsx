@@ -241,16 +241,17 @@ export const PassportView: React.FC<PassportViewProps> = ({
     }
   };
 
-  /** One passport book page. With `swing` set the page lifts and turns away
-      over the left spine (a real page turn); without it, the page sits
-      still — the base page, or the one being revealed underneath. The swing
-      overlay's position MUST be set inline: a conflicting `absolute` class
-      loses to the shell's `relative` in the compiled CSS, which used to
-      drop the flipping page BELOW the book. */
-  const BookPage: React.FC<{ p: number; swing?: 'next' | 'prev' }> = ({ p, swing }) => (
+  /** One passport book page. With `swing` the page animates; without it, the
+      page sits still — the base page. Forward: the page you're on turns away
+      over the spine. Backward: the PREVIOUS page swings back in from the left
+      over the spine while the current page stays put (like a real book).
+      The swing overlay's position MUST be set inline: a conflicting
+      `absolute` class loses to the shell's `relative` in the compiled CSS,
+      which used to drop the flipping page BELOW the book. */
+  const BookPage: React.FC<{ p: number; swing?: 'next' | 'in' }> = ({ p, swing }) => (
     <div
       {...pageTurnHandlers}
-      className={`${pageShellCls(p)}${swing ? (swing === 'next' ? ' wl-flip-away-next' : ' wl-flip-away-prev') : ''}`}
+      className={`${pageShellCls(p)}${swing ? (swing === 'next' ? ' wl-flip-away-next' : ' wl-flip-in-prev') : ''}`}
       style={
         swing
           ? { position: 'absolute', top: 0, bottom: 0, left: 8, right: 0, zIndex: 10 }
@@ -466,12 +467,19 @@ export const PassportView: React.FC<PassportViewProps> = ({
 
         {flip === null || targetPage === null ? (
           <BookPage p={page} />
-        ) : (
+        ) : flip === 'next' ? (
           <>
-            {/* the page being revealed sits perfectly still underneath */}
+            {/* the next page sits perfectly still underneath */}
             <BookPage p={targetPage} />
             {/* the page you were on turns away over the spine, book-style */}
-            <BookPage p={page} swing={flip} />
+            <BookPage p={page} swing="next" />
+          </>
+        ) : (
+          <>
+            {/* turning back: the current page STAYS PUT — the previous page
+                swings back in over the spine from the left, like a real book */}
+            <BookPage p={page} />
+            <BookPage p={targetPage} swing="in" />
           </>
         )}
 
