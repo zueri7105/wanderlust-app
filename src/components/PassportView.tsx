@@ -243,15 +243,19 @@ export const PassportView: React.FC<PassportViewProps> = ({
 
   /** One passport book page. With `swing` set the page lifts and turns away
       over the left spine (a real page turn); without it, the page sits
-      still — the base page, or the one being revealed underneath. */
+      still — the base page, or the one being revealed underneath. The swing
+      overlay's position MUST be set inline: a conflicting `absolute` class
+      loses to the shell's `relative` in the compiled CSS, which used to
+      drop the flipping page BELOW the book. */
   const BookPage: React.FC<{ p: number; swing?: 'next' | 'prev' }> = ({ p, swing }) => (
     <div
       {...pageTurnHandlers}
-      className={`${pageShellCls(p)}${
+      className={`${pageShellCls(p)}${swing ? (swing === 'next' ? ' wl-flip-away-next' : ' wl-flip-away-prev') : ''}`}
+      style={
         swing
-          ? ` absolute inset-0 z-10 ${swing === 'next' ? 'wl-flip-away-next' : 'wl-flip-away-prev'}`
-          : ''
-      }`}
+          ? { position: 'absolute', top: 0, bottom: 0, left: 8, right: 0, zIndex: 10 }
+          : undefined
+      }
     >
       {p === 0 ? (
             /* ── Identity cover page ── */

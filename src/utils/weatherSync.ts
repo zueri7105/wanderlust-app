@@ -114,7 +114,12 @@ export const fetchWeatherTrend = async (
   }
 
   try {
-    const res = await fetch(url);
+    // The weather APIs can hang on some networks — cap the wait so the
+    // static seasonal outlook below shows promptly instead of pending forever.
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;
+    const res = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+    if (timer) clearTimeout(timer);
     if (!res.ok) return null;
     const json = await res.json();
     const daily = json?.daily;
