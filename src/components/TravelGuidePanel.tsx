@@ -257,25 +257,10 @@ interface TravelGuidePanelProps {
  * page as its own tab (taken out of the itinerary timeline).
  */
 /** Live weather trend for the guide's City Weather card — real Open-Meteo
-    forecast for trips ≤16 days out, climate-trend projection for later trips. */
-const WeatherTrendBlock: React.FC<{ itinerary: TravelItinerary }> = ({ itinerary }) => {
-  const [trend, setTrend] = useState<WeatherTrend | null>(null);
-  const city =
-    itinerary.travelGuide?.destinationCity || itinerary.destination.split(',')[0]?.trim() || '';
-  const country = itinerary.travelGuide?.destinationCountry || itinerary.country || '';
-
-  useEffect(() => {
-    let alive = true;
-    setTrend(null);
-    void fetchWeatherTrend(city, country, itinerary.startDate, itinerary.endDate).then((t) => {
-      if (alive) setTrend(t);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [city, country, itinerary.startDate, itinerary.endDate]);
-
-  if (!trend) return null;
+    forecast for trips ≤16 days out, climate-trend projection for later trips.
+    Fetched once by the panel so the outlook + clothing advice below share the
+    exact same numbers. */
+const WeatherTrendBlock: React.FC<{ trend: WeatherTrend }> = ({ trend }) => {
   const hi = Math.max(...trend.days.map((d) => d.tMax));
   const lo = Math.min(...trend.days.map((d) => d.tMin));
   const span = Math.max(hi - lo, 1);
@@ -338,6 +323,38 @@ const WeatherTrendBlock: React.FC<{ itinerary: TravelItinerary }> = ({ itinerary
 };
 
 export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, currentUser }) => {
+  // Live weather trend — ONE fetch shared by the forecast block, the
+  // daytime-high / nighttime-low card and the clothing advice, so every
+  // number on the page agrees with the forecast above it.
+  const weatherCity =
+    itinerary.travelGuide?.destinationCity || itinerary.destination.split(',')[0]?.trim() || '';
+  const weatherCountry = itinerary.travelGuide?.destinationCountry || itinerary.country || '';
+  const [trend, setTrend] = useState<WeatherTrend | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setTrend(null);
+    void fetchWeatherTrend(weatherCity, weatherCountry, itinerary.startDate, itinerary.endDate).then((t) => {
+      if (alive) setTrend(t);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [weatherCity, weatherCountry, itinerary.startDate, itinerary.endDate]);
+
+  /** Clothing advice derived from the live trend (temperature band + rain). */
+  const liveClothing = (t: WeatherTrend): string => {
+    const hi = t.avgHi;
+    const band =
+      hi >= 28
+        ? getTranslation('clothHot')
+        : hi >= 20
+        ? getTranslation('clothWarm')
+        : hi >= 12
+        ? getTranslation('clothCool')
+        : getTranslation('clothCold');
+    return t.rainDays >= 2 ? `${band} ${getTranslation('clothRain')}` : band;
+  };
+
   // Country knowledge overlay — keeps rules, customs, phrases & currency aligned
   // with the destination even for itineraries saved before the knowledge base existed.
   const guideKb = lookupCountryGuide(`${itinerary.destination} ${itinerary.country || ''}`);
@@ -486,7 +503,7 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
             </div>
 
             {/* Real forecast trend — Open-Meteo, synced with the trip dates */}
-            <WeatherTrendBlock itinerary={itinerary} />
+            {trend && <WeatherTrendBlock trend={trend} />}
 
             {/* Multi-city trips: one weather card per city */}
             {itinerary.cities && itinerary.cities.length > 1 ? (
@@ -540,19 +557,24 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
               <div className="grid grid-cols-2 gap-2 py-1 text-[11px] font-mono">
                 <div className="bg-amber-50 dark:bg-amber-950/30 p-2 rounded border border-amber-200 dark:border-amber-800">
                   <span className="text-amber-700 dark:text-amber-400 block">{getTranslation('daytimeHigh')}</span>
-                  <span className="font-bold text-amber-900 dark:text-amber-200">{formatTemperature(itinerary.travelGuide.weatherOutlook?.daytimeAvg || '20°C')}</span>
+                  <span className="font-bold text-amber-900 dark:text-amber-200">
+                    {trend ? formatTemperature(`${trend.avgHi}°C`) : formatTemperature(itinerary.travelGuide.weatherOutlook?.daytimeAvg || '20°C')}
+                  </span>
                 </div>
                 <div className="bg-indigo-50 dark:bg-indigo-950/30 p-2 rounded border border-indigo-200 dark:border-indigo-800">
                   <span className="text-indigo-500 dark:text-indigo-400 block">{getTranslation('nighttimeLow')}</span>
-                  <span className="font-bold text-indigo-900 dark:text-indigo-200">{formatTemperature(itinerary.travelGuide.weatherOutlook?.nighttimeAvg || '13°C')}</span>
+                  <span className="font-bold text-indigo-900 dark:text-indigo-200">
+                    {trend ? formatTemperature(`${trend.avgLo}°C`) : formatTemperature(itinerary.travelGuide.weatherOutlook?.nighttimeAvg || '13°C')}
+                  </span>
                 </div>
               </div>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
                 {itinerary.travelGuide.weatherOutlook?.conditions}
               </p>
-              {itinerary.travelGuide.weatherOutlook?.clothingAdvice && (
+              {(trend || itinerary.travelGuide.weatherOutlook?.clothingAdvice) && (
                 <div className="text-[11px] bg-amber-50/70 dark:bg-amber-950/30 p-2 rounded border border-amber-200/60 text-amber-900 dark:text-amber-200">
-                  <strong>{getTranslation('clothingAdvice')}</strong> {itinerary.travelGuide.weatherOutlook.clothingAdvice}
+                  <strong>{getTranslation('clothingAdvice')}</strong>{' '}
+                  {trend ? liveClothing(trend) : itinerary.travelGuide.weatherOutlook!.clothingAdvice}
                 </div>
               )}
             </div>

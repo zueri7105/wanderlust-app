@@ -8,6 +8,9 @@ export interface OnboardingAnswers {
   name: string;
   destination: string;
   dayCount: number;
+  /** Trip window the traveller picked (YYYY-MM-DD) — drives the plan dates. */
+  startDate: string;
+  endDate: string;
   nationality: string;
   homeCity: string;
   gender: string;
@@ -35,6 +38,18 @@ const HOBBY_CHIPS = [
 
 const DAY_OPTIONS = [2, 3, 5, 7, 10, 14];
 
+/** Local (non-UTC-shifted) YYYY-MM-DD — toISOString would drift a day behind UTC. */
+const isoDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const plusDays = (iso: string, n: number) => {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  return isoDay(d);
+};
+/** Whole days spanned by [start, end], 1 when same day. */
+const daysBetween = (start: string, end: string) =>
+  Math.round((new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()) / 86400000) + 1;
+
 /** Every recognised country, alphabetically — feeds the nationality type-ahead. */
 const ALL_COUNTRIES = Object.keys(COUNTRY_INFO).sort((a, b) => a.localeCompare(b));
 
@@ -58,6 +73,9 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
   const [name, setName] = useState('');
   const [destination, setDestination] = useState('');
   const [dayCount, setDayCount] = useState(2);
+  // Trip window — defaults to "in two weeks, for dayCount days".
+  const [startDate, setStartDate] = useState(() => plusDays(isoDay(new Date()), 14));
+  const [endDate, setEndDate] = useState(() => plusDays(plusDays(isoDay(new Date()), 14), 1));
   const [nationality, setNationality] = useState('');
   const [homeCity, setHomeCity] = useState('');
   const [gender, setGender] = useState('');
@@ -71,6 +89,32 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
 
   const toggle = (list: string[], setList: (v: string[]) => void, value: string) =>
     setList(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
+
+  /** Day count changed → keep the start date, stretch/shrink the end date. */
+  const applyDayCount = (n: number) => {
+    setDayCount(n);
+    setEndDate(plusDays(startDate, n - 1));
+  };
+
+  /** Start date moved → shift the window so the trip stays dayCount long. */
+  const applyStart = (iso: string) => {
+    setStartDate(iso);
+    setEndDate(plusDays(iso, dayCount - 1));
+  };
+
+  /** End date moved → the day count follows the new window length. */
+  const applyEnd = (iso: string) => {
+    if (!startDate || iso < startDate) {
+      // end before start — collapse to a one-day trip on that date
+      setStartDate(iso);
+      setEndDate(iso);
+      setDayCount(1);
+      return;
+    }
+    setEndDate(iso);
+    const n = Math.max(1, Math.min(60, daysBetween(startDate, iso)));
+    setDayCount(n);
+  };
 
   const addCustom = (
     draft: string,
@@ -108,6 +152,8 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
         name: name.trim(),
         destination: destination.trim(),
         dayCount,
+        startDate,
+        endDate,
         nationality: nationality.trim(),
         homeCity: homeCity.trim(),
         gender,
@@ -227,7 +273,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                             setDayCount(0); // cleared — stays empty until a number is typed
                             return;
                           }
-                          setDayCount(Math.max(1, Math.min(60, Number(v) || 1)));
+                          applyDayCount(Math.max(1, Math.min(60, Number(v) || 1)));
                         }}
                         placeholder={getTranslation('obDaysCustom')}
                         className="w-24 px-3.5 py-2 rounded-2xl text-xs font-semibold border-2 border-violet-300 dark:border-violet-600 bg-white dark:bg-slate-900 text-stone-700 dark:text-stone-200 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -240,13 +286,47 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                       <button
                         key={n}
                         type="button"
-                        onClick={() => setDayCount(n)}
+                        onClick={() => applyDayCount(n)}
                         className={chipCls(dayCount === n)}
                       >
                         {n} {getTranslation('days')}
                       </button>
                     ))}
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 dark:text-stone-200 mb-1.5">
+                    {getTranslation('obDatesQ')}
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 flex-1 min-w-[150px]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 shrink-0">
+                        {getTranslation('fromDate')}
+                      </span>
+                      <input
+                        type="date"
+                        value={startDate}
+                        min={isoDay(new Date())}
+                        onChange={(e) => e.target.value && applyStart(e.target.value)}
+                        className="flex-1 min-w-0 px-3 py-2 rounded-2xl text-xs font-semibold border-2 border-violet-300 dark:border-violet-600 bg-white dark:bg-slate-900 text-stone-700 dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
+                      />
+                    </label>
+                    <label className="inline-flex items-center gap-1.5 flex-1 min-w-[150px]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 shrink-0">
+                        {getTranslation('toDate')}
+                      </span>
+                      <input
+                        type="date"
+                        value={endDate}
+                        min={startDate}
+                        onChange={(e) => e.target.value && applyEnd(e.target.value)}
+                        className="flex-1 min-w-0 px-3 py-2 rounded-2xl text-xs font-semibold border-2 border-violet-300 dark:border-violet-600 bg-white dark:bg-slate-900 text-stone-700 dark:text-stone-200 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
+                      />
+                    </label>
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-stone-400 dark:text-stone-500">
+                    {tv('stayNights', { d: dayCount, n: Math.max(0, dayCount - 1) })}
+                  </p>
                 </div>
               </div>
             )}

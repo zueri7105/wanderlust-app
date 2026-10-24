@@ -62,6 +62,18 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   // Rename mode: double-tap the big title to edit the city/country in place.
   const [renaming, setRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState('');
+  // Date edit mode: tap the date pill under the heading to change the window.
+  const [editingDates, setEditingDates] = useState(false);
+  const [dateStartDraft, setDateStartDraft] = useState(itinerary.startDate);
+  const [dateEndDraft, setDateEndDraft] = useState(itinerary.endDate);
+  const commitDates = () => {
+    const s = dateStartDraft || itinerary.startDate;
+    let e = dateEndDraft || itinerary.endDate;
+    if (e < s) e = s;
+    setEditingDates(false);
+    if (s === itinerary.startDate && e === itinerary.endDate) return;
+    onUpdateItinerary({ ...itinerary, startDate: s, endDate: e });
+  };
   const applyDestination = async (raw: string) => {
     const dest = raw.trim();
     if (!dest || destSaving) return;
@@ -204,10 +216,57 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         )}
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 font-semibold text-stone-700 dark:text-stone-200">
-            <CalendarDays className="w-3.5 h-3.5 text-stone-400" />
-            <span className="font-mono tabular-nums">{itinerary.startDate} – {itinerary.endDate}</span>
-          </span>
+          {editingDates ? (
+            <span className="inline-flex flex-wrap items-center gap-1.5 px-2 py-1.5 rounded-full bg-white dark:bg-stone-900 border-2 border-violet-300 dark:border-violet-700 font-semibold text-stone-700 dark:text-stone-200 shadow-sm">
+              <CalendarDays className="w-3.5 h-3.5 text-violet-400 shrink-0 ml-1" />
+              <input
+                type="date"
+                autoFocus
+                value={dateStartDraft}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setDateStartDraft(v);
+                  // keep the window valid: end follows if it would invert
+                  if (v && dateEndDraft < v) setDateEndDraft(v);
+                }}
+                className="bg-transparent font-mono tabular-nums text-xs focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
+              />
+              <span className="text-stone-400">–</span>
+              <input
+                type="date"
+                value={dateEndDraft}
+                min={dateStartDraft}
+                onChange={(e) => setDateEndDraft(e.target.value)}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter') commitDates();
+                  if (ev.key === 'Escape') setEditingDates(false);
+                }}
+                className="bg-transparent font-mono tabular-nums text-xs focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
+              />
+              <button
+                type="button"
+                onClick={commitDates}
+                className="px-2.5 py-1 rounded-full bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 text-[10px] font-bold hover:scale-105 transition-transform cursor-pointer"
+              >
+                ✓
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setDateStartDraft(itinerary.startDate);
+                setDateEndDraft(itinerary.endDate);
+                setEditingDates(true);
+              }}
+              title={`${getTranslation('tapToRename')}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 font-semibold text-stone-700 dark:text-stone-200 hover:border-violet-300 dark:hover:border-violet-700 transition-colors cursor-pointer"
+            >
+              <CalendarDays className="w-3.5 h-3.5 text-stone-400" />
+              <span className="font-mono tabular-nums">{itinerary.startDate} – {itinerary.endDate}</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-violet-500 dark:text-violet-400">✎</span>
+            </button>
+          )}
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 font-semibold text-stone-700 dark:text-stone-200">
             <MapPin className="w-3.5 h-3.5 text-stone-400" />
             {itinerary.days.length} days · {placesCount} places

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Globe,
   Stamp as StampIcon,
@@ -93,14 +93,28 @@ export const PassportView: React.FC<PassportViewProps> = ({
   if (stampPages.length === 0) stampPages.push([]); // always at least one stamps page
   const totalPages = 1 + stampPages.length;
   const [page, setPage] = useState(0);
-  const [flipDir, setFlipDir] = useState<'next' | 'prev'>('next');
+  // Book-style page turn: the CURRENT page swings away over the left spine
+  // while the page underneath (the target) stays perfectly still.
+  const [flip, setFlip] = useState<'next' | 'prev' | null>(null);
+  const [targetPage, setTargetPage] = useState<number | null>(null);
+  const flipTimer = useRef<number | null>(null);
   const touchStartX = useRef<number | null>(null);
   const goTo = (p: number) => {
     const clamped = Math.max(0, Math.min(totalPages - 1, p));
-    if (clamped === page) return;
-    setFlipDir(clamped > page ? 'next' : 'prev');
-    setPage(clamped);
+    if (clamped === page || flip) return; // one turn at a time
+    const dir = clamped > page ? 'next' : 'prev';
+    setFlip(dir);
+    setTargetPage(clamped);
+    flipTimer.current = window.setTimeout(() => {
+      setPage(clamped);
+      setFlip(null);
+      setTargetPage(null);
+      flipTimer.current = null;
+    }, 380);
   };
+  useEffect(() => () => {
+    if (flipTimer.current !== null) window.clearTimeout(flipTimer.current);
+  }, []);
 
   // ── Stats ──
   const totalDistanceKm = Math.round(
@@ -198,43 +212,48 @@ export const PassportView: React.FC<PassportViewProps> = ({
     : '';
   const websiteLabel = websiteUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '');
 
-  return (
-    <div className="space-y-8">
-      {/* ── The passport book ──────────────────────────────────────────── */}
-      <div className="wl-book relative">
-        {/* binding spine with stitching */}
-        <div className="absolute inset-y-3 left-0 w-2.5 rounded-l-[2rem] bg-gradient-to-b from-violet-950 via-stone-950 to-violet-950 dark:from-black dark:via-violet-950 dark:to-black z-20" aria-hidden>
-          <div className="absolute inset-y-4 left-1/2 -translate-x-1/2 border-l-2 border-dotted border-violet-300/40" />
-        </div>
+  const pageShellCls = (p: number) =>
+    `wl-book-page relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[30rem] touch-pan-y select-none ${
+      p === 0
+        ? 'bg-stone-950 dark:bg-black text-stone-100 shadow-xl'
+        : 'bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(139,92,246,0.14),transparent_70%)] bg-white dark:bg-[#0e0820] border border-stone-200 dark:border-violet-900/40 shadow-xl'
+    }`;
 
-        <div
-          key={page}
-          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
-          onTouchEnd={(e) => {
-            const start = touchStartX.current;
-            touchStartX.current = null;
-            if (start === null) return;
-            const dx = e.changedTouches[0].clientX - start;
-            if (dx <= -50) goTo(page + 1); // swipe left — next page
-            else if (dx >= 50) goTo(page - 1); // swipe right — previous page
-          }}
-          onPointerDown={(e) => { if (e.pointerType === 'mouse') touchStartX.current = e.clientX; }}
-          onPointerUp={(e) => {
-            if (e.pointerType !== 'mouse') return;
-            const start = touchStartX.current;
-            touchStartX.current = null;
-            if (start === null) return;
-            const dx = e.clientX - start;
-            if (dx <= -50) goTo(page + 1);
-            else if (dx >= 50) goTo(page - 1);
-          }}
-          className={`wl-book-page ${flipDir === 'next' ? 'wl-flip-next' : 'wl-flip-prev'} relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[30rem] touch-pan-y select-none ${
-            page === 0
-              ? 'bg-stone-950 dark:bg-black text-stone-100 shadow-xl'
-              : 'bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(139,92,246,0.14),transparent_70%)] bg-white dark:bg-[#0e0820] border border-stone-200 dark:border-violet-900/40 shadow-xl'
-          }`}
-        >
-          {page === 0 ? (
+  const pageTurnHandlers = {
+    onTouchStart: (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; },
+    onTouchEnd: (e: React.TouchEvent) => {
+      const start = touchStartX.current;
+      touchStartX.current = null;
+      if (start === null) return;
+      const dx = e.changedTouches[0].clientX - start;
+      if (dx <= -50) goTo(page + 1); // swipe left — next page
+      else if (dx >= 50) goTo(page - 1); // swipe right — previous page
+    },
+    onPointerDown: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') touchStartX.current = e.clientX; },
+    onPointerUp: (e: React.PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      const start = touchStartX.current;
+      touchStartX.current = null;
+      if (start === null) return;
+      const dx = e.clientX - start;
+      if (dx <= -50) goTo(page + 1);
+      else if (dx >= 50) goTo(page - 1);
+    }
+  };
+
+  /** One passport book page. With `swing` set the page lifts and turns away
+      over the left spine (a real page turn); without it, the page sits
+      still — the base page, or the one being revealed underneath. */
+  const BookPage: React.FC<{ p: number; swing?: 'next' | 'prev' }> = ({ p, swing }) => (
+    <div
+      {...pageTurnHandlers}
+      className={`${pageShellCls(p)}${
+        swing
+          ? ` absolute inset-0 z-10 ${swing === 'next' ? 'wl-flip-away-next' : 'wl-flip-away-prev'}`
+          : ''
+      }`}
+    >
+      {p === 0 ? (
             /* ── Identity cover page ── */
             <>
               {/* cosmic wash */}
@@ -405,18 +424,18 @@ export const PassportView: React.FC<PassportViewProps> = ({
                   </span>
                 </div>
 
-                {stampPages[page - 1].length === 0 ? (
+                {stampPages[p - 1].length === 0 ? (
                   <div className="p-10 text-center border border-dashed border-stone-300 dark:border-violet-800/50 rounded-3xl text-sm text-stone-500 dark:text-stone-400">
                     {getTranslation('passportEmpty')}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 sm:gap-7 justify-items-center">
-                    {stampPages[page - 1].map((st, i) => {
-                      const rot = ((i * 47 + page * 13) % 13) - 6;
+                    {stampPages[p - 1].map((st, i) => {
+                      const rot = ((i * 47 + p * 13) % 13) - 6;
                       return (
                         <div
                           key={`${st.country}-${st.year}`}
-                          className={`w-32 h-32 sm:w-36 sm:h-36 rounded-full select-none ${STAMP_INKS[(i + page) % STAMP_INKS.length]}`}
+                          className={`w-32 h-32 sm:w-36 sm:h-36 rounded-full select-none ${STAMP_INKS[(i + p) % STAMP_INKS.length]}`}
                           style={{ transform: `rotate(${rot}deg)` }}
                           title={`${st.cities.length ? `${st.cities.join(', ')}, ` : ''}${st.country} · ${st.year}`}
                         >
@@ -429,7 +448,28 @@ export const PassportView: React.FC<PassportViewProps> = ({
               </div>
             </>
           )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-8">
+      {/* ── The passport book ──────────────────────────────────────────── */}
+      <div className="wl-book relative">
+        {/* binding spine with stitching */}
+        <div className="absolute inset-y-3 left-0 w-2.5 rounded-l-[2rem] bg-gradient-to-b from-violet-950 via-stone-950 to-violet-950 dark:from-black dark:via-violet-950 dark:to-black z-20" aria-hidden>
+          <div className="absolute inset-y-4 left-1/2 -translate-x-1/2 border-l-2 border-dotted border-violet-300/40" />
         </div>
+
+        {flip === null || targetPage === null ? (
+          <BookPage p={page} />
+        ) : (
+          <>
+            {/* the page being revealed sits perfectly still underneath */}
+            <BookPage p={targetPage} />
+            {/* the page you were on turns away over the spine, book-style */}
+            <BookPage p={page} swing={flip} />
+          </>
+        )}
 
         {/* page-turn controls */}
         <div className="mt-4 flex items-center justify-between gap-3">

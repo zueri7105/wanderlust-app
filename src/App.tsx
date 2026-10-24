@@ -499,14 +499,27 @@ export default function App() {
     });
 
     // Auto-plan the first trip: real sights near the destination fill the
-    // day slots so the route map renders the moment the trip exists.
-    const start = new Date();
-    start.setDate(start.getDate() + 14);
-    const end = new Date(start);
-    end.setDate(end.getDate() + a.dayCount - 1);
+    // day slots so the route map renders the moment the trip exists. The
+    // dates come straight from the onboarding question (fallback: in 2 weeks).
     const iso = (d: Date) => d.toISOString().slice(0, 10);
-    const startDate = iso(start);
-    const endDate = iso(end);
+    const fallbackStart = new Date();
+    fallbackStart.setDate(fallbackStart.getDate() + 14);
+    const startDate = a.startDate || iso(fallbackStart);
+    const dayCount = (() => {
+      if (a.endDate && a.endDate >= startDate) {
+        const n =
+          Math.round(
+            (new Date(`${a.endDate}T00:00:00`).getTime() - new Date(`${startDate}T00:00:00`).getTime()) / 86400000
+          ) + 1;
+        return Math.max(1, Math.min(60, n));
+      }
+      return a.dayCount;
+    })();
+    const endDate = a.endDate && a.endDate >= startDate ? a.endDate : (() => {
+      const e = new Date(`${startDate}T00:00:00`);
+      e.setDate(e.getDate() + dayCount - 1);
+      return iso(e);
+    })();
 
     const guide = buildBasicGuide(
       display,
@@ -517,8 +530,8 @@ export default function App() {
       endDate
     );
     const anchor = resolved.city || resolved.country || display;
-    const suggestions = suggestPlacesFor(anchor, a.dayCount * 3);
-    const dayPlans = Array.from({ length: a.dayCount }, (_, i) => {
+    const suggestions = suggestPlacesFor(anchor, dayCount * 3);
+    const dayPlans = Array.from({ length: dayCount }, (_, i) => {
       const picks = suggestions.slice(i * 3, i * 3 + 3);
       return {
         dayNumber: i + 1,

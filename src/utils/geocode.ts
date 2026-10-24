@@ -502,6 +502,10 @@ export interface GeocodeCandidate {
   display: string;
   /** OSM feature type (house/street/city…) — coarse matches get rejected for address queries. */
   type?: string;
+  /** Place name when the feature has one ("Tower Bridge", "Baker Street"…). */
+  name?: string;
+  /** Street address when known ("221B Baker Street") — name's fallback. */
+  address?: string;
 }
 
 /** JSON from a search endpoint that answers {lat, lng, display}. */
@@ -546,7 +550,9 @@ const photonSearch = async (q: string, iso: string | null, bias: [number, number
       const type = String(p.osm_value || p.type || '');
       const parts = [p.name, p.street, p.housenumber, p.city, p.state, p.country]
         .filter(Boolean).join(', ');
-      return { lat: Number(lat), lng: Number(lng), display: parts || p.name || '', type };
+      const name = p.name ? String(p.name) : '';
+      const address = [p.housenumber, p.street].filter(Boolean).join(' ');
+      return { lat: Number(lat), lng: Number(lng), display: parts || name || address, type, name, address };
     })
     .filter((c: GeocodeCandidate) => c.lat != null && c.lng != null && c.display);
 };

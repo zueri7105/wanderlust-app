@@ -972,14 +972,15 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 stand out clearly from the filled country shapes underneath */}
             
 
-            {/* Water-droplet journal pins — my memories pinned as photos at their locations.
+            {/* Water-droplet journal pins — the traveller's passport profile
+                pic pinned at each memory's location (memory photo as fallback).
                 Tap one to fly to its place on the timeline below. */}
             {visibleMemoryDots.map((mem) => (
                 <Marker
                   key={`drop-${mem.id}`}
                   position={[mem.coordinates.lat!, mem.coordinates.lng!]}
                   icon={memoryDropletIcon(
-                    memoryLeadPhoto(mem),
+                    currentUser.avatar || memoryLeadPhoto(mem),
                     STATUS_STYLES[mem.status].dot,
                     mem.status === 'Dream Next'
                   )}

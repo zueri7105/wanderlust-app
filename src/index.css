@@ -451,22 +451,34 @@ html.dark .wl-timeline-line-dream {
 
 /* ── Passport book page flip ────────────────────────────────────────────── */
 .wl-book { perspective: 1800px; }
-/* A real passport page is always bound on the LEFT spine: flipping forward
-   swings the page in from the right; flipping back swings it out to the
-   right (it rotates away over the fore-edge). Both hinge on the left. */
+/* Book-style turning: the page you ARE on moves — swinging away over the
+   LEFT spine like a real page turn — while the page underneath stays still.
+   Hinged on the left. */
 .wl-book-page { transform-origin: left center; backface-visibility: hidden; }
-/* Forward: page sweeps in right-to-left over the fore-edge — reads as
-   turning a real page; back sweeps the other way. */
-@keyframes wlPageNext {
-  from { transform: rotateY(72deg); opacity: 0.25; }
-  to { transform: rotateY(0deg); opacity: 1; }
+/* Forward: the CURRENT page lifts and swings away over the left spine —
+   like turning a page — while the next page sits still underneath. */
+@keyframes wlFlipAwayNext {
+  from { transform: rotateY(0deg); opacity: 1; }
+  to { transform: rotateY(-80deg); opacity: 0; }
 }
-.wl-flip-next { animation: wlPageNext 0.6s cubic-bezier(0.25, 0.9, 0.3, 1) both; }
-@keyframes wlPagePrev {
-  from { transform: rotateY(-72deg); opacity: 0.25; }
-  to { transform: rotateY(0deg); opacity: 1; }
+.wl-flip-away-next {
+  animation: wlFlipAwayNext 0.38s cubic-bezier(0.55, 0.06, 0.55, 0.9) forwards;
+  transform-origin: left center;
+  backface-visibility: hidden;
+  pointer-events: none;
 }
-.wl-flip-prev { animation: wlPagePrev 0.6s cubic-bezier(0.25, 0.9, 0.3, 1) both; }
+/* Backward: the same motion mirrored — the current page flips back out
+   toward the right, revealing the previous page waiting underneath. */
+@keyframes wlFlipAwayPrev {
+  from { transform: rotateY(0deg); opacity: 1; }
+  to { transform: rotateY(80deg); opacity: 0; }
+}
+.wl-flip-away-prev {
+  animation: wlFlipAwayPrev 0.38s cubic-bezier(0.55, 0.06, 0.55, 0.9) forwards;
+  transform-origin: left center;
+  backface-visibility: hidden;
+  pointer-events: none;
+}
 
 /* ── Trip-day celebration: plane flyover with dotted trail + firework pops ── */
 @keyframes wl-plane-fly {

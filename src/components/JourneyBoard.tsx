@@ -538,7 +538,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
 
   /* ── Exact pin resolution: a typed address is looked up live (building
      level, not city centroid), candidates drop down to pick from, and the
-     chosen one is stored as precise coordinates so the map + legs use it. ── */
+     chosen one is stored under its place NAME (or address — coordinates
+     only when the place has neither) so the box stays human-readable. ── */
   const [locSuggest, setLocSuggest] = useState<{
     label: string;
     q: string;
@@ -553,12 +554,24 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     return v ? geoForTask(v, geoContext) : null;
   };
 
-  const applyPin = (d: ItineraryDay, label: string, coords: string, display: string) => {
-    // Store the exact point under the raw address so future lookups hit it
-    // instantly, and keep the coordinates as the override (precise by nature).
-    storeGeocode(display, geoContext, Number(coords.split(',')[0]), Number(coords.split(',')[1]));
-    storeGeocode(label, geoContext, Number(coords.split(',')[0]), Number(coords.split(',')[1]));
-    updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: coords } });
+  /** Human label for a pinned place: its name, else its address, else —
+      only when neither exists — the raw coordinates. */
+  const pinLabelFor = (c: GeocodeCandidate): string => {
+    const name = (c.name || '').trim();
+    if (name) return name;
+    const addr = (c.address || '').trim();
+    if (addr) return addr;
+    return `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`;
+  };
+
+  const applyPin = (d: ItineraryDay, label: string, c: GeocodeCandidate) => {
+    // Cache the exact point under every spelling involved (the full display,
+    // the stop label and the stored label) so future lookups hit it instantly.
+    const pin = pinLabelFor(c);
+    storeGeocode(c.display, geoContext, c.lat, c.lng);
+    storeGeocode(label, geoContext, c.lat, c.lng);
+    storeGeocode(pin, geoContext, c.lat, c.lng);
+    updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: pin } });
     setLocSuggest((s) => ({ ...s, candidates: [], best: null, searching: false }));
   };
 
@@ -590,11 +603,13 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
 
   /** Store + pin without touching React state from inside the async callback. */
   const applyPinQuiet = (label: string, c: GeocodeCandidate) => {
+    const pin = pinLabelFor(c);
     storeGeocode(c.display, geoContext, c.lat, c.lng);
     storeGeocode(label, geoContext, c.lat, c.lng);
+    storeGeocode(pin, geoContext, c.lat, c.lng);
     const d = itinerary.days.find((x) => x.locationOverrides && label in x.locationOverrides);
     if (d) {
-      updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` } });
+      updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: pin } });
     }
   };
 
@@ -1232,7 +1247,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                               e.preventDefault();
                                               const sug = locSuggest;
                                               if (sug.label === stop.label && sug.best) {
-                                                applyPin(d, stop.label, `${sug.best.lat.toFixed(6)}, ${sug.best.lng.toFixed(6)}`, sug.best.display);
+                                                applyPin(d, stop.label, sug.best);
                                               } else {
                                                 (e.target as HTMLInputElement).blur();
                                               }
@@ -1259,7 +1274,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                               type="button"
                                               onMouseDown={(e) => {
                                                 e.preventDefault();
-                                                applyPin(d, stop.label, `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`, c.display);
+                                                applyPin(d, stop.label, c);
                                               }}
                                               className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer"
                                             >
