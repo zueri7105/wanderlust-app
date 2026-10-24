@@ -126,7 +126,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
                 {getTranslation('themeLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Bright for daytime exploring, Dark for late-night planning.
+                Daybreak: bright sky-blue for daytime exploring. Galaxy: deep-space violet for late-night planning.
               </p>
             </div>
           </div>
@@ -142,7 +142,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               }`}
             >
               <Sun className="w-5 h-5 text-amber-500" />
-              <span>Bright Mode</span>
+              <span>Daybreak</span>
               {settings.theme === 'light' && (
                 <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-medium">
                   Active
@@ -160,7 +160,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               }`}
             >
               <Moon className="w-5 h-5 text-indigo-400" />
-              <span>Dark Mode</span>
+              <span>Galaxy</span>
               {settings.theme === 'dark' && (
                 <span className="text-[10px] px-2 py-0.5 bg-indigo-900/60 text-indigo-200 border border-indigo-700 rounded font-medium">
                   Active

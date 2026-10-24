@@ -61,7 +61,7 @@ const GENDER_OPTIONS = [
 ];
 
 const inputCls =
-  'w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400';
+  'w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-white/80 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400';
 
 /**
  * First-run onboarding: welcome → dream destination → about you → birthday →

@@ -215,7 +215,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
   const pageShellCls = (p: number) =>
     `wl-book-page relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[30rem] touch-pan-y select-none ${
       p === 0
-        ? 'bg-stone-950 dark:bg-black text-stone-100 shadow-xl'
+        ? 'bg-[#0c0a09] text-stone-100 shadow-xl'
         : 'bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(139,92,246,0.14),transparent_70%)] bg-white dark:bg-[#0e0820] border border-stone-200 dark:border-violet-900/40 shadow-xl'
     }`;
 

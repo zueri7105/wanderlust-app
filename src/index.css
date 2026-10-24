@@ -16,6 +16,34 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* ── Daybreak theme (light mode): blue-sky base, violet accents ──
+   Light mode is a first-class identity, not an afterthought: a fresh
+   sky gradient with sun-lit clouds replaces the default flat light page,
+   so switching Bright ↔ Dark feels like changing worlds. Dark-mode
+   surfaces everywhere already carry explicit dark: overrides, so this
+   stays purely additive. */
+body {
+  background:
+    radial-gradient(ellipse 60% 42% at 82% -6%, rgba(56, 189, 248, 0.16), transparent 70%),
+    radial-gradient(ellipse 50% 36% at 8% 104%, rgba(129, 140, 248, 0.10), transparent 70%),
+    linear-gradient(180deg, #f0f9ff 0%, #f8fafc 38%, #eef4ff 100%);
+}
+html.dark body {
+  background:
+    radial-gradient(ellipse 55% 40% at 72% 6%, rgba(139, 92, 246, 0.22), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 10% 80%, rgba(76, 29, 149, 0.30), transparent 70%),
+    radial-gradient(ellipse 32% 26% at 90% 64%, rgba(219, 39, 119, 0.12), transparent 70%),
+    radial-gradient(ellipse 42% 32% at 28% 34%, rgba(59, 7, 100, 0.24), transparent 75%),
+    linear-gradient(180deg, #06030f, #06030f);
+}
+
+/* Daybreak: a few light-mode-only surfaces that read flat against the sky
+   backdrop get a whisper of blue so cards stay crisp */
+html:not(.dark) .bg-stone-50,
+html:not(.dark) .bg-slate-50 {
+  background-color: rgba(255, 255, 255, 0.82);
+}
+
 .leaflet-container { background: #dbeafe; }
 /* maps join the night sky in galaxy mode */
 html.dark .leaflet-container { background: #0b0620; }
@@ -25,7 +53,6 @@ html.dark .leaflet-tile {
 
 /* ── Galaxy theme: deep-space backdrop + starfield, dark mode only ── */
 html.dark body {
-  background-color: #06030f;
   color: #F1F5F9;
 }
 
@@ -372,6 +399,12 @@ html.dark .wl-modal-close:hover { color: #f5f5f4; border-color: rgba(167, 139, 2
   font-size: 0.8125rem;
   color: #1c1917;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+/* Daybreak modal fields: light-blue tinted so they sit comfortably on the
+   sky backdrop instead of the flat near-white they inherit above. */
+:where(.wl-modal-card) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) {
+  background: rgba(240, 249, 255, 0.65);
+  border-color: rgba(125, 211, 252, 0.35);
 }
 :where(html.dark .wl-modal-card) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) {
   border-color: rgba(167, 139, 250, 0.18);
