@@ -47,7 +47,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: 'Create Itinerary Box',
     verifiedGuide: 'Verified Destination Guide',
     findMatchingCompanions: 'Find Matching Companions',
-    itineraryTipSwipe: 'Tip: swipe a trip card left to remove it — or tap a trip to open the full journey & guide.'
+    itineraryTipSwipe: 'Tip: swipe a trip card left to reveal Delete — or tap a trip to open the full journey & guide.'
   },
   es: {
     explore: 'Explorar Viajes',
@@ -95,7 +95,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: 'Crear itinerario',
     verifiedGuide: 'Guía de destino verificada',
     findMatchingCompanions: 'Buscar compañeros afines',
-    itineraryTipSwipe: 'Consejo: desliza una tarjeta de viaje a la izquierda para eliminarla — o tócala para abrir el viaje completo y la guía.'
+    itineraryTipSwipe: 'Consejo: desliza una tarjeta de viaje a la izquierda para mostrar Eliminar — o tócala para abrir el viaje completo y la guía.'
   },
   fr: {
     explore: 'Explorer Voyages',
@@ -143,7 +143,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: 'Créer un itinéraire',
     verifiedGuide: 'Guide de destination vérifié',
     findMatchingCompanions: 'Trouver des compagnons compatibles',
-    itineraryTipSwipe: 'Astuce : glissez une carte de voyage vers la gauche pour la supprimer — ou touchez-la pour ouvrir le voyage et le guide.'
+    itineraryTipSwipe: 'Astuce : glissez une carte de voyage vers la gauche pour révéler Supprimer — ou touchez-la pour ouvrir le voyage et le guide.'
   },
   de: {
     explore: 'Reisen Entdecken',
@@ -191,7 +191,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: 'Reiseplan erstellen',
     verifiedGuide: 'Verifizierter Reiseführer',
     findMatchingCompanions: 'Passende Begleiter finden',
-    itineraryTipSwipe: 'Tipp: Wischen Sie eine Reisekarte nach links, um sie zu entfernen — oder tippen Sie darauf für die volle Reise & den Guide.'
+    itineraryTipSwipe: 'Tipp: Wischen Sie eine Reisekarte nach links, um Löschen zu zeigen — oder tippen Sie darauf für die volle Reise & den Guide.'
   },
   ja: {
     explore: '旅を探す',
@@ -239,7 +239,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: '行程を作成',
     verifiedGuide: '認証済み目的地ガイド',
     findMatchingCompanions: '合う仲間を探す',
-    itineraryTipSwipe: 'ヒント：旅行カードを左にスワイプすると削除できます。タップすると旅程とガイドが開きます。'
+    itineraryTipSwipe: 'ヒント：旅行カードを左にスワイプすると削除ボタンが出ます。タップすると旅程とガイドが開きます。'
   },
   zh: {
     explore: '探索行程',
@@ -287,7 +287,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: '创建行程',
     verifiedGuide: '已认证目的地指南',
     findMatchingCompanions: '寻找匹配的同伴',
-    itineraryTipSwipe: '提示：向左滑动行程卡片可删除——或点击行程打开完整旅程与指南。'
+    itineraryTipSwipe: '提示：向左滑动行程卡片可显示删除按钮——或点击行程打开完整旅程与指南。'
   },
   ko: {
     explore: '여행 둘러보기',
@@ -335,7 +335,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: '일정 만들기',
     verifiedGuide: '인증된 여행지 가이드',
     findMatchingCompanions: '맞는 동행자 찾기',
-    itineraryTipSwipe: '팁: 여행 카드를 왼쪽으로 밀어 삭제하거나, 탭해 전체 여정과 가이드를 여세요.'
+    itineraryTipSwipe: '팁: 여행 카드를 왼쪽으로 밀어 삭제 버튼을 보여 주세요. 탭하면 전체 여정과 가이드를 엽니다.'
   },
   pt: {
     explore: 'Explorar Viagens',
@@ -383,7 +383,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: 'Criar itinerário',
     verifiedGuide: 'Guia de destino verificado',
     findMatchingCompanions: 'Encontrar companheiros compatíveis',
-    itineraryTipSwipe: 'Dica: deslize um cartão de viagem para a esquerda para removê-lo — ou toque para abrir a viagem completa e o guia.'
+    itineraryTipSwipe: 'Dica: deslize um cartão de viagem para a esquerda para mostrar Excluir — ou toque para abrir a viagem completo e o guia.'
   },
   ar: {
     explore: 'استكشاف الرحلات',
@@ -575,7 +575,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: 'Plan oluştur',
     verifiedGuide: 'Doğrulanmış destinasyon rehberi',
     findMatchingCompanions: 'Uygun yol arkadaşları bul',
-    itineraryTipSwipe: 'İpucu: bir gezi kartını sola kaydırarak silin — veya tam yolculuk ve rehber için dokunun.'
+    itineraryTipSwipe: 'İpucu: bir gezi kartını sola kaydırarak Sil düğmesini açın — veya tam yolculuk ve rehber için dokunun.'
   },
   pl: {
     explore: 'Przeglądaj podróże',
@@ -623,7 +623,7 @@ export const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     createItineraryBox: 'Utwórz plan podróży',
     verifiedGuide: 'Zweryfikowany przewodnik po kierunku',
     findMatchingCompanions: 'Znajdź pasujących towarzyszy',
-    itineraryTipSwipe: 'Wskazówka: przesuń kartę podróży w lewo, aby ją usunąć — lub dotknij, aby otworzyć pełną podróż i przewodnik.'
+    itineraryTipSwipe: 'Wskazówka: przesuń kartę podróży w lewo, aby pokazać Usuń — lub dotknij, aby otworzyć pełną podróż i przewodnik.'
   }
 };
 

@@ -383,6 +383,9 @@ const DEFAULT_PACKING_ITEMS = [
 /** Swipe left on a trip card to delete it — same gesture as deleting a stop. */
 const TRIP_SWIPE_WIDTH = 96;
 const SwipeableTripCard: React.FC<{ onDelete: () => void; children: React.ReactNode }> = ({ onDelete, children }) => {
+  // Swipe left REVEALS a Delete button — the card stays put until the
+  // traveller taps it. Nothing is deleted by the swipe gesture itself.
+  const [open, setOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const drag = useRef<{ startX: number; startY: number; active: boolean; decided: boolean } | null>(null);
   const swiped = useRef(false);
@@ -413,33 +416,55 @@ const SwipeableTripCard: React.FC<{ onDelete: () => void; children: React.ReactN
       }
       swiped.current = true;
     }
-    setOffset(Math.max(-TRIP_SWIPE_WIDTH, Math.min(0, dx)));
+    // Follow the finger from wherever the card started (open or closed).
+    setOffset(Math.max(-TRIP_SWIPE_WIDTH, Math.min(0, (open ? -TRIP_SWIPE_WIDTH : 0) + dx)));
   };
   const endDrag = () => {
     const d = drag.current;
     drag.current = null;
-    if (!d?.active && offset === 0) return;
-    if (offset <= -TRIP_SWIPE_WIDTH + 10) {
-      onDelete();
-      return;
-    }
+    if (!d?.active) return;
+    // Snap: past half-way → stay open; otherwise close.
+    setOpen(offset <= -TRIP_SWIPE_WIDTH / 2);
+    setOffset(offset <= -TRIP_SWIPE_WIDTH / 2 ? -TRIP_SWIPE_WIDTH : 0);
+  };
+  const close = () => {
+    setOpen(false);
     setOffset(0);
   };
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      {/* red DELETE zone revealed behind the card */}
-      <div className="absolute inset-y-0 right-0 w-24 bg-rose-600 flex items-center justify-center rounded-r-2xl">
-        <span className="text-[10px] font-black uppercase tracking-widest text-white">
-          {getTranslation('jdDelete')}
-        </span>
+      {/* red DELETE button revealed behind the card — tappable, but the
+          swipe itself never deletes; the trip only goes when this is pressed */}
+      <div
+        className="absolute inset-y-0 right-0 bg-rose-600 flex items-center justify-center rounded-r-2xl"
+        style={{ width: TRIP_SWIPE_WIDTH }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            close();
+            onDelete();
+          }}
+          className="w-full h-full flex flex-col items-center justify-center gap-1 text-white hover:bg-rose-500/40 active:bg-rose-700 transition-colors cursor-pointer"
+          aria-label={getTranslation('deleteThisTrip')}
+        >
+          <Trash2 className="w-5 h-5" />
+          <span className="text-[9px] font-black uppercase tracking-widest">
+            {getTranslation('jdDelete')}
+          </span>
+        </button>
       </div>
       <div
-        className="relative transition-transform"
+        className="relative transition-transform select-none"
         style={{
           transform: `translateX(${offset}px)`,
           transitionDuration: drag.current?.active ? '0ms' : '180ms'
         }}
+        // Without these, a press-drag over the card text lets the browser start
+        // a native selection/element drag — it fires pointercancel and the
+        // swipe gesture dies mid-way. Inputs keep their own selection.
+        onDragStart={(e) => e.preventDefault()}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
@@ -450,6 +475,13 @@ const SwipeableTripCard: React.FC<{ onDelete: () => void; children: React.ReactN
             e.preventDefault();
             e.stopPropagation();
             swiped.current = false;
+            return;
+          }
+          if (open) {
+            // card is sitting open — a plain tap closes it instead of opening the trip
+            e.preventDefault();
+            e.stopPropagation();
+            close();
           }
         }}
       >
