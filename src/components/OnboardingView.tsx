@@ -392,6 +392,9 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                     onEnter={advance}
                     placeholder="Berlin"
                     className={inputCls}
+                    // Chosen a passport country? Home-city suggestions narrow to
+                    // that country's cities only (falls back worldwide if none).
+                    countryFilter={COUNTRY_INFO[nationality.trim()] ? nationality.trim() : undefined}
                   />
                 </div>
               </div>

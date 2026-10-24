@@ -14,6 +14,8 @@ interface PlaceTypeaheadProps {
   /** Classes for the outer wrapper (flex-1 etc. when the box sits in a row). */
   wrapperClassName?: string;
   autoFocus?: boolean;
+  /** When set (exact country name), suggestions are cities of that country only. */
+  countryFilter?: string;
 }
 
 const KindIcon: React.FC<{ kind: WorldGeoHit['kind'] }> = ({ kind }) =>
@@ -39,7 +41,8 @@ export const PlaceTypeahead: React.FC<PlaceTypeaheadProps> = ({
   placeholder,
   className,
   wrapperClassName,
-  autoFocus
+  autoFocus,
+  countryFilter
 }) => {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<WorldGeoHit[]>([]);
@@ -73,13 +76,13 @@ export const PlaceTypeahead: React.FC<PlaceTypeaheadProps> = ({
       return;
     }
     debounceRef.current = window.setTimeout(() => {
-      const hits = searchPlaces(q, 8);
+      const hits = searchPlaces(q, 8, countryFilter);
       setItems(hits);
       setActive(-1);
       setOpen(hits.length > 0);
     }, 160);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, readyTick]);
+  }, [value, readyTick, countryFilter]);
 
   const pick = (hit: WorldGeoHit) => {
     skipNextSearch.current = true;

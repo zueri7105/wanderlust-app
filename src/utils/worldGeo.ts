@@ -306,8 +306,13 @@ export const resolvePlaceCountry = async (text: string): Promise<WorldGeoHit | n
  * a typed prefix — "par" → Paris, París… — each labelled with its country so
  * travellers pick the exact place instead of a lookalike. Empty until the
  * database has finished loading (startWorldGeoLoad).
+ *
+ * With `countryName` set (exact GeoNames country name, e.g. from picking a
+ * nationality), only cities inside that country are returned — so choosing a
+ * passport country narrows the home-city list to that country's cities.
+ * Falls back to the worldwide list when the filter matches nothing known.
  */
-export const searchPlaces = (query: string, limit = 8): WorldGeoHit[] => {
+export const searchPlaces = (query: string, limit = 8, countryName?: string): WorldGeoHit[] => {
   if (!db || !searchKeys) return [];
   const q = normPlace(query);
   if (q.length < 2) return [];
@@ -330,9 +335,10 @@ export const searchPlaces = (query: string, limit = 8): WorldGeoHit[] => {
     seen.add(dk);
     bucket.push(hit);
   };
+  const cap = countryName ? 600 : 80; // filtered scans discard most hits — dig deeper
   for (let i = lo; i < searchKeys.length && searchKeys[i].startsWith(q); i++) {
     for (const h of hitsForKey(searchKeys[i])) push(h, prefixHits);
-    if (prefixHits.length >= 80) break;
+    if (prefixHits.length >= cap) break;
   }
   // Fallback: a word inside the name starts with the query ("york" → New York).
   if (prefixHits.length < limit) {
@@ -340,7 +346,7 @@ export const searchPlaces = (query: string, limit = 8): WorldGeoHit[] => {
     for (const k of searchKeys) {
       if (k.includes(needle)) {
         for (const h of hitsForKey(k)) push(h, wordHits);
-        if (wordHits.length >= 80) break;
+        if (wordHits.length >= cap) break;
       }
     }
   }
@@ -353,5 +359,11 @@ export const searchPlaces = (query: string, limit = 8): WorldGeoHit[] => {
   const byKindThenPop = (a: WorldGeoHit, b: WorldGeoHit) => rank(b) - rank(a) || byPop(a, b);
   prefixHits.sort(byKindThenPop);
   wordHits.sort(byKindThenPop);
-  return [...prefixHits, ...wordHits].slice(0, limit);
+  const merged = [...prefixHits, ...wordHits];
+  if (countryName) {
+    const want = normPlace(countryName);
+    const inCountry = merged.filter((h) => h.kind === 'city' && normPlace(h.countryName) === want);
+    if (inCountry.length > 0) return inCountry.slice(0, limit);
+  }
+  return merged.slice(0, limit);
 };

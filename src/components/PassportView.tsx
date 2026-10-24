@@ -305,9 +305,11 @@ export const PassportView: React.FC<PassportViewProps> = ({
                     <p className="mt-2 text-sm text-stone-400 max-w-md">{getTranslation('passportSub')}</p>
                   </div>
 
-                  {/* photo + home immigration stamp — stamp sits at the far
-                      right edge on desktop, clear of the profile photo */}
-                  <div className="flex items-start gap-5 shrink-0 sm:flex-1 sm:justify-between sm:pl-8">
+                  {/* photo + home immigration stamp — spread to opposite ends of
+                      the row: photo on the left, stamp parked on the far right
+                      so the two fill the space symmetrically instead of
+                      clustering on one side */}
+                  <div className="flex items-start justify-between gap-5 w-full sm:w-auto sm:flex-1 sm:pl-8">
                     <div className="flex flex-col items-center gap-2">
                       {currentUser.avatar ? (
                         <img

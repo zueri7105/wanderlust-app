@@ -30,12 +30,13 @@ interface NavigationProps {
 }
 
 
-/** Passport-book nav icon with the word PROFILE on the cover. */
+/** Passport-book nav icon — plain cover, no wordmark. */
 const PassportBookIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
     <rect x="4.5" y="2.5" width="15" height="19" rx="2.2" />
     <line x1="8.2" y1="2.5" x2="8.2" y2="21.5" />
-    <text x="13.6" y="13.2" textAnchor="middle" fontSize="4.1" fontWeight="800" letterSpacing="0.4" fill="currentColor" stroke="none" fontFamily="inherit">PROFILE</text>
+    {/* emblem circle where the cover seal sits */}
+    <circle cx="13.6" cy="11" r="3.4" />
   </svg>
 );
 
