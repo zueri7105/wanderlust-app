@@ -61,6 +61,18 @@ html:not(.dark) .bg-stone-950 .text-violet-300 {
   color: #ffffff !important;
 }
 
+/* Daybreak: the onboarding / question wizard backdrop swaps its dark-space
+   purple gradient for a bright sky wash so it matches the Daybreak layout. */
+html:not(.dark) .wl-onboard-backdrop {
+  background: linear-gradient(180deg, #eaf3fe 0%, #dbeafe 45%, #cfe3fd 100%) !important;
+}
+html:not(.dark) .wl-onboard-backdrop .bg-violet-600\/20 {
+  background: rgba(56, 189, 248, 0.28) !important;
+}
+html:not(.dark) .wl-onboard-backdrop .bg-rose-500\/10 {
+  background: rgba(244, 114, 182, 0.16) !important;
+}
+
 .leaflet-container { background: #dbeafe; }
 /* maps join the night sky in galaxy mode */
 html.dark .leaflet-container { background: #0b0620; }

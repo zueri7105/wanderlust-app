@@ -177,7 +177,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
   const stepIcon = [Sparkles, MapPin, Globe2, Cake, Users, MessageCircle, Heart, Stamp][step];
 
   return (
-    <div className="fixed inset-0 z-[70] overflow-y-auto bg-gradient-to-b from-stone-950 via-[#171224] to-violet-950">
+    <div className="wl-onboard-backdrop fixed inset-0 z-[70] overflow-y-auto bg-gradient-to-b from-stone-950 via-[#171224] to-violet-950">
       {/* ambient orbs */}
       <div className="pointer-events-none absolute -top-24 -left-24 w-96 h-96 rounded-full bg-violet-600/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-24 w-[28rem] h-[28rem] rounded-full bg-rose-500/10 blur-3xl" />
