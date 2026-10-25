@@ -254,7 +254,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
       className={`${pageShellCls(p)}${swing ? (swing === 'next' ? ' wl-flip-away-next' : ' wl-flip-in-prev') : ''}`}
       style={
         swing
-          ? { position: 'absolute', top: 0, bottom: 0, left: 8, right: 0, zIndex: 10 }
+          ? { position: 'absolute', top: 0, bottom: 0, left: 8, right: 0, marginLeft: 0, zIndex: 10 }
           : undefined
       }
     >
@@ -467,6 +467,10 @@ export const PassportView: React.FC<PassportViewProps> = ({
           <div className="absolute inset-y-4 left-1/2 -translate-x-1/2 border-l-2 border-dotted border-violet-300/40" />
         </div>
 
+        {/* page stack — the turning page's absolute top/bottom:0 anchors to
+            this inner box so it always matches the page underneath exactly,
+            never the controls row below */}
+        <div className="relative">
         {flip === null || targetPage === null ? (
           <BookPage p={page} />
         ) : flip === 'next' ? (
@@ -484,6 +488,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
             <BookPage p={targetPage} swing="in" />
           </>
         )}
+        </div>
 
         {/* page-turn controls */}
         <div className="mt-4 flex items-center justify-between gap-3">

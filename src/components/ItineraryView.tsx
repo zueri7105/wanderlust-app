@@ -797,21 +797,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   /* ── Pi-Travel creation hub ────────────────────────────────────────────── */
   const [createTab, setCreateTab] = useState<'quick' | 'parse'>('quick');
   const [quickText, setQuickText] = useState('');
-  // Optional extras on the question page: the city is optional (country is the
-  // one required answer) and the trip card name defaults to "Trip N".
-  const [quickCity, setQuickCity] = useState('');
+  // Optional trip card name on the question page — unnamed trips default to "Trip N".
   const [quickName, setQuickName] = useState('');
   const [parseText, setParseText] = useState('');
 
-  /** Quick create: "想去北京3天2晚" → draft itinerary skeleton, then refine in Edit Trip. */
+  /** Quick create: "Japan 5 days" → draft itinerary skeleton, then refine in Edit Trip. */
   const handleQuickCreate = async () => {
     const raw = quickText.trim();
     if (!raw || isGeneratingGuide) return;
     const m = raw.match(/^(.+?)\s*(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
-    const country = (m ? m[1] : raw).replace(/^想去\s*/, '').trim() || raw;
-    const city = quickCity.trim();
-    // Country is the required answer; an optional city refines the destination.
-    const destination = city ? `${city}, ${country}` : country;
+    const destination = (m ? m[1] : raw).replace(/^想去\s*/, '').trim() || raw;
     const dayCount = m ? Math.min(14, Math.max(1, Number(m[2]))) : 3;
     const start = new Date();
     start.setDate(start.getDate() + 14);
@@ -857,7 +852,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     };
     onAddItinerary(newItinerary);
     setQuickText('');
-    setQuickCity('');
     setQuickName('');
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
     setRouteMapOpenFor(newItinerary.id); // route map opens already planned
@@ -1041,24 +1035,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   <ArrowRight className="w-5 h-5" />
                 </button>
               </div>
-              {/* The country is the one required answer; the city and the trip
-                  card name are both optional — an unnamed trip card shows "Trip N". */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <input
-                  type="text"
-                  value={quickCity}
-                  onChange={(e) => setQuickCity(e.target.value)}
-                  placeholder="City (optional)"
-                  className="w-full px-4 py-2.5 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
-                />
-                <input
-                  type="text"
-                  value={quickName}
-                  onChange={(e) => setQuickName(e.target.value)}
-                  placeholder="Trip name (optional) — defaults to Trip N"
-                  className="w-full px-4 py-2.5 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
-                />
-              </div>
+              {/* Optional trip card name — an unnamed trip card shows "Trip N". */}
+              <input
+                type="text"
+                value={quickName}
+                onChange={(e) => setQuickName(e.target.value)}
+                placeholder="Trip name"
+                className="w-full px-4 py-2.5 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+              />
             </div>
           ) : (
             <div className="space-y-2.5">

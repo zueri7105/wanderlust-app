@@ -11,7 +11,7 @@ export interface CountryCurrency {
   symbol: string;
 }
 
-import { registerVisaCountryNames, visaRuleFor, visaPassage } from './visaMatrix';
+import { registerVisaCountryNames, registerVisaKbFallback, visaRuleFor, visaPassage } from './visaMatrix';
 import type { VisaStatus, VisaVerdict } from './visaMatrix';
 
 export type VisaRegime =
@@ -4400,6 +4400,44 @@ export function entryRuleBullet(text: string): string {
 // Register every known country display name with the visa matrix so that
 // destination text (e.g. a trip's "Country" field) resolves reliably.
 registerVisaCountryNames(Object.keys(COUNTRY_INFO));
+
+// Knowledge-base fallback for the visa matrix: every country in COUNTRY_INFO
+// carries its general visa regime, so when the hand-encoded pair rules have
+// no entry (typically smaller or less-well-known destinations), the verdict
+// still comes back concrete — visa-free with its day allowance, an e-visa /
+// visa-on-arrival scheme, or advance embassy visa — with a note to confirm
+// the passport-specific details on the official source.
+registerVisaKbFallback((_nat, dest) => {
+  const info = countryInfoFor(dest);
+  if (!info) return null;
+  if (info.visaRegime === 'visaFree') {
+    return {
+      status: 'free',
+      tone: 'free',
+      days: info.visaDays ?? undefined,
+      destName: dest,
+      official: null,
+      note: `${dest} admits most tourists visa-free${info.visaDays ? ` for up to ${info.visaDays} days` : ''}. Confirm your passport's exact allowance before booking.`
+    };
+  }
+  if (info.visaRegime === 'eVisaOrVoa') {
+    return {
+      status: 'evisa',
+      tone: 'online',
+      days: info.visaDays ?? undefined,
+      destName: dest,
+      official: null,
+      note: `${dest} offers an e-visa or visa on arrival to most visitors${info.visaDays ? ` (typically ~${info.visaDays} days)` : ''} — apply on the official portal before you fly.`
+    };
+  }
+  return {
+    status: 'required',
+    tone: 'embassy',
+    destName: dest,
+    official: null,
+    note: `${dest} requires most visitors to arrange a visa in advance — apply at the nearest embassy or consulate early.`
+  };
+});
 
 export type VisaVerdictTone = 'free' | 'online' | 'embassy' | 'check';
 export interface VisaVerdictInfo {

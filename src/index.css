@@ -45,6 +45,22 @@ html:not(.dark) .bg-slate-50 {
   background-color: rgba(255, 255, 255, 0.82);
 }
 
+/* Daybreak harmony: the deep-space near-black primary buttons & chips
+   (bg-stone-950 with lavender text) become a refreshing sky-blue gradient
+   in the bright theme, so every button integrates with the blue layout.
+   Galaxy (dark) styling is untouched. */
+html:not(.dark) .bg-stone-950 {
+  background-color: #0369a1 !important;
+  background-image: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important;
+}
+html:not(.dark) .border-stone-950 {
+  border-color: #0369a1 !important;
+}
+html:not(.dark) .bg-stone-950.text-violet-300,
+html:not(.dark) .bg-stone-950 .text-violet-300 {
+  color: #ffffff !important;
+}
+
 .leaflet-container { background: #dbeafe; }
 /* maps join the night sky in galaxy mode */
 html.dark .leaflet-container { background: #0b0620; }
@@ -484,34 +500,43 @@ html.dark .wl-timeline-line-dream {
 
 
 /* ── Passport book page flip ────────────────────────────────────────────── */
-.wl-book { perspective: 1800px; }
+/* preserve-3d keeps the turning page and the still page in ONE shared 3-D
+   space, so the swing stays perfectly registered over the spine — without
+   it the two pages composite on slightly different planes and the turn
+   looks misaligned. */
+.wl-book { perspective: 2200px; perspective-origin: 50% 50%; transform-style: preserve-3d; }
 /* Book-style turning: the page you ARE on moves — swinging away over the
    LEFT spine like a real page turn — while the page underneath stays still.
    Hinged on the left. */
 .wl-book-page { transform-origin: left center; backface-visibility: hidden; }
 /* Forward: the CURRENT page lifts and swings away over the left spine —
-   like turning a page — while the next page sits still underneath. */
+   like turning a page — while the next page sits still underneath. The page
+   stays fully opaque until it is nearly edge-on, so no content flicker. */
 @keyframes wlFlipAwayNext {
-  from { transform: rotateY(0deg); opacity: 1; }
-  to { transform: rotateY(-80deg); opacity: 0; }
+  0% { transform: rotateY(0deg); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: rotateY(-86deg); opacity: 0; }
 }
 .wl-flip-away-next {
-  animation: wlFlipAwayNext 0.38s cubic-bezier(0.55, 0.06, 0.55, 0.9) forwards;
+  animation: wlFlipAwayNext 0.52s cubic-bezier(0.45, 0.05, 0.35, 1) forwards;
   transform-origin: left center;
   backface-visibility: hidden;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 /* Backward turn, book-style: NOT a mirrored swing-away — in a real book the
    previous page swings back IN over the spine from the left while the page
-   you were on stays put. It lands from rotateY(-80°) to flat, on top. */
+   you were on stays put. It lands from rotateY(-86°) to flat, on top. */
 @keyframes wlFlipInPrev {
-  from { transform: rotateY(-80deg); opacity: 0; }
-  to { transform: rotateY(0deg); opacity: 1; }
+  0% { transform: rotateY(-86deg); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: rotateY(0deg); opacity: 1; }
 }
 .wl-flip-in-prev {
-  animation: wlFlipInPrev 0.38s cubic-bezier(0.55, 0.06, 0.55, 0.9) forwards;
+  animation: wlFlipInPrev 0.52s cubic-bezier(0.45, 0.05, 0.35, 1) forwards;
   transform-origin: left center;
   backface-visibility: hidden;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 

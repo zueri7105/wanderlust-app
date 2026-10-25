@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getTranslation } from '../utils/i18n';
 import { upsertMemoryFromItinerary } from '../utils/journalSync';
 import { geoForTask, requestGeocode, onGeocodeResolved } from '../utils/geocode';
+import { startWorldGeoLoad, lookupWorldGeoSync } from '../utils/worldGeo';
 import { getTripCover } from '../utils/tripCovers';
 import { SoloTraveler, TravelItinerary, TravelMemory } from '../types/travel';
 import { MapContainer, TileLayer, Marker, CircleMarker, GeoJSON, useMap } from 'react-leaflet';
@@ -213,8 +214,11 @@ const geoMetaFor = (geoKey: string): CountryGeoMeta | null => {
     (the dashed droplet signals "approximate, country level"). */
 const countryCentroidFor = (countryText: string): { lat: number; lng: number } | null => {
   const meta = geoMetaFor(geoKeyFor(countryText));
-  if (!meta) return null;
-  return { lat: (meta.minLat + meta.maxLat) / 2, lng: (meta.minLng + meta.maxLng) / 2 };
+  if (meta) return { lat: (meta.minLat + meta.maxLat) / 2, lng: (meta.minLng + meta.maxLng) / 2 };
+  // Microstates missing from the boundary dataset: the world gazetteer
+  // still knows every country's coordinates.
+  const gaz = lookupWorldGeoSync(countryText);
+  return gaz ? { lat: gaz.lat, lng: gaz.lng } : null;
 };
 
 /** Minimum gap between two bounding boxes (0 when they overlap). */
@@ -332,6 +336,41 @@ const ZoomWatcher: React.FC<{ onZoom: (z: number) => void }> = ({ onZoom }) => {
       map.off('zoomend', cb);
     };
   }, [map, onZoom]);
+  return null;
+};
+
+/* Imperative microstate dots: react-leaflet's <CircleMarker> does not always
+   mount layers added in later commits on this map, so we draw the tiny-country
+   dots directly on the map instance and keep them in sync by hand. */
+const MicroDotLayer: React.FC<{ dots: Array<{ key: string; lat: number; lng: number; color: string }> }> = ({ dots }) => {
+  const map = useMap();
+  const layerRef = useRef<L.LayerGroup | null>(null);
+  useEffect(() => {
+    if (!layerRef.current) {
+      layerRef.current = L.layerGroup().addTo(map);
+    }
+    const group = layerRef.current;
+    group.clearLayers();
+    dots.forEach((d) => {
+      L.circleMarker([d.lat, d.lng], {
+        radius: 8,
+        color: '#ffffff',
+        weight: 1.5,
+        fillColor: d.color,
+        fillOpacity: 0.85,
+        className: 'wl-micro-dot'
+      }).addTo(group);
+    });
+    return () => {
+      group.clearLayers();
+    };
+  }, [map, dots]);
+  useEffect(() => {
+    return () => {
+      layerRef.current?.remove();
+      layerRef.current = null;
+    };
+  }, [map]);
   return null;
 };
 
@@ -503,6 +542,12 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   // so every droplet lands inside the same country the map colours — never at
   // a guessed location. Resolved coords are persisted back to localStorage.
   const [geoTick, setGeoTick] = useState(0);
+  // The world gazetteer loads lazily — when it arrives, country dots for
+  // microstates (missing from the simplified boundary data) can be placed.
+  const [gazTick, setGazTick] = useState(0);
+  useEffect(() => {
+    void startWorldGeoLoad().then(() => setGazTick((t) => t + 1));
+  }, []);
   useEffect(() => onGeocodeResolved(() => setGeoTick((t) => t + 1)), []);
   useEffect(() => {
     let changed = false;
@@ -744,6 +789,23 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     });
     return out;
   }, [countryStatusMap]);
+
+  /* Microstate & small-island colouring: the simplified boundary dataset
+     omits tiny countries (Comoros, Tuvalu, Seychelles, Singapore…), so for
+     any journal country with NO boundary feature we colour a dot at the
+     country's own coordinates instead — the status colour still lands
+     inside the country's region on the map. */
+  const microCountryDots = useMemo(() => {
+    void gazTick; // re-resolve once the world gazetteer has loaded
+    const dots: Array<{ key: string; lat: number; lng: number; color: string }> = [];
+    countryStatusMap.forEach((status, key) => {
+      if (geoMetaFor(key)) return; // the GeoJSON fill already covers it
+      const c = countryCentroidFor(key);
+      if (!c) return;
+      dots.push({ key, lat: c.lat, lng: c.lng, color: countryColorMap.get(key) || STATUS_STYLES[status].dot });
+    });
+    return dots;
+  }, [countryStatusMap, countryColorMap, gazTick]);
 
   const styleCountryFeature = (feature?: { properties?: { name?: string } }) => {
     const name = feature?.properties?.name;
@@ -988,6 +1050,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               style={styleCountryFeature as any}
             />
 
+            {/* Microstate colouring — tiny countries the boundary dataset
+                omits get a coloured dot at their own coordinates */}
+            <MicroDotLayer dots={microCountryDots} />
+
             
 
             {/* My memory journal CITY dots — dark halo ring + solid colour dot so cities
@@ -1066,24 +1132,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 <div className="px-1 pb-1 text-[9px] font-bold uppercase tracking-wider text-stone-400">
                   Map pinpoints
                 </div>
-                {(() => {
-                  const allOn = pinLayers.current && pinLayers.visited && pinLayers.dream;
-                  return (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPinLayers({ current: !allOn, visited: !allOn, dream: !allOn })
-                      }
-                      className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer font-bold"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3 h-3 text-stone-500" />
-                        All pinpoints
-                      </span>
-                      {allOn ? <Eye className="w-3.5 h-3.5 text-stone-500" /> : <EyeOff className="w-3.5 h-3.5 text-stone-400" />}
-                    </button>
-                  );
-                })()}
                 {([
                   ['current', '#10b981', 'Current', pinLayers.current, () => setPinLayers((pl) => ({ ...pl, current: !pl.current }))],
                   ['visited', '#0ea5e9', 'Visited', pinLayers.visited, () => setPinLayers((pl) => ({ ...pl, visited: !pl.visited }))],

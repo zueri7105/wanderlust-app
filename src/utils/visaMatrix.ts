@@ -887,6 +887,15 @@ export function destCountry(raw: string): string | null {
 
 const has = (list: string[], country: string) => list.some((c) => NORM(c) === NORM(country));
 
+/* Knowledge-base fallback, injected by countryInfo (which owns the per-country
+   regime data): lets less-well-known destinations still get a concrete
+   verdict instead of a bare "check the official source". */
+type VisaKbFallback = (nat: string | null, dest: string) => VisaVerdict | null;
+let visaKbFallback: VisaKbFallback | null = null;
+export const registerVisaKbFallback = (fn: VisaKbFallback): void => {
+  visaKbFallback = fn;
+};
+
 export function visaRuleFor(nationality: string, destinationText: string): VisaVerdict {
   const nat = natCountry(nationality);
   const dest = destCountry(destinationText);
@@ -926,7 +935,16 @@ export function visaRuleFor(nationality: string, destinationText: string): VisaV
     };
   }
 
-  // No encoded rule (or unrecognised passport) — honest answer, never a guess
+  // No encoded pair rule — ask the country knowledge base first: it carries a
+  // visa regime for EVERY country, so tiny or less-well-known destinations
+  // still get a concrete verdict (never a bare "check" when we actually know
+  // the regime). Only truly unknown countries fall through to 'check'.
+  if (visaKbFallback && dest) {
+    const kb = visaKbFallback(nat, dest);
+    if (kb) return kb;
+  }
+
+  // Unknown destination — honest answer, never a guess
   return {
     status: 'check',
     tone: 'check',

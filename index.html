@@ -1,13 +1,13 @@
 <!doctype html>
-<!-- v75 build stamp: trip naming + guide cleanup + day isolation + obscure-place pins. -->
-<!-- Static dark defaults: even if EVERY script is blocked or fails, the page
-     is deep-space dark, never white. App remount logic flips to light for
-     travellers who chose a light theme. -->
-<html lang="en" class="dark" style="background-color:#06030f">
+<!-- v76 build stamp: bright default + sky buttons + visa KB fallback + microstate colours + day redesign. -->
+<!-- Static bright defaults: Daybreak is the default look, so even if EVERY
+     script is blocked or fails the page opens in the refreshing sky-blue
+     theme. App remount logic flips to dark for Galaxy users. -->
+<html lang="en" style="background-color:#dbeafe">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b0714" />
+    <meta name="theme-color" content="#bfdbfe" />
     <title>WanderLust - Solo Group Travel Planner</title>
     <meta name="description" content="Connect with solo travellers around the world and be part of your journey. Coordinate shared activities, split transport and tour costs, and explore safely with interest-based matching." />
     <meta property="og:title" content="WanderLust - Solo Group Travel Planner" />
@@ -17,22 +17,22 @@
     <!-- Fonts are intentionally NOT loaded from Google here: in some preview
          environments the fonts.gstatic fetch stalls and the browser blocks on
          it, leaving the page white. We rely on system-font fallbacks instead. -->
-    <!-- Apply the dark galaxy background BEFORE the app bundle loads, so the
-         page is never a flash of white while JS/CSS download. -->
+    <!-- Apply the chosen theme BEFORE the app bundle loads, so there is no
+         flash while JS/CSS download. Daybreak (bright blue) is the default. -->
     <script>
       (function () {
         try {
           var s = localStorage.getItem('wanderlust_app_settings');
-          var theme = s ? (JSON.parse(s).theme || 'dark') : 'dark';
+          var theme = s ? (JSON.parse(s).theme || 'light') : 'light';
           var dark = theme === 'dark' ||
             (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           if (dark) document.documentElement.classList.add('dark');
-          document.documentElement.style.backgroundColor = dark ? '#06030f' : '#F8FAFC';
+          document.documentElement.style.backgroundColor = dark ? '#06030f' : '#dbeafe';
           document.addEventListener('DOMContentLoaded', function () {
-            document.body.style.backgroundColor = dark ? '#06030f' : '#F8FAFC';
+            document.body.style.backgroundColor = dark ? '#06030f' : '#dbeafe';
           });
         } catch (e) {
-          document.documentElement.classList.add('dark');
+          document.documentElement.classList.remove('dark');
           document.documentElement.style.backgroundColor = '#06030f';
         }
       })();

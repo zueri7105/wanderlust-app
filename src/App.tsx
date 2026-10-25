@@ -175,24 +175,26 @@ export default function App() {
     const applyTheme = () => {
       try {
         const saved = localStorage.getItem('wanderlust_app_settings');
-        // One-time migration: existing sessions move to the new galaxy (dark) look
+        // One-time migration: sessions that never chose a theme land on the
+        // new Daybreak (bright) default. Anyone who explicitly picked Galaxy
+        // (dark) keeps it.
         if (!localStorage.getItem('wanderlust_galaxy_v1')) {
           localStorage.setItem('wanderlust_galaxy_v1', '1');
           const prev = saved ? JSON.parse(saved) : {};
-          if (!prev.theme || prev.theme === 'light') {
-            localStorage.setItem('wanderlust_app_settings', JSON.stringify({ ...prev, theme: 'dark' }));
+          if (!prev.theme) {
+            localStorage.setItem('wanderlust_app_settings', JSON.stringify({ ...prev, theme: 'light' }));
           }
         }
         const fresh = localStorage.getItem('wanderlust_app_settings');
-        // Settings stored before the theme field existed have no `theme` —
-        // those sessions are Galaxy users, so a missing value must fall back
-        // to dark (getAppSettings applies the same default for the UI).
-        const theme = fresh ? JSON.parse(fresh).theme || 'dark' : 'dark';
+        // Daybreak is the default: a missing theme value means the traveller
+        // never chose one, so fall back to bright (getAppSettings agrees).
+        const theme = fresh ? JSON.parse(fresh).theme || 'light' : 'light';
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
         document.documentElement.classList.toggle('dark', isDark);
       } catch {
-        document.documentElement.classList.add('dark');
+        // Corrupted storage — open in the default bright theme rather than dark.
+        document.documentElement.classList.remove('dark');
       }
       // Right-to-left layout for Arabic
       const lang = localStorage.getItem('wanderlust_app_lang') || 'en';

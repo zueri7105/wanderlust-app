@@ -27,8 +27,19 @@ import {
   CalendarDays,
   Sparkles,
   Star,
-  Pencil
+  Pencil,
+  Sunrise,
+  Sun,
+  Sunset
 } from 'lucide-react';
+
+/* Slot section headers for the day view — each part of the day gets its own
+   sun icon so the timeline reads Morning → Afternoon → Evening. */
+const SLOT_HEADER_ICONS: Record<string, typeof Sunrise> = {
+  morningActivity: Sunrise,
+  afternoonActivity: Sun,
+  eveningActivity: Sunset
+};
 import { TravelItinerary, ItineraryDay } from '../types/travel';
 import { TripRouteMap } from './TripRouteMap';
 import {
@@ -778,10 +789,6 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
             className="min-w-0 flex-1 px-3 py-1.5 text-lg font-display font-bold rounded-xl border border-violet-300 dark:border-violet-700 bg-white dark:bg-slate-900 text-stone-900 dark:text-stone-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
           />
         )}
-        <span className="text-[11px] text-stone-400 truncate ml-auto pl-2">
-          {itinerary.destination}
-          {itinerary.country ? `, ${itinerary.country}` : ''}
-        </span>
       </div>
 
       {/* Horizontal date tab bar — Overview + one pill per day (owns the map too) */}
@@ -1200,26 +1207,53 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                           </div>
                         </>
                       ) : (
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="flex-1 min-w-0 font-display text-base font-bold text-stone-950 dark:text-stone-50 truncate">
-                            {d.title || tv('dayN', { n: d.dayNumber })}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRescueDay(d);
-                            }}
-                            disabled={stops.length < 2}
-                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="AI day planner — rescue this day or optimize its route"
-                          >
-                            <Sparkles className="w-3 h-3" />
-                            Rescue
-                          </button>
-                          <span className="text-[11px] font-medium text-stone-400 shrink-0">
-                            {dayDate(dayIdx)} · {tv('jdStops', { n: stops.length })}
-                          </span>
+                        /* Day banner — the day's colour washes behind the
+                           heading, with a solid day chip on the left spine. */
+                        <div
+                          className="relative overflow-hidden rounded-xl px-3 py-2.5 -mx-1 -mt-1"
+                          style={{
+                            background: `linear-gradient(115deg, ${dayColor}26 0%, ${dayColor}0d 55%, transparent 100%)`,
+                            borderLeft: `3px solid ${dayColor}`
+                          }}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span
+                              className="shrink-0 px-2 py-1 rounded-lg text-white text-[10px] font-black uppercase tracking-wider shadow-sm"
+                              style={{ backgroundColor: dayColor }}
+                            >
+                              {tv('dayN', { n: d.dayNumber })}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-display text-base font-bold text-stone-950 dark:text-stone-50 truncate leading-tight">
+                                {d.title || tv('dayN', { n: d.dayNumber })}
+                              </div>
+                              <div className="text-[10px] font-semibold text-stone-500 dark:text-stone-400 mt-0.5">
+                                {(() => {
+                                  try {
+                                    return d.date
+                                      ? new Date(`${d.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' }) + ' '
+                                      : '';
+                                  } catch {
+                                    return '';
+                                  }
+                                })()}
+                                {dayDate(dayIdx)} · {tv('jdStops', { n: stops.length })}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRescueDay(d);
+                              }}
+                              disabled={stops.length < 2}
+                              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="AI day planner — rescue this day or optimize its route"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              Rescue
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -1236,9 +1270,23 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                           const leg = idx > 0 ? legs[idx - 1] : null;
                           const LegIcon = leg ? modeIcon(leg.mode) : null;
                           const legPickerKey = leg ? `${d.dayNumber}|${leg.from}→${leg.to}` : '';
+                          /* A new slot section starts at the first stop of
+                             Morning / Afternoon / Evening. */
+                          const SlotIcon = SLOT_HEADER_ICONS[stop.slotKey] || Sun;
+                          const slotHeader =
+                            idx === 0 || stops[idx - 1].slotKey !== stop.slotKey;
                           const legStoreKey = leg ? `${leg.from}→${leg.to}` : '';
                           return (
                             <React.Fragment key={`${idx}_${stop.label}`}>
+                              {slotHeader && (
+                                <div className="flex items-center gap-1.5 pt-2">
+                                  <SlotIcon className="w-3.5 h-3.5 shrink-0" style={{ color: dayColor }} />
+                                  <span className="text-[10px] font-black uppercase tracking-[0.15em] text-stone-400 dark:text-stone-500">
+                                    {getTranslation(stop.slotLabelKey)}
+                                  </span>
+                                  <span className="flex-1 h-px bg-gradient-to-r from-stone-200 dark:from-stone-700 to-transparent" />
+                                </div>
+                              )}
                               {idx > 0 && (
                                 <div className="pl-4 py-0.5 space-y-1">
                                   <div className="flex items-center gap-2">

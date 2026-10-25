@@ -333,12 +333,13 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
   const weatherCountry = itinerary.travelGuide?.destinationCountry || itinerary.country || '';
   const [trend, setTrend] = useState<WeatherTrend | null>(null);
 
-  /* Collapsible guide sections — minus sign collapses, plus sign expands. */
+  /* Collapsible guide sections — minus sign collapses, plus sign expands.
+     Everything starts collapsed so the guide opens as a tidy summary. */
   const [guideOpen, setGuideOpen] = useState<Record<string, boolean>>({
-    currency: true,
-    navigation: true,
-    customs: true,
-    greetings: true
+    currency: false,
+    navigation: false,
+    customs: false,
+    greetings: false
   });
   const toggleGuide = (k: string) => setGuideOpen((g) => ({ ...g, [k]: !g[k] }));
   const guideToggleBtn = (k: string) => (
