@@ -774,6 +774,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [isGeneratingGuide, setIsGeneratingGuide] = useState(false);
 
 
+  /* Next default trip card name: "Trip N" where N skips any name already
+     taken, so two trips never share the same default label. */
+  const nextTripName = () => {
+    const used = new Set(itineraries.map((i) => (i.name || '').trim()).filter(Boolean));
+    let n = itineraries.length + 1;
+    while (used.has(`Trip ${n}`)) n += 1;
+    return `Trip ${n}`;
+  };
+
   // Compute duration of stay automatically
   const computeStayDuration = (start: string, end: string) => {
     if (!start || !end) return { days: 1, nights: 0 };
@@ -788,6 +797,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   /* ── Pi-Travel creation hub ────────────────────────────────────────────── */
   const [createTab, setCreateTab] = useState<'quick' | 'parse'>('quick');
   const [quickText, setQuickText] = useState('');
+  // Optional extras on the question page: the city is optional (country is the
+  // one required answer) and the trip card name defaults to "Trip N".
+  const [quickCity, setQuickCity] = useState('');
+  const [quickName, setQuickName] = useState('');
   const [parseText, setParseText] = useState('');
 
   /** Quick create: "想去北京3天2晚" → draft itinerary skeleton, then refine in Edit Trip. */
@@ -795,7 +808,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     const raw = quickText.trim();
     if (!raw || isGeneratingGuide) return;
     const m = raw.match(/^(.+?)\s*(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
-    const destination = (m ? m[1] : raw).replace(/^想去\s*/, '').trim() || raw;
+    const country = (m ? m[1] : raw).replace(/^想去\s*/, '').trim() || raw;
+    const city = quickCity.trim();
+    // Country is the required answer; an optional city refines the destination.
+    const destination = city ? `${city}, ${country}` : country;
     const dayCount = m ? Math.min(14, Math.max(1, Number(m[2]))) : 3;
     const start = new Date();
     start.setDate(start.getDate() + 14);
@@ -828,6 +844,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,
       travelerId: currentUser.id,
+      name: quickName.trim() || nextTripName(),
       destination,
       country: typedCountry || world?.countryName || guide.destinationCountry,
       startDate: iso(start),
@@ -840,6 +857,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     };
     onAddItinerary(newItinerary);
     setQuickText('');
+    setQuickCity('');
+    setQuickName('');
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
     setRouteMapOpenFor(newItinerary.id); // route map opens already planned
     handleOpenEditTrip(newItinerary);
@@ -869,6 +888,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,
       travelerId: currentUser.id,
+      name: nextTripName(),
       destination: quick,
       country: quick.includes(',') ? (quick.split(',').pop() || '').trim() : '',
       startDate: iso(start),
@@ -928,6 +948,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     const newItinerary: TravelItinerary = {
       id: `itin_${Date.now()}`,
       travelerId: currentUser.id,
+      name: nextTripName(),
       destination: firstPlace
         ? firstPlace.replace(/\b\w/g, (c) => c.toUpperCase())
         : getTranslation('untitledTrip'),
@@ -994,30 +1015,50 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           </div>
 
           {createTab === 'quick' ? (
-            <div className="flex gap-2">
-              <PlaceTypeahead
-                value={quickText}
-                onChange={setQuickText}
-                onEnter={handleQuickCreate}
-                onPick={(hit) => {
-                  // Keep any typed day count: "bucha 4 days" → "Bucharest, Romania 4 days"
-                  const m = quickText.match(/(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
-                  const days = m ? ` ${m[1]} days${m[2] ? ` ${m[2]} nights` : ''}` : '';
-                  const label = hit.kind === 'country' ? hit.name : `${hit.name}, ${hit.countryName}`;
-                  setQuickText(`${label}${days}`);
-                }}
-                placeholder={getTranslation('quickCreatePh')}
-                className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
-                wrapperClassName="flex-1 min-w-0"
-              />
-              <button
-                type="button"
-                onClick={handleQuickCreate}
-                className="w-12 h-12 rounded-2xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
-                title={getTranslation('createTripBtn')}
-              >
-                <ArrowRight className="w-5 h-5" />
-              </button>
+            <div className="space-y-2.5">
+              <div className="flex gap-2">
+                <PlaceTypeahead
+                  value={quickText}
+                  onChange={setQuickText}
+                  onEnter={handleQuickCreate}
+                  onPick={(hit) => {
+                    // Keep any typed day count: "bucha 4 days" → "Bucharest, Romania 4 days"
+                    const m = quickText.match(/(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
+                    const days = m ? ` ${m[1]} days${m[2] ? ` ${m[2]} nights` : ''}` : '';
+                    const label = hit.kind === 'country' ? hit.name : `${hit.name}, ${hit.countryName}`;
+                    setQuickText(`${label}${days}`);
+                  }}
+                  placeholder={getTranslation('quickCreatePh')}
+                  className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  wrapperClassName="flex-1 min-w-0"
+                />
+                <button
+                  type="button"
+                  onClick={handleQuickCreate}
+                  className="w-12 h-12 rounded-2xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
+                  title={getTranslation('createTripBtn')}
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+              {/* The country is the one required answer; the city and the trip
+                  card name are both optional — an unnamed trip card shows "Trip N". */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <input
+                  type="text"
+                  value={quickCity}
+                  onChange={(e) => setQuickCity(e.target.value)}
+                  placeholder="City (optional)"
+                  className="w-full px-4 py-2.5 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                />
+                <input
+                  type="text"
+                  value={quickName}
+                  onChange={(e) => setQuickName(e.target.value)}
+                  placeholder="Trip name (optional) — defaults to Trip N"
+                  className="w-full px-4 py-2.5 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                />
+              </div>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -1085,8 +1126,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         </div>
       ) : (
         <div className="space-y-6">
-          {sortedItineraries.map((itinerary) => {
+          {sortedItineraries.map((itinerary, cardIdx) => {
             const isExpanded = !!expandedIds[itinerary.id];
+            // The traveller's own name for the trip — unnamed trips default to "Trip N".
+            const cardName = (itinerary.name || '').trim() || `Trip ${cardIdx + 1}`;
             // Traveller nationality drives the visa chip on the card header
             const guideNat = (itinerary.travelGuide?.travelerNationality || currentUser.country || '').trim();
             // Pi-style card stat: total planned stops across every day & slot
@@ -1215,7 +1258,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     <div className="space-y-1.5 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className={`font-display font-bold text-lg ${cover ? 'text-white' : 'text-slate-950 dark:text-slate-50'}`}>
-                          {itinerary.destination || getTranslation('untitledTrip')}
+                          {cardName}
                         </h3>
                         {/* Visa chip — passport × destination specific, from official sources */}
                         {!guideNat && (

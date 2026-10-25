@@ -143,9 +143,6 @@ export const buildBasicGuide = (
         tip: 'Observe locals and follow their lead.'
       }
     ],
-    soloSafetyAdvisories: [
-      emergencyAdvisory,
-      'Meet potential travel companions in busy public places and share your live location with someone you trust.'
-    ]
+    soloSafetyAdvisories: [emergencyAdvisory]
   };
 };

@@ -203,6 +203,8 @@ export interface TravelGuideInfo {
 export interface TravelItinerary {
   id: string;
   travelerId: string;
+  /** Custom trip card name — defaults to "Trip N" when the traveller didn't name it. */
+  name?: string;
   destination: string;
   country: string;
   /** All cities visited on this trip (multi-city trips); empty when only a country was given */

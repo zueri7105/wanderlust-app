@@ -16,7 +16,9 @@ import {
   Smartphone,
   ShieldCheck,
   Languages,
-  ExternalLink
+  ExternalLink,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { TravelItinerary, SoloTraveler } from '../types/travel';
 import { formatTemperature } from '../utils/units';
@@ -330,6 +332,26 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
     itinerary.travelGuide?.destinationCity || itinerary.destination.split(',')[0]?.trim() || '';
   const weatherCountry = itinerary.travelGuide?.destinationCountry || itinerary.country || '';
   const [trend, setTrend] = useState<WeatherTrend | null>(null);
+
+  /* Collapsible guide sections — minus sign collapses, plus sign expands. */
+  const [guideOpen, setGuideOpen] = useState<Record<string, boolean>>({
+    currency: true,
+    navigation: true,
+    customs: true,
+    greetings: true
+  });
+  const toggleGuide = (k: string) => setGuideOpen((g) => ({ ...g, [k]: !g[k] }));
+  const guideToggleBtn = (k: string) => (
+    <button
+      type="button"
+      onClick={() => toggleGuide(k)}
+      className="p-1 -m-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 cursor-pointer transition-colors"
+      title={guideOpen[k] ? 'Collapse' : 'Expand'}
+      aria-label={guideOpen[k] ? `Collapse ${k}` : `Expand ${k}`}
+    >
+      {guideOpen[k] ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+    </button>
+  );
   useEffect(() => {
     let alive = true;
     setTrend(null);
@@ -427,10 +449,6 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
               </p>
             </div>
           </div>
-
-          <span className="text-xs text-emerald-800 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md self-start sm:self-auto">
-            {getTranslation('verifiedGuide')}
-          </span>
         </div>
 
         {/* Visa & Entry — short verdict strip; details live in a popup */}
@@ -605,8 +623,11 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
                 <span className="font-mono text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded">
                   {curr.code} ({curr.symbol})
                 </span>
+                {guideToggleBtn('currency')}
               </div>
 
+              {guideOpen.currency && (
+              <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
                   <div className="flex items-center justify-between gap-1">
@@ -690,6 +711,8 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
                 <strong className="text-slate-900 dark:text-slate-100">{getTranslation('tippingRules')}</strong>{' '}
                 {tippingAdviceFor(guideNat, guideKb)}
               </div>
+              </>
+              )}
             </div>
           );
         })()}
@@ -704,8 +727,11 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
             <span className="text-[10px] text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded font-medium">
               {getTranslation('criticalAdvice')}
             </span>
+            {guideToggleBtn('navigation')}
           </div>
 
+          {guideOpen.navigation && (
+          <>
           {/* Connectivity & VPN guidance */}
           {itinerary.travelGuide.arrivalRulesAndApps?.connectivityAdvice && (
             <div className="p-3 bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/80 rounded-lg text-slate-800 dark:text-slate-200">
@@ -732,15 +758,21 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
               ))}
             </div>
           </div>
+          </>
+          )}
 
         </div>
 
         {/* Local Customs & Cultural Etiquette */}
         <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-xs">
-          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm pb-2 border-b border-slate-200 dark:border-slate-700 mb-2.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>{getTranslation('customsTitle')}</span>
+          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between gap-2 text-sm pb-2 border-b border-slate-200 dark:border-slate-700 mb-2.5">
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>{getTranslation('customsTitle')}</span>
+            </span>
+            {guideToggleBtn('customs')}
           </div>
+          {guideOpen.customs && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {(() => {
               const base = guideKb.key !== 'generic'
@@ -770,56 +802,36 @@ export const TravelGuidePanel: React.FC<TravelGuidePanelProps> = ({ itinerary, c
               ));
             })()}
           </div>
+          )}
         </div>
 
         {/* Basic Local Greetings & Cultural Expectations */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-          {/* Basic Greetings */}
-          <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2.5">
-            <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm">
+        <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-xs">
+          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between gap-2 text-sm">
+            <span className="flex items-center gap-2">
               <Languages className="w-4 h-4 text-indigo-600" />
               <span>{getTranslation('greetingsTitle')}</span>
-            </div>
-            <div className="space-y-2 pt-1">
-              {(guideKb.key !== 'generic'
-                ? guideKb.phrases
-                : itinerary.travelGuide!.basicGreetings || []
-              ).map((g, idx) => (
-                <div key={idx} className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
-                  <div className="font-bold text-slate-900 dark:text-slate-100 text-xs">
-                    {g.phrase}
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
-                    <span>{getTranslation('meaningLabel')} <em>{g.translation}</em></span>
-                    <span className="font-mono text-indigo-700 dark:text-indigo-400 font-semibold">[{g.phonetic}]</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            </span>
+            {guideToggleBtn('greetings')}
           </div>
-
-          {/* Cultural Shocks & Realities */}
-          <div className="p-4 sm:p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2.5">
-            <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 text-sm">
-              <AlertTriangle className="w-4 h-4 text-amber-600" />
-              <span>{getTranslation('shocksTitle')}</span>
-            </div>
-            <div className="space-y-2 pt-1">
-              {itinerary.travelGuide.culturalShocks?.map((shock, idx) => (
-                <div key={idx} className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1">
-                  <div className="font-bold text-slate-900 dark:text-slate-100 text-xs">
-                    {shock.title}
-                  </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                    {shock.description}
-                  </p>
-                  <div className="text-[10px] text-amber-800 dark:text-amber-300 font-medium">
-                    {getTranslation('tipLabel')} {shock.tip}
-                  </div>
+          {guideOpen.greetings && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2.5">
+            {(guideKb.key !== 'generic'
+              ? guideKb.phrases
+              : itinerary.travelGuide!.basicGreetings || []
+            ).map((g, idx) => (
+              <div key={idx} className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+                <div className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                  {g.phrase}
                 </div>
-              ))}
-            </div>
+                <div className="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
+                  <span>{getTranslation('meaningLabel')} <em>{g.translation}</em></span>
+                  <span className="font-mono text-indigo-700 dark:text-indigo-400 font-semibold">[{g.phonetic}]</span>
+                </div>
+              </div>
+            ))}
           </div>
+          )}
         </div>
 
         {/* Safety & Meeting Point Guidelines */}

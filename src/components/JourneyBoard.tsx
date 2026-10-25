@@ -26,7 +26,8 @@ import {
   MapPin,
   CalendarDays,
   Sparkles,
-  Star
+  Star,
+  Pencil
 } from 'lucide-react';
 import { TravelItinerary, ItineraryDay } from '../types/travel';
 import { TripRouteMap } from './TripRouteMap';
@@ -358,6 +359,14 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   onUpdateItinerary
 }) => {
   const [activeDay, setActiveDay] = useState(0); // 0 = Overview, else 1-based day number
+  // Trip card name — the traveller can rename the trip; empty falls back to the default.
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const tripDisplayName = (itinerary.name || '').trim();
+  const commitName = () => {
+    if (nameDraft === null) return;
+    onUpdateItinerary?.({ ...itinerary, name: nameDraft.trim() });
+    setNameDraft(null);
+  };
 
   // Trip Rescue (AI day planner): which day's modal is open, and the
   // must-see stars a traveller pins on stops. Stars persist across sessions.
@@ -737,6 +746,44 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
 
   return (
     <div className="space-y-4 min-w-0">
+      {/* Trip name — tap the pencil to rename the trip card. Defaults to the
+          generic trip name when the traveller hasn't picked one. */}
+      <div className="flex items-center gap-2 min-w-0">
+        {nameDraft === null ? (
+          <>
+            <h2 className="font-display font-bold text-xl text-stone-900 dark:text-stone-50 truncate">
+              {tripDisplayName || getTranslation('untitledTrip')}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setNameDraft(itinerary.name || '')}
+              className="p-1.5 rounded-lg text-stone-400 hover:text-violet-600 dark:hover:text-violet-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer shrink-0"
+              title="Rename this trip"
+              aria-label="Rename this trip"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <input
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={commitName}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitName();
+              if (e.key === 'Escape') setNameDraft(null);
+            }}
+            placeholder="Trip name"
+            className="min-w-0 flex-1 px-3 py-1.5 text-lg font-display font-bold rounded-xl border border-violet-300 dark:border-violet-700 bg-white dark:bg-slate-900 text-stone-900 dark:text-stone-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
+          />
+        )}
+        <span className="text-[11px] text-stone-400 truncate ml-auto pl-2">
+          {itinerary.destination}
+          {itinerary.country ? `, ${itinerary.country}` : ''}
+        </span>
+      </div>
+
       {/* Horizontal date tab bar — Overview + one pill per day (owns the map too) */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         <button type="button" onClick={() => setActiveDay(0)} className={pillCls(activeDay === 0)}>
@@ -1011,7 +1058,9 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
               aria-hidden
             />
             <div className="space-y-4">
-              {itinerary.days.map((d, dayIdx) => {
+              {/* Only the selected day renders here — picking Day 1 shows Day 1
+                  and nothing else. Overview keeps every day one tap away. */}
+              {itinerary.days.filter((d) => d.dayNumber === activeDay).map((d, dayIdx) => {
                 const dayColor = dayRouteColor(d.dayNumber);
                 const stops = stopsOf(d, geoContext);
                 const legs = legsOf(d, geoContext);

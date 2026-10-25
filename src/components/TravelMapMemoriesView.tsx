@@ -208,6 +208,15 @@ const geoMetaFor = (geoKey: string): CountryGeoMeta | null => {
   return meta;
 };
 
+/** Country-centroid fallback — the middle of the country's own boundary, so a
+    pin whose exact place can't be resolved still lands in the right country
+    (the dashed droplet signals "approximate, country level"). */
+const countryCentroidFor = (countryText: string): { lat: number; lng: number } | null => {
+  const meta = geoMetaFor(geoKeyFor(countryText));
+  if (!meta) return null;
+  return { lat: (meta.minLat + meta.maxLat) / 2, lng: (meta.minLng + meta.maxLng) / 2 };
+};
+
 /** Minimum gap between two bounding boxes (0 when they overlap). */
 const bboxGapDeg = (a: CountryGeoMeta, b: CountryGeoMeta) => {
   const dx = Math.max(0, Math.max(a.minLng - b.maxLng, b.minLng - a.maxLng));
@@ -402,10 +411,12 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   // Map fly-to target when a journal entry is tapped
   const [memoryFly, setMemoryFly] = useState<{ lat: number; lng: number } | null>(null);
 
-  /** Fly the map to a memory's city dot and highlight its status. */
+  /** Fly the map to a memory's pin (exact spot, or its country centre) and
+      highlight its status. */
   const flyToMemory = (mem: TravelMemory) => {
-    if (typeof mem.coordinates.lat === 'number' && typeof mem.coordinates.lng === 'number') {
-      setMemoryFly({ lat: mem.coordinates.lat, lng: mem.coordinates.lng });
+    const pin = pinFor(mem);
+    if (pin) {
+      setMemoryFly({ lat: pin.lat, lng: pin.lng });
       setActiveFilter(mem.status);
     }
   };
@@ -754,13 +765,24 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   /** The user's current destination label (used for the share text). */
   const myDestination = (currentUser.currentDestination || '').trim();
 
-  // Which of MY memory dots render depends on the layer toggles
-  const visibleMemoryDots = memories.filter((m) => {
-    if (typeof m.coordinates.lat !== 'number' || typeof m.coordinates.lng !== 'number') return false;
-    if (m.status === 'Visited') return pinLayers.visited;
-    if (m.status === 'Dream Next') return pinLayers.dream;
-    return pinLayers.current;
-  });
+  /** Where a memory's droplet lands: exact coords once resolved, otherwise
+      the country's own centre — tiny or obscure places still get pinned. */
+  const pinFor = (m: TravelMemory): { lat: number; lng: number; approx: boolean } | null => {
+    if (typeof m.coordinates.lat === 'number' && typeof m.coordinates.lng === 'number')
+      return { lat: m.coordinates.lat, lng: m.coordinates.lng, approx: false };
+    const centroid = (m.country || '').trim() ? countryCentroidFor(m.country) : null;
+    return centroid ? { ...centroid, approx: true } : null;
+  };
+
+  // Which of MY memory pins render depends on the layer toggles
+  const visibleMemoryDots = memories
+    .map((m) => ({ mem: m, pin: pinFor(m) }))
+    .filter((p): p is { mem: TravelMemory; pin: { lat: number; lng: number; approx: boolean } } => p.pin !== null)
+    .filter(({ mem }) => {
+      if (mem.status === 'Visited') return pinLayers.visited;
+      if (mem.status === 'Dream Next') return pinLayers.dream;
+      return pinLayers.current;
+    });
 
   // Dream trail placement: with no current/visited memories yet, the dream
   // countries lead the journal; otherwise they follow as the amber finish.
@@ -975,14 +997,14 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             {/* Water-droplet journal pins — the traveller's passport profile
                 pic pinned at each memory's location (memory photo as fallback).
                 Tap one to fly to its place on the timeline below. */}
-            {visibleMemoryDots.map((mem) => (
+            {visibleMemoryDots.map(({ mem, pin }) => (
                 <Marker
                   key={`drop-${mem.id}`}
-                  position={[mem.coordinates.lat!, mem.coordinates.lng!]}
+                  position={[pin.lat, pin.lng]}
                   icon={memoryDropletIcon(
                     currentUser.avatar || memoryLeadPhoto(mem),
                     STATUS_STYLES[mem.status].dot,
-                    mem.status === 'Dream Next'
+                    mem.status === 'Dream Next' || pin.approx
                   )}
                   eventHandlers={{ click: () => flyToMemory(mem) }}
                 />
@@ -1044,6 +1066,24 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 <div className="px-1 pb-1 text-[9px] font-bold uppercase tracking-wider text-stone-400">
                   Map pinpoints
                 </div>
+                {(() => {
+                  const allOn = pinLayers.current && pinLayers.visited && pinLayers.dream;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPinLayers({ current: !allOn, visited: !allOn, dream: !allOn })
+                      }
+                      className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer font-bold"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="w-3 h-3 text-stone-500" />
+                        All pinpoints
+                      </span>
+                      {allOn ? <Eye className="w-3.5 h-3.5 text-stone-500" /> : <EyeOff className="w-3.5 h-3.5 text-stone-400" />}
+                    </button>
+                  );
+                })()}
                 {([
                   ['current', '#10b981', 'Current', pinLayers.current, () => setPinLayers((pl) => ({ ...pl, current: !pl.current }))],
                   ['visited', '#0ea5e9', 'Visited', pinLayers.visited, () => setPinLayers((pl) => ({ ...pl, visited: !pl.visited }))],

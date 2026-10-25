@@ -12,6 +12,7 @@
  */
 
 import { findPlaceGeo } from './placeGeo';
+import { startWorldGeoLoad, lookupWorldGeoSync } from './worldGeo';
 
 export interface WeatherTrendDay {
   date: string;
@@ -48,10 +49,23 @@ const cacheKeyFor = (city: string, country: string, start: string, end: string) 
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-/** City/country text → coordinates: local landmark/city table first, then Nominatim. */
+/** City/country text → coordinates: local landmark/city table first, then the
+ *  on-device world gazetteer (every city & country on Earth, so tiny or
+ *  less-well-known places resolve without the network), then Nominatim. */
 const geocode = async (city: string, country: string): Promise<{ lat: number; lng: number } | null> => {
   const local = findPlaceGeo(city) || findPlaceGeo(country);
   if (local) return { lat: local.lat, lng: local.lng };
+  // Offline gazetteer — knows even the smallest documented places.
+  try {
+    await startWorldGeoLoad();
+    const gaz =
+      lookupWorldGeoSync(city) ||
+      (country ? lookupWorldGeoSync(country) : null) ||
+      lookupWorldGeoSync(`${city}, ${country}`);
+    if (gaz) return { lat: gaz.lat, lng: gaz.lng };
+  } catch {
+    /* gazetteer unavailable — fall through to the online lookup */
+  }
   try {
     const q = encodeURIComponent(country ? `${city}, ${country}` : city);
     const res = await fetch(
