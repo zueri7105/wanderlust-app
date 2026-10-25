@@ -640,3 +640,32 @@ export const geocodeAddress = async (
     return null;
   }
 };
+
+/* ── Reverse geocoding: GPS fix → human place name ("Casablanca, Morocco") ──
+   Used by the safety check-in and the SOS tracker so both show where the
+   phone actually is. Cached per coordinate-rounding so repeat pings are free. */
+const reverseCache = new Map<string, string | null>();
+
+export const reverseGeocodePlace = async (lat: number, lng: number): Promise<string | null> => {
+  const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+  if (reverseCache.has(key)) return reverseCache.get(key)!;
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&accept-language=en`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      reverseCache.set(key, null);
+      return null;
+    }
+    const json = await res.json();
+    const addr = json?.address || {};
+    const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+    const country = addr.country || '';
+    const name = [city, country].filter(Boolean).join(', ');
+    const result = name || (json?.display_name ? String(json.display_name).split(',').slice(0, 2).join(',').trim() : null);
+    reverseCache.set(key, result || null);
+    return result || null;
+  } catch {
+    reverseCache.set(key, null);
+    return null;
+  }
+};

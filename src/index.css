@@ -94,9 +94,6 @@ html:not(.dark) .wl-passport-cover .text-violet-300\/80 { color: rgba(91, 75, 19
 html:not(.dark) .wl-passport-cover .text-violet-200\/10 { color: rgba(91, 75, 196, 0.12) !important; }
 html:not(.dark) .wl-passport-cover .bg-violet-300 { background-color: #c4b5fd !important; }
 html:not(.dark) .wl-passport-cover .border-violet-300\/70 { border-color: rgba(139, 122, 230, 0.75) !important; }
-html:not(.dark) .wl-passport-cover .from-violet-300 { --tw-gradient-from: #c4b5fd !important; }
-html:not(.dark) .wl-passport-cover .via-violet-400 { --tw-gradient-via-stops: #a78bfa !important; }
-html:not(.dark) .wl-passport-cover .to-emerald-400 { --tw-gradient-to: #34d399 !important; }
 html:not(.dark) .wl-passport-cover [stroke="rgba(196,181,253,0.4)"] { stroke: rgba(91, 75, 196, 0.5) !important; }
 
 /* Passport spine: hug the page edge on both sides — the page carries an

@@ -16,6 +16,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { getAppSettings, EMERGENCY_INTERVAL_MS } from '../utils/settings';
+import { reverseGeocodePlace } from '../utils/geocode';
 
 interface EmergencySOSModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
   activeDestination,
   emergencyContacts = []
 }) => {
-  const [gpsStatus, setGpsStatus] = useState<'locating' | 'locked' | 'fallback'>('locating');
+  const [gpsStatus, setGpsStatus] = useState<'locating' | 'locked' | 'unavailable'>('locating');
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [locationName, setLocationName] = useState('');
   const [copiedCoords, setCopiedCoords] = useState(false);
@@ -128,21 +129,33 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
     };
   };
 
-  // Determine Embassy info based on traveler nationality + destination country
+  /* Embassy/consular help for YOUR nationality in the destination country.
+     Numbers and portals are only ever shown when they are the official,
+     verifiable ones; anything else links to the official directory rather
+     than guessing — this is an emergency screen, so nothing here is made up. */
   const getEmbassyInfo = (travelerNationality: string, destCountry: string): EmbassyInfo => {
     const nat = travelerNationality.toLowerCase();
     const dest = destCountry.toLowerCase();
 
+    const generic = (): EmbassyInfo => ({
+      name: `${travelerNationality} Embassy / Consulate in ${destCountry || 'your destination'}`,
+      phone24h: `24h consular line: find the official number on your foreign ministry's website`,
+      email: 'Contact via the official embassy site below',
+      website: 'https://www.embassy-worldwide.com',
+      address: `Find the nearest ${travelerNationality} mission via the official directory (link below)`
+    });
+
     if (dest.includes('japan')) {
-      if (nat.includes('germany') || nat.includes('german')) {
+      if (nat.includes('germany')) {
         return {
-          name: 'Botschaft der Bundesrepublik Deutschland (German Embassy Tokyo)',
+          name: 'German Embassy Tokyo — 24h emergency line',
           phone24h: '+81 3 5791 7700',
           email: 'info@tokyo.diplo.de',
           website: 'https://japan.diplo.de',
           address: '4-5-10 Minami-Azabu, Minato-ku, Tokyo 106-0047'
         };
-      } else if (nat.includes('united states') || nat.includes('usa') || nat.includes('us')) {
+      }
+      if (nat.includes('united states') || nat.includes('usa')) {
         return {
           name: 'U.S. Embassy & Consulates in Japan',
           phone24h: '+81 3 3224 5000',
@@ -150,66 +163,37 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
           website: 'https://jp.usembassy.gov',
           address: '1-10-5 Akasaka, Minato-ku, Tokyo 107-8420'
         };
-      } else if (nat.includes('canada')) {
+      }
+      if (nat.includes('canada')) {
         return {
-          name: 'Embassy of Canada in Tokyo',
+          name: 'Embassy of Canada to Japan',
           phone24h: '+81 3 5412 6200',
           email: 'tokyo-consul@international.gc.ca',
           website: 'https://www.canadainternational.gc.ca/japan-japon',
           address: '7-3-38 Akasaka, Minato-ku, Tokyo 107-8503'
         };
-      } else {
+      }
+      if (nat.includes('morocco')) {
         return {
-          name: `Consular Mission of ${travelerNationality} in Japan`,
-          phone24h: '+81 3 5791 7700',
-          email: 'consular.services@mofa.gov',
-          website: 'https://www.mofa.go.jp/about/emb_cons/protocol',
-          address: 'Tokyo Diplomatic Enclave, Minato-ku, Tokyo'
+          name: 'Embassy of Morocco in Japan',
+          phone24h: 'Confirm the current number on the embassy site',
+          email: 'Via the official embassy website',
+          website: 'https://www.embassy-worldwide.com',
+          address: 'Tokyo, Japan — verify the address on the official directory'
         };
       }
-    } else if (dest.includes('spain')) {
-      if (nat.includes('germany')) {
-        return {
-          name: 'Deutsche Botschaft Madrid (German Embassy Madrid)',
-          phone24h: '+34 91 557 9000',
-          email: 'info@madrid.diplo.de',
-          website: 'https://spanien.diplo.de',
-          address: 'Calle de Fortuny 8, 28010 Madrid'
-        };
-      } else {
-        return {
-          name: `Embassy of ${travelerNationality} in Madrid`,
-          phone24h: '+34 91 587 2200',
-          email: 'madrid.consular@foreign.gov',
-          website: 'https://www.exteriores.gob.es',
-          address: 'Calle Serrano 75, 28006 Madrid'
-        };
-      }
-    } else if (dest.includes('mexico')) {
+      return generic();
+    }
+    if (dest.includes('spain') && nat.includes('germany')) {
       return {
-        name: `Embassy of ${travelerNationality} in Mexico City`,
-        phone24h: '+52 55 5283 2200',
-        email: 'consular.mexico@foreign.gov',
-        website: 'https://www.gob.mx/sre',
-        address: 'Paseo de la Reforma 305, Cuauhtémoc, 06500 CDMX'
-      };
-    } else if (dest.includes('italy')) {
-      return {
-        name: `Embassy of ${travelerNationality} in Rome`,
-        phone24h: '+39 06 46741',
-        email: 'consular.rome@foreign.gov',
-        website: 'https://www.esteri.it',
-        address: 'Via Vittorio Veneto 121, 00187 Roma'
+        name: 'German Embassy Madrid — 24h emergency line',
+        phone24h: '+34 91 557 9000',
+        email: 'info@madrid.diplo.de',
+        website: 'https://spanien.diplo.de',
+        address: 'Calle de Fortuny 8, 28010 Madrid'
       };
     }
-
-    return {
-      name: `Embassy / Consulate of ${travelerNationality} — Consular Emergency Line`,
-      phone24h: `Contact the ${travelerNationality} foreign ministry 24h consular line`,
-      email: `consular.emergency@${travelerNationality.toLowerCase().replace(/\s+/g, '')}.gov`,
-      website: 'https://www.gov.uk/government/collections/list-of-foreign-office-embassy-missions (embassy directory)',
-      address: `Locate the nearest ${travelerNationality} embassy/consulate via your foreign ministry's official directory`
-    };
+    return generic();
   };
 
   const emergencyServices = getEmergencyServices(country);
@@ -235,30 +219,29 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
           });
           setGpsStatus('locked');
           // The tracker reports where the phone actually is — not the
-          // trip's target country.
-          setLocationName(`Live device location (±${Math.round(position.coords.accuracy)}m)`);
+          // trip's target country — reverse-geocoded to a place name.
+          const acc = Math.round(position.coords.accuracy);
+          setLocationName(`Live device location (±${acc}m)`);
           setLastUpdated(new Date());
+          void reverseGeocodePlace(position.coords.latitude, position.coords.longitude).then((place) => {
+            if (place) setLocationName(`${place} (±${acc}m)`);
+          });
         },
         () => {
-          // No device fix: fall back to the active trip's location so the
-          // tracker still shows something useful.
-          const fallbackLat = destStr.includes('Kyoto') ? 35.0116 : destStr.includes('Oaxaca') ? 17.0732 : 40.4168;
-          const fallbackLng = destStr.includes('Kyoto') ? 135.7681 : destStr.includes('Oaxaca') ? -96.7266 : -3.7038;
-          setCoordinates({
-            lat: fallbackLat,
-            lng: fallbackLng,
-            accuracy: 12
-          });
-          setGpsStatus('fallback');
-          setLocationName(`${destStr} (Active Journey Geocode)`);
+          // No device fix — an SOS screen must never show a made-up spot.
+          // Show nothing until a real GPS fix arrives; the traveller can
+          // still call emergency services below.
+          setCoordinates(null);
+          setGpsStatus('unavailable');
+          setLocationName('Location unavailable — no GPS fix. Move near a window or outdoors and retry.');
           setLastUpdated(new Date());
         },
-        { enableHighAccuracy: true, timeout: 6000 }
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
       );
     } else {
-      setGpsStatus('fallback');
-      setCoordinates({ lat: 35.0116, lng: 135.7681, accuracy: 25 });
-      setLocationName(`${destStr} (Active Trip Geocode)`);
+      setCoordinates(null);
+      setGpsStatus('unavailable');
+      setLocationName('Location unavailable — this device has no GPS access.');
       setLastUpdated(new Date());
     }
   }, [isOpen, destStr, refreshTick]);
@@ -330,7 +313,7 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
               <span>Live GPS Location Tracked</span>
             </div>
             <span className="text-[11px] font-mono px-2 py-0.5 bg-slate-800 text-emerald-400 rounded border border-slate-700">
-              {gpsStatus === 'locked' ? 'Satellite Lock Acquired' : gpsStatus === 'locating' ? 'Locating...' : 'Geocode Fallback'}
+              {gpsStatus === 'locked' ? 'Satellite Lock Acquired' : gpsStatus === 'locating' ? 'Locating...' : 'No GPS fix'}
             </span>
           </div>
 
@@ -357,9 +340,11 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
               <MapPin className="w-4 h-4 text-red-400 shrink-0" />
               <span>{locationName || destStr}</span>
             </div>
-            <div className="font-mono text-xs text-slate-300 tabular-nums">
-              Coordinates: {coordString}
-            </div>
+            {coordinates && (
+              <div className="font-mono text-xs text-slate-300 tabular-nums">
+                Coordinates: {coordString}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
@@ -472,12 +457,14 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
               <div className="font-mono text-slate-950 font-bold text-sm">
                 {embassyInfo.phone24h}
               </div>
-              <a
-                href={`tel:${embassyInfo.phone24h.replace(/\s+/g, '')}`}
-                className="inline-block text-emerald-800 font-semibold hover:underline text-[11px] pt-0.5"
-              >
-                Direct Call Embassy →
-              </a>
+              {/^\+/.test(embassyInfo.phone24h) && (
+                <a
+                  href={`tel:${embassyInfo.phone24h.replace(/\s+/g, '')}`}
+                  className="inline-block text-emerald-800 font-semibold hover:underline text-[11px] pt-0.5"
+                >
+                  Direct Call Embassy →
+                </a>
+              )}
             </div>
 
             {/* Emergency Email */}
@@ -489,12 +476,14 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
               <div className="font-mono text-slate-950 font-medium truncate">
                 {embassyInfo.email}
               </div>
-              <a
-                href={`mailto:${embassyInfo.email}?subject=EMERGENCY ASSISTANCE REQUEST - ${currentUser.name}&body=URGENT CITIZEN ASSISTANCE REQUIRED.%0D%0A%0D%0AName: ${currentUser.name}%0D%0ANationality: ${currentUser.country}%0D%0ALocation: ${locationName} (${coordString})${emergencyContacts[0] ? `%0D%0AEmergency Contact: ${emergencyContacts[0].name} ${emergencyContacts[0].countryCode} ${emergencyContacts[0].phone}` : ''}`}
-                className="inline-block text-emerald-800 font-semibold hover:underline text-[11px] pt-0.5"
-              >
-                Compose Emergency Email →
-              </a>
+              {/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(embassyInfo.email) && (
+                <a
+                  href={`mailto:${embassyInfo.email}?subject=EMERGENCY ASSISTANCE REQUEST - ${currentUser.name}&body=URGENT CITIZEN ASSISTANCE REQUIRED.%0D%0A%0D%0AName: ${currentUser.name}%0D%0ANationality: ${currentUser.country}%0D%0ALocation: ${locationName} (${coordString})${emergencyContacts[0] ? `%0D%0AEmergency Contact: ${emergencyContacts[0].name} ${emergencyContacts[0].countryCode} ${emergencyContacts[0].phone}` : ''}`}
+                  className="inline-block text-emerald-800 font-semibold hover:underline text-[11px] pt-0.5"
+                >
+                  Compose Emergency Email →
+                </a>
+              )}
             </div>
           </div>
 

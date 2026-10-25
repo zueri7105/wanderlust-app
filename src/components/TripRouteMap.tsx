@@ -172,20 +172,27 @@ const GEO_NAME_FIX: Record<string, string> = {
 const loadLandFeatures = () => {
   if (landFeatures) return landFeatures;
   const wanted = new Set(COUNTRY_INFO_NAMES.map((n) => GEO_NAME_FIX[normKey(n)] || normKey(n)));
-  landFeatures = (COUNTRIES_GEO as any).features
+  landFeatures = ((COUNTRIES_GEO as any).features as any[])
     .filter((f: any) => wanted.has(normKey(f?.properties?.name || '')))
     .map((f: any) => {
       const polys: number[][][] =
-        f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates : [];
+        f.geometry.type === 'Polygon'
+          ? [f.geometry.coordinates as unknown as number[][]]
+          : f.geometry.type === 'MultiPolygon'
+          ? (f.geometry.coordinates as unknown as number[][][])
+          : [];
       let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-      polys.forEach((ring) =>
-        ring[0].forEach(([lng, lat]: number[]) => {
+      polys.forEach((poly: number[][]) => {
+        const ring = ((poly[0] || []) as unknown) as number[][];
+        ring.forEach((pt: number[]) => {
+          const lng = pt[0];
+          const lat = pt[1];
           if (lat < minLat) minLat = lat;
           if (lat > maxLat) maxLat = lat;
           if (lng < minLng) minLng = lng;
           if (lng > maxLng) maxLng = lng;
-        })
-      );
+        });
+      });
       return { minLat, maxLat, minLng, maxLng, polys };
     })
     .filter((f: { polys: number[][][] }) => f.polys.length > 0);
@@ -206,7 +213,7 @@ const pointOnLand = (lat: number, lng: number): boolean => {
   for (const f of loadLandFeatures()) {
     if (lat < f.minLat || lat > f.maxLat || lng < f.minLng || lng > f.maxLng) continue;
     for (const poly of f.polys) {
-      if (pointInRing(lat, lng, poly[0])) return true;
+      if (pointInRing(lat, lng, (poly[0] as unknown) as number[][])) return true;
     }
   }
   return false;

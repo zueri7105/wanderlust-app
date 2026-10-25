@@ -262,7 +262,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
             /* ── Identity cover page ── */
             <div className="wl-cover-marks contents">
               {/* cosmic wash — deep space at night, dawn sky in Daybreak */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_85%_0%,rgba(139,92,246,0.28),transparent_70%),radial-gradient(ellipse_45%_40%_at_5%_100%,rgba(76,29,149,0.35),transparent_70%)] dark:bg-[radial-gradient(ellipse_60%_50%_at_85%_0%,rgba(139,92,246,0.28),transparent_70%),radial-gradient(ellipse_45%_40%_at_5%_100%,rgba(76,29,149,0.35),transparent_70%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_85%_0%,rgba(96,165,250,0.14),transparent_70%),radial-gradient(ellipse_45%_40%_at_5%_100%,rgba(59,130,246,0.10),transparent_70%)] dark:bg-[radial-gradient(ellipse_60%_50%_at_85%_0%,rgba(139,92,246,0.28),transparent_70%),radial-gradient(ellipse_45%_40%_at_5%_100%,rgba(76,29,149,0.35),transparent_70%)]" />
               {/* constellation motif */}
               <svg className="absolute top-5 left-6 sm:left-9 w-36 h-24 text-violet-300/50 dark:text-violet-300/50 text-violet-900/60" viewBox="0 0 144 96" fill="none" aria-hidden>
                 <path d="M12 74 L44 30 L86 52 L128 18" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 4" strokeLinecap="round" />
@@ -275,8 +275,8 @@ export const PassportView: React.FC<PassportViewProps> = ({
                 <circle cx="20" cy="20" r="1" fill="currentColor" opacity="0.5" />
               </svg>
               {/* faint globe watermark */}
-              <Globe className="absolute -right-10 -top-10 w-56 h-56 text-violet-200/10" strokeWidth={0.6} />
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-300 via-violet-400 to-emerald-400" />
+              <Globe className="absolute -right-10 -top-10 w-56 h-56 text-indigo-300/35 dark:text-violet-200/10" strokeWidth={0.6} />
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-300 via-blue-400 to-indigo-500 dark:from-violet-300 dark:via-violet-400 dark:to-emerald-400" />
               {/* dotted flight path sweeping along the bottom with an aeroplane */}
               <svg className="absolute bottom-2 left-0 w-full h-14" viewBox="0 0 600 56" preserveAspectRatio="none" aria-hidden>
                 <path
@@ -288,7 +288,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
                   strokeLinecap="round"
                 />
               </svg>
-              <Plane className="absolute right-6 bottom-6 w-4 h-4 text-violet-300/80 rotate-45" />
+              <Plane className="absolute right-6 bottom-6 w-4 h-4 text-indigo-400 rotate-45 dark:text-violet-300/80" />
 
               <div className="relative z-10 p-6 sm:p-9">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">

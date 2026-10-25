@@ -774,13 +774,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [isGeneratingGuide, setIsGeneratingGuide] = useState(false);
 
 
-  /* Next default trip card name: "Trip N" where N skips any name already
-     taken, so two trips never share the same default label. */
+  /* Next default trip card name: "Untitled trip" (i18n) — unique per card. */
   const nextTripName = () => {
+    const base = getTranslation('untitledTrip');
     const used = new Set(itineraries.map((i) => (i.name || '').trim()).filter(Boolean));
-    let n = itineraries.length + 1;
-    while (used.has(`Trip ${n}`)) n += 1;
-    return `Trip ${n}`;
+    if (!used.has(base)) return base;
+    let n = 2;
+    while (used.has(`${base} ${n}`)) n += 1;
+    return `${base} ${n}`;
   };
 
   // Compute duration of stay automatically
@@ -1112,8 +1113,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         <div className="space-y-6">
           {sortedItineraries.map((itinerary, cardIdx) => {
             const isExpanded = !!expandedIds[itinerary.id];
-            // The traveller's own name for the trip — unnamed trips default to "Trip N".
-            const cardName = (itinerary.name || '').trim() || `Trip ${cardIdx + 1}`;
+            // The traveller's own name for the trip — unnamed trips read "Untitled trip".
+            const cardName = (itinerary.name || '').trim() || getTranslation('untitledTrip');
             // Traveller nationality drives the visa chip on the card header
             const guideNat = (itinerary.travelGuide?.travelerNationality || currentUser.country || '').trim();
             // Pi-style card stat: total planned stops across every day & slot

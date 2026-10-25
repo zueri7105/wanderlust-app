@@ -196,9 +196,20 @@ export default function App() {
         // Corrupted storage — open in the default bright theme rather than dark.
         document.documentElement.classList.remove('dark');
       }
-      // Right-to-left layout for Arabic
-      const lang = localStorage.getItem('wanderlust_app_lang') || 'en';
-      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      // Right-to-left layout for Arabic + Persian; sync the standalone
+      // language key from settings so getTranslation() sees it on boot,
+      // even before the Settings screen has ever been opened.
+      let lang = localStorage.getItem('wanderlust_app_lang') || 'en';
+      try {
+        const s = JSON.parse(localStorage.getItem('wanderlust_app_settings') || '{}');
+        if (s.language && s.language !== lang) {
+          lang = s.language;
+          localStorage.setItem('wanderlust_app_lang', lang);
+        }
+      } catch {
+        /* keep the standalone key as-is */
+      }
+      document.documentElement.dir = lang === 'ar' || lang === 'fa' ? 'rtl' : 'ltr';
       document.documentElement.lang = lang;
     };
     const onSettingsChanged = () => {

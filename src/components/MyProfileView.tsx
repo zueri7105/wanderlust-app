@@ -24,6 +24,7 @@ import {
 import { PresenceBadge } from './MessagesView';
 import { presenceForTraveler } from '../utils/settings';
 import { COUNTRY_DIAL_CODES, resolveDialCode } from '../utils/countryDialCodes';
+import { reverseGeocodePlace } from '../utils/geocode';
 
 interface MyProfileViewProps {
   currentUser: SoloTraveler;
@@ -136,31 +137,31 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
 
   const handleSendPing = () => {
     const now = new Date();
-    const stamp = () => {
-      const timeStr = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (Nominal Status: OK)`;
-      onUpdateSafetyRecord({ lastCheckinTime: timeStr });
+    const time = () => `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    const stamp = (where: string) => {
+      onUpdateSafetyRecord({
+        lastCheckinTime: `${time()} — ${where} (Nominal Status: OK)`,
+        activeDestination: where
+      });
       setJustPinged(true);
       setTimeout(() => setJustPinged(false), 3000);
     };
-    // The ping reports where the phone actually is right now — not the
-    // trip's target country. Fall back to the destination name when the
-    // device has no GPS fix.
+    // The ping reports where the phone actually is standing right now —
+    // reverse-geocoded to a real place name — never the trip's target.
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude.toFixed(5);
-          const lng = pos.coords.longitude.toFixed(5);
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
           const acc = Math.round(pos.coords.accuracy);
-          const timeStr = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} @ ${lat}, ${lng} ±${acc}m (Nominal Status: OK)`;
-          onUpdateSafetyRecord({ lastCheckinTime: timeStr });
-          setJustPinged(true);
-          setTimeout(() => setJustPinged(false), 3000);
+          const place = (await reverseGeocodePlace(lat, lng)) || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+          stamp(`${place} ±${acc}m`);
         },
-        () => stamp(),
+        () => stamp('Location unavailable (no GPS fix)'),
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
       );
     } else {
-      stamp();
+      stamp('Location unavailable (no GPS on this device)');
     }
   };
 

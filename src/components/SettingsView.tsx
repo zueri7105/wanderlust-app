@@ -15,7 +15,9 @@ import {
   CircleDot,
   Info,
   Languages,
-  ArrowLeft
+  ArrowLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { AppSettings, DEFAULT_APP_SETTINGS, PRESENCE_META, PresenceStatus } from '../utils/settings';
 
@@ -61,6 +63,8 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
   });
 
   const [savedNotice, setSavedNotice] = useState(false);
+  const [langPickerOpen, setLangPickerOpen] = useState(false);
+  const currentLangMeta = LANGUAGES.find((l) => l.code === settings.language) || LANGUAGES[0];
 
   useEffect(() => {
     localStorage.setItem('wanderlust_app_settings', JSON.stringify(settings));
@@ -194,30 +198,82 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
             </div>
           </div>
 
-          {/* Compact 4-column chip grid keeps 20 languages short. */}
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 text-[11px]">
-            {LANGUAGES.map((lang) => {
-              const active = settings.language === lang.code;
-              return (
-                <button
-                  key={lang.code}
-                  type="button"
-                  onClick={() => updateSetting('language', lang.code as any)}
-                  className={`px-1.5 py-1.5 rounded-lg border flex items-center justify-center gap-1 transition-all cursor-pointer truncate ${
-                    active
-                      ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 text-slate-950 dark:text-slate-50 font-bold'
-                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                  }`}
-                  title={`${lang.name} — ${lang.native}`}
-                >
-                  <span>{lang.flag}</span>
-                  <span className="truncate">{lang.native}</span>
-                  {active && <Check className="w-3 h-3 text-emerald-600 shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
+          {/* One tap opens the full language list; the row shows the current pick. */}
+          <button
+            type="button"
+            onClick={() => setLangPickerOpen(true)}
+            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+          >
+            <span className="flex items-center gap-2.5 min-w-0">
+              <span className="text-xl shrink-0">{currentLangMeta.flag}</span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                  {currentLangMeta.native}
+                </span>
+                <span className="block text-[11px] text-slate-500 dark:text-slate-400">{currentLangMeta.name}</span>
+              </span>
+            </span>
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 shrink-0">
+              Change
+              <ChevronRight className="w-3.5 h-3.5" />
+            </span>
+          </button>
         </div>
+
+        {/* Language picker sheet — full list, searchable-feel rows */}
+        {langPickerOpen && (
+          <div className="wl-modal-overlay" onClick={() => setLangPickerOpen(false)}>
+            <div
+              className="wl-modal-card max-w-md p-0 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
+                  Choose your language
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setLangPickerOpen(false)}
+                  className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer text-slate-500"
+                  aria-label="Close language picker"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                {LANGUAGES.map((lang) => {
+                  const active = settings.language === lang.code;
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        updateSetting('language', lang.code as any);
+                        setLangPickerOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between gap-3 px-5 py-3 text-left transition-colors cursor-pointer ${
+                        active
+                          ? 'bg-slate-50 dark:bg-slate-800'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        <span className="text-xl shrink-0">{lang.flag}</span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                            {lang.native}
+                          </span>
+                          <span className="block text-[11px] text-slate-500 dark:text-slate-400">{lang.name}</span>
+                        </span>
+                      </span>
+                      {active && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 3. Units & Measurements */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
