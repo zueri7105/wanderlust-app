@@ -25,28 +25,35 @@ export type { AppSettings } from '../utils/settings';
 
 const DEFAULT_SETTINGS = DEFAULT_APP_SETTINGS;
 
+// Alphabetical by language name — keep sorted when adding a new language.
 const LANGUAGES = [
-  { code: 'en', name: 'English', native: 'English', flag: '🇺🇸' },
-  { code: 'es', name: 'Spanish', native: 'Español', flag: '🇪🇸' },
-  { code: 'zh', name: 'Chinese', native: '中文 (简体)', flag: '🇨🇳' },
-  { code: 'ja', name: 'Japanese', native: '日本語', flag: '🇯🇵' },
-  { code: 'fr', name: 'French', native: 'Français', flag: '🇫🇷' },
-  { code: 'de', name: 'German', native: 'Deutsch', flag: '🇩🇪' },
-  { code: 'ko', name: 'Korean', native: '한국어', flag: '🇰🇷' },
-  { code: 'pt', name: 'Portuguese', native: 'Português', flag: '🇵🇹' },
+  { code: 'af', name: 'Afrikaans', native: 'Afrikaans', flag: '🇿🇦' },
   { code: 'ar', name: 'Arabic', native: 'العربية', flag: '🇸🇦' },
-  { code: 'ru', name: 'Russian', native: 'Русский', flag: '🇷🇺' },
-  { code: 'it', name: 'Italian', native: 'Italiano', flag: '🇮🇹' },
-  { code: 'tr', name: 'Turkish', native: 'Türkçe', flag: '🇹🇷' },
-  { code: 'pl', name: 'Polish', native: 'Polski', flag: '🇵🇱' },
-  { code: 'hu', name: 'Hungarian', native: 'Magyar', flag: '🇭🇺' },
-  { code: 'hi', name: 'Hindi', native: 'हिन्दी', flag: '🇮🇳' },
-  { code: 'el', name: 'Greek', native: 'Ελληνικά', flag: '🇬🇷' },
+  { code: 'zh', name: 'Chinese', native: '中文 (简体)', flag: '🇨🇳' },
   { code: 'hr', name: 'Croatian', native: 'Hrvatski', flag: '🇭🇷' },
   { code: 'cs', name: 'Czech', native: 'Čeština', flag: '🇨🇿' },
+  { code: 'da', name: 'Danish', native: 'Dansk', flag: '🇩🇰' },
   { code: 'nl', name: 'Dutch', native: 'Nederlands', flag: '🇳🇱' },
-  { code: 'af', name: 'Afrikaans', native: 'Afrikaans', flag: '🇿🇦' },
-  { code: 'fa', name: 'Persian', native: 'فارسی', flag: '🇮🇷' }
+  { code: 'en', name: 'English', native: 'English', flag: '🇺🇸' },
+  { code: 'fi', name: 'Finnish', native: 'Suomi', flag: '🇫🇮' },
+  { code: 'fr', name: 'French', native: 'Français', flag: '🇫🇷' },
+  { code: 'de', name: 'German', native: 'Deutsch', flag: '🇩🇪' },
+  { code: 'el', name: 'Greek', native: 'Ελληνικά', flag: '🇬🇷' },
+  { code: 'hi', name: 'Hindi', native: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'hu', name: 'Hungarian', native: 'Magyar', flag: '🇭🇺' },
+  { code: 'it', name: 'Italian', native: 'Italiano', flag: '🇮🇹' },
+  { code: 'ja', name: 'Japanese', native: '日本語', flag: '🇯🇵' },
+  { code: 'ko', name: 'Korean', native: '한국어', flag: '🇰🇷' },
+  { code: 'no', name: 'Norwegian', native: 'Norsk', flag: '🇳🇴' },
+  { code: 'fa', name: 'Persian', native: 'فارسی', flag: '🇮🇷' },
+  { code: 'pl', name: 'Polish', native: 'Polski', flag: '🇵🇱' },
+  { code: 'pt', name: 'Portuguese', native: 'Português', flag: '🇵🇹' },
+  { code: 'ru', name: 'Russian', native: 'Русский', flag: '🇷🇺' },
+  { code: 'sr', name: 'Serbian', native: 'Српски', flag: '🇷🇸' },
+  { code: 'es', name: 'Spanish', native: 'Español', flag: '🇪🇸' },
+  { code: 'sv', name: 'Swedish', native: 'Svenska', flag: '🇸🇪' },
+  { code: 'tr', name: 'Turkish', native: 'Türkçe', flag: '🇹🇷' },
+  { code: 'uk', name: 'Ukrainian', native: 'Українська', flag: '🇺🇦' }
 ] as const;
 
 export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }> = ({ userGender, onBack }) => {

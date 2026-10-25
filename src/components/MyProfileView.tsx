@@ -375,16 +375,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
               ))}
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-stone-100 dark:border-stone-800">
-              <button
-                type="button"
-                onClick={handleAddMoreEmergencyContact}
-                className="text-xs font-semibold text-stone-900 dark:text-stone-100 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Add More Emergency Contact</span>
-              </button>
-
+            <div className="flex items-center justify-end pt-2 border-t border-stone-100 dark:border-stone-800">
               <div className="flex items-center gap-2">
                 <button
                   type="button"

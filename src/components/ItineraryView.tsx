@@ -802,6 +802,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [quickStart, setQuickStart] = useState('');
   const [quickEnd, setQuickEnd] = useState('');
   const [quickDays, setQuickDays] = useState(3);
+  // Free-typing draft for the duration number (null = show the committed value)
+  const [daysDraft, setDaysDraft] = useState<string | null>(null);
   const createBoxRef = useRef<HTMLDivElement | null>(null);
 
   const isoOf = (d: Date) => d.toISOString().slice(0, 10);
@@ -923,14 +925,25 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         {/* One-box trip creation: search where, name it, pick dates + duration */}
         <div
           ref={createBoxRef}
-          className="max-w-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl shadow-sm p-5 sm:p-6 space-y-4"
+          className="max-w-2xl overflow-hidden bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl shadow-sm"
         >
-          <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
-            <Plus className="w-4 h-4" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
-              {getTranslation('planNewItinerary')}
-            </span>
+          {/* Designed header: gradient icon tile + title + hint */}
+          <div className="relative flex items-center gap-3.5 px-5 sm:px-6 pt-5 pb-4 bg-gradient-to-r from-violet-500/10 via-indigo-500/5 to-transparent dark:from-violet-400/10 dark:via-indigo-400/5 border-b border-stone-100 dark:border-stone-800">
+            <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-violet-500/10 dark:bg-violet-400/10 blur-2xl pointer-events-none" />
+            <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white flex items-center justify-center shadow-md shrink-0">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <div className="relative min-w-0">
+              <h2 className="font-display text-lg sm:text-xl font-bold tracking-tight text-stone-950 dark:text-stone-50">
+                {getTranslation('planNewItinerary')}
+              </h2>
+              <p className="text-xs text-stone-500 dark:text-stone-400 truncate">
+                {getTranslation('whereToPh')}
+              </p>
+            </div>
           </div>
+
+          <div className="p-5 sm:p-6 space-y-4">
 
           {/* Where to? */}
           <div className="space-y-1.5">
@@ -965,9 +978,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             />
           </div>
 
-          {/* When + how long */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="space-y-1.5">
+          {/* When: twin date boxes — identical markup so both render the same
+              format, and min-w-0 lets them shrink on phone widths */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 {getTranslation('fromDate')}
               </label>
@@ -975,10 +989,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 type="date"
                 value={quickStart}
                 onChange={(e) => changeStart(e.target.value)}
-                className="w-full px-3.5 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
+                className="w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 {getTranslation('toDate')}
               </label>
@@ -987,35 +1001,52 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 value={quickEnd}
                 min={quickStart || undefined}
                 onChange={(e) => changeEnd(e.target.value)}
-                className="w-full px-3.5 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
+                className="w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
-            <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
-                {getTranslation('howLongLabel')}
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => changeDays(quickDays - 1)}
-                  className="w-11 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-lg font-bold hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer shrink-0"
-                  aria-label="fewer days"
-                >
-                  −
-                </button>
-                <div className="flex-1 h-11 px-2 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 flex items-center justify-center gap-1">
-                  <span className="text-base font-bold text-stone-900 dark:text-stone-100 tabular-nums">{quickDays}</span>
-                  <span className="text-xs text-stone-400">{getTranslation('daysWord')}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => changeDays(quickDays + 1)}
-                  className="w-11 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-lg font-bold hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer shrink-0"
-                  aria-label="more days"
-                >
-                  +
-                </button>
+          </div>
+
+          {/* Duration: stepper with a directly tappable number */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+              {getTranslation('howLongLabel')}
+            </label>
+            <div className="flex items-stretch gap-2">
+              <button
+                type="button"
+                onClick={() => changeDays(quickDays - 1)}
+                className="w-12 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-lg font-bold hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer shrink-0"
+                aria-label="fewer days"
+              >
+                −
+              </button>
+              <div className="flex-1 min-w-0 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 flex items-center justify-center gap-1.5 px-2">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={14}
+                  aria-label={getTranslation('howLongLabel')}
+                  value={daysDraft ?? String(quickDays)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDaysDraft(v);
+                    const n = parseInt(v, 10);
+                    if (!Number.isNaN(n)) changeDays(n);
+                  }}
+                  onBlur={() => setDaysDraft(null)}
+                  className="w-14 min-w-0 bg-transparent text-center text-base font-bold text-stone-900 dark:text-stone-100 tabular-nums focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <span className="text-xs text-stone-400 shrink-0">{getTranslation('daysWord')}</span>
               </div>
+              <button
+                type="button"
+                onClick={() => changeDays(quickDays + 1)}
+                className="w-12 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-lg font-bold hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer shrink-0"
+                aria-label="more days"
+              >
+                +
+              </button>
             </div>
           </div>
 
@@ -1028,6 +1059,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             <ArrowRight className="w-4 h-4" />
             <span>{getTranslation('createTripBtn')}</span>
           </button>
+          </div>
         </div>
       </div>
 

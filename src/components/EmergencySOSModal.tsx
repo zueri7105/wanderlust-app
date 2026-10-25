@@ -32,6 +32,8 @@ interface EmbassyInfo {
   email: string;
   website: string;
   address: string;
+  /** false = website is a live map/directory lookup, not an official mission site */
+  isOfficialSite?: boolean;
 }
 
 interface LocalEmergencyServices {
@@ -137,12 +139,18 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
     const nat = travelerNationality.toLowerCase();
     const dest = destCountry.toLowerCase();
 
+    // Generic nationalities: no verified mission site is hardcoded, so the
+    // button opens a live Google Maps search for the traveler's own embassy —
+    // always reachable, shows the mission on a map with call/directions actions.
+    // (The old static directory, embassy-worldwide.com, now answers many
+    // browsers with "405 Not allowed", which is unacceptable on an SOS screen.)
     const generic = (): EmbassyInfo => ({
       name: `${travelerNationality} Embassy / Consulate in ${destCountry || 'your destination'}`,
       phone24h: `24h consular line: find the official number on your foreign ministry's website`,
-      email: 'Contact via the official embassy site below',
-      website: 'https://www.embassy-worldwide.com',
-      address: `Find the nearest ${travelerNationality} mission via the official directory (link below)`
+      email: 'Contact via the official embassy site — open the map link below',
+      website: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${travelerNationality} embassy ${destCountry || ''}`.trim())}`,
+      address: `Nearest ${travelerNationality} mission — open the live map search below`,
+      isOfficialSite: false
     });
 
     if (dest.includes('japan')) {
@@ -169,17 +177,21 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
           name: 'Embassy of Canada to Japan',
           phone24h: '+81 3 5412 6200',
           email: 'tokyo-consul@international.gc.ca',
-          website: 'https://www.canadainternational.gc.ca/japan-japon',
+          website: 'https://www.international.gc.ca/country-pays/japan-japon/',
           address: '7-3-38 Akasaka, Minato-ku, Tokyo 107-8503'
         };
       }
       if (nat.includes('morocco')) {
+        // No verified Moroccan mission site is hardcoded — link a live map
+        // search for the Embassy of Morocco in Japan instead of a static
+        // directory that may not load (see generic() above).
         return {
           name: 'Embassy of Morocco in Japan',
           phone24h: 'Confirm the current number on the embassy site',
           email: 'Via the official embassy website',
-          website: 'https://www.embassy-worldwide.com',
-          address: 'Tokyo, Japan — verify the address on the official directory'
+          website: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Embassy of Morocco in Japan')}`,
+          address: 'Tokyo, Japan — open the live map search below',
+          isOfficialSite: false
         };
       }
       return generic();
@@ -495,7 +507,11 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 font-semibold text-slate-900 hover:underline shrink-0"
             >
-              <span>Official Consular Portal</span>
+              <span>
+                {embassyInfo.isOfficialSite === false
+                  ? `Find ${currentUser.country} Embassy on Maps`
+                  : 'Official Consular Portal'}
+              </span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
