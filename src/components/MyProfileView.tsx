@@ -136,10 +136,32 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
 
   const handleSendPing = () => {
     const now = new Date();
-    const timeStr = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (Nominal Status: OK)`;
-    onUpdateSafetyRecord({ lastCheckinTime: timeStr });
-    setJustPinged(true);
-    setTimeout(() => setJustPinged(false), 3000);
+    const stamp = () => {
+      const timeStr = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (Nominal Status: OK)`;
+      onUpdateSafetyRecord({ lastCheckinTime: timeStr });
+      setJustPinged(true);
+      setTimeout(() => setJustPinged(false), 3000);
+    };
+    // The ping reports where the phone actually is right now — not the
+    // trip's target country. Fall back to the destination name when the
+    // device has no GPS fix.
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude.toFixed(5);
+          const lng = pos.coords.longitude.toFixed(5);
+          const acc = Math.round(pos.coords.accuracy);
+          const timeStr = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} @ ${lat}, ${lng} ±${acc}m (Nominal Status: OK)`;
+          onUpdateSafetyRecord({ lastCheckinTime: timeStr });
+          setJustPinged(true);
+          setTimeout(() => setJustPinged(false), 3000);
+        },
+        () => stamp(),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      );
+    } else {
+      stamp();
+    }
   };
 
   const handleAddMoreEmergencyContact = () => {
@@ -439,7 +461,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
               Active Trip Safety Ping:
             </div>
             <div className="text-stone-600 dark:text-stone-300 mt-0.5">
-              Current Destination: <strong>{safetyRecord.activeDestination || '—'}</strong>
+              Current Location: <strong>{safetyRecord.activeDestination || '—'}</strong>
             </div>
             <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 font-mono tabular-nums">
               Last Ping: {safetyRecord.lastCheckinTime || '—'}

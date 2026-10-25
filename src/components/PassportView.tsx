@@ -215,7 +215,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
   const pageShellCls = (p: number) =>
     `wl-book-page relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[30rem] touch-pan-y select-none ${
       p === 0
-        ? 'bg-[#0c0a09] text-stone-100 shadow-xl'
+        ? 'wl-passport-cover bg-[#0c0a09] text-stone-100 shadow-xl'
         : 'bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(139,92,246,0.14),transparent_70%)] bg-white dark:bg-[#0e0820] border border-stone-200 dark:border-violet-900/40 shadow-xl'
     }`;
 
@@ -260,11 +260,11 @@ export const PassportView: React.FC<PassportViewProps> = ({
     >
       {p === 0 ? (
             /* ── Identity cover page ── */
-            <>
-              {/* cosmic wash */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_85%_0%,rgba(139,92,246,0.28),transparent_70%),radial-gradient(ellipse_45%_40%_at_5%_100%,rgba(76,29,149,0.35),transparent_70%)]" />
+            <div className="wl-cover-marks contents">
+              {/* cosmic wash — deep space at night, dawn sky in Daybreak */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_85%_0%,rgba(139,92,246,0.28),transparent_70%),radial-gradient(ellipse_45%_40%_at_5%_100%,rgba(76,29,149,0.35),transparent_70%)] dark:bg-[radial-gradient(ellipse_60%_50%_at_85%_0%,rgba(139,92,246,0.28),transparent_70%),radial-gradient(ellipse_45%_40%_at_5%_100%,rgba(76,29,149,0.35),transparent_70%)]" />
               {/* constellation motif */}
-              <svg className="absolute top-5 left-6 sm:left-9 w-36 h-24 text-violet-300/50" viewBox="0 0 144 96" fill="none" aria-hidden>
+              <svg className="absolute top-5 left-6 sm:left-9 w-36 h-24 text-violet-300/50 dark:text-violet-300/50 text-violet-900/60" viewBox="0 0 144 96" fill="none" aria-hidden>
                 <path d="M12 74 L44 30 L86 52 L128 18" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 4" strokeLinecap="round" />
                 <circle cx="12" cy="74" r="2.4" fill="currentColor" />
                 <circle cx="44" cy="30" r="3" fill="currentColor" />
@@ -402,7 +402,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
                   </div>
                 </div>
               </div>
-            </>
+            </div>
           ) : (
             /* ── Stamps page ── */
             <>

@@ -2015,6 +2015,7 @@ export const COUNTRY_INFO: Record<string, CountryInfo> = {
     "visaDays": null,
     "region": "Other"
   },
+
   "Armenia": {
     "currency": {
       "code": "AMD",
@@ -4400,6 +4401,7 @@ export function entryRuleBullet(text: string): string {
 // Register every known country display name with the visa matrix so that
 // destination text (e.g. a trip's "Country" field) resolves reliably.
 registerVisaCountryNames(Object.keys(COUNTRY_INFO));
+export const COUNTRY_INFO_NAMES = Object.keys(COUNTRY_INFO);
 
 // Knowledge-base fallback for the visa matrix: every country in COUNTRY_INFO
 // carries its general visa regime, so when the hand-encoded pair rules have

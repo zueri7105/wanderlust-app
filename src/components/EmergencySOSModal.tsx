@@ -204,11 +204,11 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
     }
 
     return {
-      name: `Embassy of ${travelerNationality} Consular Services`,
-      phone24h: '+1 202 501 4444',
-      email: 'emergency-citizen@international.gov',
-      website: 'https://travel.state.gov',
-      address: 'Central Diplomatic District'
+      name: `Embassy / Consulate of ${travelerNationality} — Consular Emergency Line`,
+      phone24h: `Contact the ${travelerNationality} foreign ministry 24h consular line`,
+      email: `consular.emergency@${travelerNationality.toLowerCase().replace(/\s+/g, '')}.gov`,
+      website: 'https://www.gov.uk/government/collections/list-of-foreign-office-embassy-missions (embassy directory)',
+      address: `Locate the nearest ${travelerNationality} embassy/consulate via your foreign ministry's official directory`
     };
   };
 
@@ -234,11 +234,14 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
             accuracy: Math.round(position.coords.accuracy)
           });
           setGpsStatus('locked');
-          setLocationName(`${destStr} (Live Device GPS Lock)`);
+          // The tracker reports where the phone actually is — not the
+          // trip's target country.
+          setLocationName(`Live device location (±${Math.round(position.coords.accuracy)}m)`);
           setLastUpdated(new Date());
         },
         () => {
-          // Fallback based on selected destination
+          // No device fix: fall back to the active trip's location so the
+          // tracker still shows something useful.
           const fallbackLat = destStr.includes('Kyoto') ? 35.0116 : destStr.includes('Oaxaca') ? 17.0732 : 40.4168;
           const fallbackLng = destStr.includes('Kyoto') ? 135.7681 : destStr.includes('Oaxaca') ? -96.7266 : -3.7038;
           setCoordinates({

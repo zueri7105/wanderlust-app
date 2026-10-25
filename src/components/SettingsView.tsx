@@ -36,7 +36,15 @@ const LANGUAGES = [
   { code: 'ru', name: 'Russian', native: 'Русский', flag: '🇷🇺' },
   { code: 'it', name: 'Italian', native: 'Italiano', flag: '🇮🇹' },
   { code: 'tr', name: 'Turkish', native: 'Türkçe', flag: '🇹🇷' },
-  { code: 'pl', name: 'Polish', native: 'Polski', flag: '🇵🇱' }
+  { code: 'pl', name: 'Polish', native: 'Polski', flag: '🇵🇱' },
+  { code: 'hu', name: 'Hungarian', native: 'Magyar', flag: '🇭🇺' },
+  { code: 'hi', name: 'Hindi', native: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'el', name: 'Greek', native: 'Ελληνικά', flag: '🇬🇷' },
+  { code: 'hr', name: 'Croatian', native: 'Hrvatski', flag: '🇭🇷' },
+  { code: 'cs', name: 'Czech', native: 'Čeština', flag: '🇨🇿' },
+  { code: 'nl', name: 'Dutch', native: 'Nederlands', flag: '🇳🇱' },
+  { code: 'af', name: 'Afrikaans', native: 'Afrikaans', flag: '🇿🇦' },
+  { code: 'fa', name: 'Persian', native: 'فارسی', flag: '🇮🇷' }
 ] as const;
 
 export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }> = ({ userGender, onBack }) => {
@@ -186,7 +194,8 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+          {/* Compact 4-column chip grid keeps 20 languages short. */}
+          <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 text-[11px]">
             {LANGUAGES.map((lang) => {
               const active = settings.language === lang.code;
               return (
@@ -194,17 +203,16 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
                   key={lang.code}
                   type="button"
                   onClick={() => updateSetting('language', lang.code as any)}
-                  className={`p-2.5 rounded-lg border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  className={`px-1.5 py-1.5 rounded-lg border flex items-center justify-center gap-1 transition-all cursor-pointer truncate ${
                     active
                       ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 text-slate-950 dark:text-slate-50 font-bold'
                       : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                   }`}
+                  title={`${lang.name} — ${lang.native}`}
                 >
-                  <div className="truncate">
-                    <span className="mr-1.5">{lang.flag}</span>
-                    <span>{lang.native}</span>
-                  </div>
-                  {active && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                  <span>{lang.flag}</span>
+                  <span className="truncate">{lang.native}</span>
+                  {active && <Check className="w-3 h-3 text-emerald-600 shrink-0" />}
                 </button>
               );
             })}
@@ -253,166 +261,6 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
           </div>
         </div>
 
-        {/* 4. Chat Presence Status — pick the badge others see on your messages profile */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-sky-500 text-white flex items-center justify-center shadow-xs">
-              <CircleDot className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                Chat Presence Status
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Choose the badge companions see next to your messages profile.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            {(Object.keys(PRESENCE_META) as PresenceStatus[]).map((status) => {
-              const meta = PRESENCE_META[status];
-              const active = settings.presenceStatus === status;
-              return (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => updateSetting('presenceStatus', status)}
-                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                    active
-                      ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 shadow-xs'
-                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 font-bold text-slate-900 dark:text-slate-100">
-                      {status === 'hidden' ? (
-                        <span className="w-3 h-3 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600" title="No dot" />
-                      ) : status === 'dnd' ? (
-                        <span className="w-3.5 h-3.5 rounded-full bg-indigo-400 flex items-center justify-center">
-                          <Moon className="w-2 h-2 text-white" />
-                        </span>
-                      ) : (
-                        <span className="w-3 h-3 rounded-full" style={{ background: meta.dot || '#cbd5e1' }} />
-                      )}
-                      {meta.label}
-                    </span>
-                    {active && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
-                  </div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-                    {meta.hint}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 4b. Message Translation — which language received messages are translated into */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-400 to-violet-500 text-white flex items-center justify-center shadow-xs">
-              <Languages className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                Message Translation
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Tap "Translate" on any message and it lands in this language.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-2 text-xs">
-            <select
-              value={settings.translateLang || 'app'}
-              onChange={(e) => updateSetting('translateLang', e.target.value as AppSettings['translateLang'])}
-              className="w-full px-3 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium cursor-pointer"
-            >
-              <option value="app">
-                Same as my app language ({LANGUAGES.find((l) => l.code === settings.language)?.native || 'English'})
-              </option>
-              {LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.flag} {lang.native} ({lang.name})
-                </option>
-              ))}
-            </select>
-            <p className="text-[11px] text-slate-400 leading-snug">
-              By default messages translate into your app language. Pick another language here if you'd rather read
-              translations in something else — handy while you're practising Spanish on the road!
-            </p>
-          </div>
-        </div>
-
-        {/* 5. Safety & Solo Female Protection Mode */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-400 to-red-500 text-white flex items-center justify-center shadow-xs">
-              <Shield className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                {getTranslation('safetyLabel')}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Safeguards and safe meet-up protocols while travelling.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            {/* Only travellers whose profile gender is female see this protection option */}
-            {userGender === 'female' ? (
-              <div className="flex items-center justify-between gap-3 p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 rounded-lg">
-                <div>
-                  <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <HeartHandshake className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Prioritise Female Solo Travellers</span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Promote verified female solo traveller matches and safe public meet-up points.
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.femaleSafetyPriority}
-                  onChange={(e) => updateSetting('femaleSafetyPriority', e.target.checked)}
-                  className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900 cursor-pointer"
-                />
-              </div>
-            ) : (
-              <div className="flex items-start gap-2.5 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
-                <Info className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Female-only matching</span> is
-                  available on profiles where gender is set to female. Update your gender under{' '}
-                  <span className="font-semibold">My Profile → Edit Profile</span> to unlock this option.
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg">
-              <div>
-                <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Private Profile Browsing</span>
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Only reveal your full trip dates to travellers after a mutual match.
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={settings.anonymousMode}
-                onChange={(e) => updateSetting('anonymousMode', e.target.checked)}
-                className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900 cursor-pointer"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* 6. Notifications & Sound */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -430,17 +278,6 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
           </div>
 
           <div className="space-y-3 text-xs">
-            <label className="flex items-center justify-between p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
-              <span className="text-slate-700 dark:text-slate-300 font-medium">
-                Play sound for incoming companion messages
-              </span>
-              <input
-                type="checkbox"
-                checked={settings.chatSounds}
-                onChange={(e) => updateSetting('chatSounds', e.target.checked)}
-                className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900 cursor-pointer"
-              />
-            </label>
 
             <label className="flex items-center justify-between p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
               <span className="text-slate-700 dark:text-slate-300 font-medium">

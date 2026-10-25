@@ -12,9 +12,11 @@ import {
   TRAVEL_MODE_LINE,
   type TravelMode
 } from '../utils/placeGeo';
-import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext } from '../utils/geocode';
+import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, iso2ForCountry } from '../utils/geocode';
 import { haversineKm } from '../utils/units';
 import { getTranslation, tv } from '../utils/i18n';
+import { COUNTRY_INFO_NAMES } from '../utils/countryInfo';
+import COUNTRIES_GEO from '../data/countriesGeo';
 
 export interface RouteStop {
   label: string;
@@ -127,6 +129,100 @@ const arcMidpoint = (a: [number, number], b: [number, number]): [number, number]
   const cx = mx - (b[1] - a[1]) * 0.22;
   const cy = my + (b[0] - a[0]) * 0.22;
   return [0.25 * a[0] + 0.5 * cx + 0.25 * b[0], 0.25 * a[1] + 0.5 * cy + 0.25 * b[1]];
+};
+
+/* ── Ocean-crossing legs become ferries automatically ────────────────────────
+   The Natural-Earth land polygons let us test whether the straight line
+   between two stops crosses open water: sample the great-circle midpoint
+   plus quarter points; when the majority fall outside every land polygon,
+   the leg almost certainly spans an ocean strait — so it rides a ferry. */
+let landFeatures: { minLat: number; maxLat: number; minLng: number; maxLng: number; polys: number[][][] }[] | null = null;
+
+const normKey = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const GEO_NAME_FIX: Record<string, string> = {
+  'united states': 'united states of america',
+  'tanzania': 'united republic of tanzania',
+  'czechia': 'czech republic',
+  'czech republic': 'czech republic',
+  'ivory coast': "cote d'ivoire",
+  "cote d'ivoire": "cote d'ivoire",
+  'serbia': 'republic of serbia',
+  'vietnam': 'vietnam',
+  'south korea': 'republic of korea',
+  'north korea': "democratic people's republic of korea",
+  'bolivia': 'bolivia',
+  'venezuela': 'venezuela',
+  'iran': 'iran',
+  'russia': 'russia',
+  'syria': 'syrian arab republic',
+  'laos': "lao people's democratic republic",
+  'moldova': 'moldova',
+  'ukraine': 'ukraine',
+  'brunei': 'brunei',
+  'cape verde': 'cape verde',
+  'east timor': 'east timor',
+  'eswatini': 'swaziland',
+  'the bahamas': 'the bahamas',
+  'bahamas': 'the bahamas',
+  'gambia': 'gambia',
+  'micronesia': 'federated states of micronesia'
+};
+
+const loadLandFeatures = () => {
+  if (landFeatures) return landFeatures;
+  const wanted = new Set(COUNTRY_INFO_NAMES.map((n) => GEO_NAME_FIX[normKey(n)] || normKey(n)));
+  landFeatures = (COUNTRIES_GEO as any).features
+    .filter((f: any) => wanted.has(normKey(f?.properties?.name || '')))
+    .map((f: any) => {
+      const polys: number[][][] =
+        f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates : [];
+      let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+      polys.forEach((ring) =>
+        ring[0].forEach(([lng, lat]: number[]) => {
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+        })
+      );
+      return { minLat, maxLat, minLng, maxLng, polys };
+    })
+    .filter((f: { polys: number[][][] }) => f.polys.length > 0);
+  return landFeatures!;
+};
+
+const pointInRing = (lat: number, lng: number, ring: number[][]) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+};
+
+const pointOnLand = (lat: number, lng: number): boolean => {
+  for (const f of loadLandFeatures()) {
+    if (lat < f.minLat || lat > f.maxLat || lng < f.minLng || lng > f.maxLng) continue;
+    for (const poly of f.polys) {
+      if (pointInRing(lat, lng, poly[0])) return true;
+    }
+  }
+  return false;
+};
+
+/** True when the direct leg crosses open water → travel it as a ferry. */
+const crossesOcean = (a: [number, number], b: [number, number]): boolean => {
+  const N = 9;
+  let water = 0;
+  for (let i = 1; i < N; i++) {
+    const t = i / N;
+    const lat = a[0] + (b[0] - a[0]) * t;
+    const lng = a[1] + (b[1] - a[1]) * t;
+    if (!pointOnLand(lat, lng)) water++;
+  }
+  return water >= 6; // mostly water — an ocean strait, not a coastal road
 };
 
 /** Road-following geometry for land legs, fetched from the public OSRM demo
@@ -296,13 +392,18 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination, itinerary.country, geoVer]);
 
-  /** Mode for a leg: the traveller's saved choice, else airport⇄airport flies, else a distance-based guess. */
+  /** Mode for a leg: the traveller's saved choice, else ocean-crossing ferry,
+      else airport⇄airport flies, else a distance-based guess. */
   const modeForLeg = (day: ItineraryDay, from: RouteStop, to: RouteStop): { mode: TravelMode; km: number } => {
     const km = haversineKm(from.lat, from.lng, to.lat, to.lng);
     const saved = day.legModes?.[legKey(from, to)] as TravelMode | undefined;
     if (saved && LEG_MODES.some((m) => m.mode === saved)) return { mode: saved, km };
     if (isAirportLeg(from.label, to.label)) return { mode: 'flight', km };
-    return { mode: estimateLeg(km).mode, km };
+    const guessed = estimateLeg(km).mode;
+    if (guessed !== 'flight' && km > 25 && crossesOcean([from.lat, from.lng], [to.lat, to.lng])) {
+      return { mode: 'ferry', km };
+    }
+    return { mode: guessed, km };
   };
 
   const chooseMode = (leg: PickedLeg, mode: TravelMode) => {

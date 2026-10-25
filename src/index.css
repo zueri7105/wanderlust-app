@@ -73,6 +73,37 @@ html:not(.dark) .wl-onboard-backdrop .bg-rose-500\/10 {
   background: rgba(244, 114, 182, 0.16) !important;
 }
 
+/* Daybreak: the passport cover page becomes a crisp sky document — the
+   constellation, globe watermark and dotted flight path stay, just drawn in
+   deep indigo on a bright gradient so they read in the light theme too. */
+html:not(.dark) .wl-passport-cover {
+  background: linear-gradient(160deg, #ffffff 0%, #eef5ff 55%, #e2eeff 100%) !important;
+  border: 1px solid #d3e2f5 !important;
+  color: #1e3a5f !important;
+}
+html:not(.dark) .wl-passport-cover .text-white { color: #16345c !important; }
+html:not(.dark) .wl-passport-cover .text-stone-400 { color: #5b7ba6 !important; }
+html:not(.dark) .wl-passport-cover .text-stone-200 { color: #47678f !important; }
+html:not(.dark) .wl-passport-cover .text-stone-300 { color: #5b7ba6 !important; }
+html:not(.dark) .wl-passport-cover .text-stone-500 { color: #6b8ab3 !important; }
+html:not(.dark) .wl-passport-cover .text-violet-300 { color: #5b4bc4 !important; }
+html:not(.dark) .wl-passport-cover .text-violet-300\/50,
+html:not(.dark) .wl-passport-cover .text-violet-300\/60,
+html:not(.dark) .wl-passport-cover .text-violet-300\/70,
+html:not(.dark) .wl-passport-cover .text-violet-300\/80 { color: rgba(91, 75, 196, 0.62) !important; }
+html:not(.dark) .wl-passport-cover .text-violet-200\/10 { color: rgba(91, 75, 196, 0.12) !important; }
+html:not(.dark) .wl-passport-cover .bg-violet-300 { background-color: #c4b5fd !important; }
+html:not(.dark) .wl-passport-cover .border-violet-300\/70 { border-color: rgba(139, 122, 230, 0.75) !important; }
+html:not(.dark) .wl-passport-cover .from-violet-300 { --tw-gradient-from: #c4b5fd !important; }
+html:not(.dark) .wl-passport-cover .via-violet-400 { --tw-gradient-via-stops: #a78bfa !important; }
+html:not(.dark) .wl-passport-cover .to-emerald-400 { --tw-gradient-to: #34d399 !important; }
+html:not(.dark) .wl-passport-cover [stroke="rgba(196,181,253,0.4)"] { stroke: rgba(91, 75, 196, 0.5) !important; }
+
+/* Passport spine: hug the page edge on both sides — the page carries an
+   8px left margin for the binding, so the spine sits inset the same amount
+   and follows the page's rounded corners. */
+.wl-book > .absolute.inset-y-3.left-0 { left: 8px; border-radius: 1.4rem 0 0 1.4rem !important; }
+
 .leaflet-container { background: #dbeafe; }
 /* maps join the night sky in galaxy mode */
 html.dark .leaflet-container { background: #0b0620; }

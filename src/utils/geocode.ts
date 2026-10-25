@@ -365,6 +365,14 @@ export const geoForTask = (task: string, context = ''): PlaceGeo | null => {
   // the trip's country so same-name cities can't cross borders.
   const world = lookupWorldGeoSync(cleanPlaceQuery(task), iso2FromContext(context));
   if (world) return { lat: world.lat, lng: world.lng, name: world.name };
+  // Unconstrained worldwide retry: an activity may be anywhere on Earth
+  // ("Pemba, Mozambique" on a Comoros trip). Only accept the retry when the
+  // task itself names a country/region — a bare same-name city must stay
+  // anchored so "Paris" on a France trip never jumps to Texas.
+  const worldWide = lookupWorldGeoSync(task) || lookupWorldGeoSync(cleanPlaceQuery(task));
+  if (worldWide && /,/.test(task)) {
+    return { lat: worldWide.lat, lng: worldWide.lng, name: worldWide.name };
+  }
   const hit = loadCache()[cacheKey(task, context)];
   if (hit && !hit.fail && hit.lat != null && hit.lng != null) {
     return { lat: hit.lat, lng: hit.lng, name: hit.name || task };
