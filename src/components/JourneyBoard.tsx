@@ -440,35 +440,50 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   const [editDraft, setEditDraft] = useState<{
     dayNumber: number;
     title: string;
-    items: Array<{ name: string; detail: string }>;
+    items: Array<{
+      name: string;
+      detail: string;
+      slot: (typeof SLOT_KEYS)[number]['key'];
+    }>;
   } | null>(null);
 
   const beginEditDay = (d: ItineraryDay) => {
+    // Keep each activity's Morning / Afternoon / Evening slot so the slot
+    // headings survive an edit instead of collapsing into one list.
     const items = stopsOf(d, geoContext).map((s) => ({
       name: s.label,
-      detail: d.stopDetails?.[s.label] ?? ''
+      detail: d.stopDetails?.[s.label] ?? '',
+      slot: s.slotKey
     }));
     setEditingDay(d.dayNumber);
     setEditDraft({
       dayNumber: d.dayNumber,
       title: d.title,
-      items: items.length > 0 ? items : [{ name: '', detail: '' }]
+      items: items.length > 0 ? items : [{ name: '', detail: '', slot: 'morningActivity' }]
     });
   };
 
   const commitEditDraft = () => {
     if (!editDraft) return;
-    const names = editDraft.items.map((i) => i.name.trim()).filter(Boolean);
     const details: Record<string, string> = {};
+    // Write each activity back to the slot it came from — morning,
+    // afternoon and evening headings all stay intact after the edit.
+    const bySlot: Record<string, string[]> = {
+      morningActivity: [],
+      afternoonActivity: [],
+      eveningActivity: []
+    };
     editDraft.items.forEach((i) => {
       const n = i.name.trim();
-      if (n && i.detail.trim()) details[n] = i.detail.trim();
+      if (!n) return;
+      bySlot[i.slot].push(n);
+      if (i.detail.trim()) details[n] = i.detail.trim();
     });
     updateDay(editDraft.dayNumber, {
       title: editDraft.title,
-      morningActivity: names.join('\n'),
-      afternoonActivity: '',
-      eveningActivity: '',
+      morningActivity: bySlot.morningActivity.join('\n'),
+      afternoonActivity: bySlot.afternoonActivity.join('\n'),
+      eveningActivity: bySlot.eveningActivity.join('\n'),
       stopDetails: details
     });
     setEditingDay(null);
@@ -1159,6 +1174,29 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                     placeholder={getTranslation('jdNamePh')}
                                     className="flex-1 min-w-0 py-1 bg-transparent border-b border-transparent focus:border-violet-400 text-xs font-semibold text-stone-900 dark:text-stone-50 placeholder:text-stone-400 focus:outline-none transition-colors"
                                   />
+                                  {/* Slot picker — keeps Morning / Afternoon / Evening
+                                      headings meaningful after the edit */}
+                                  <select
+                                    value={it.slot}
+                                    onChange={(e) =>
+                                      setEditDraft({
+                                        ...editDraft,
+                                        items: editDraft.items.map((x, j) =>
+                                          j === itemIdx
+                                            ? { ...x, slot: e.target.value as typeof it.slot }
+                                            : x
+                                        )
+                                      })
+                                    }
+                                    className="shrink-0 text-[10px] font-bold uppercase tracking-wide bg-stone-100 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 text-stone-500 dark:text-stone-400 rounded-lg px-1.5 py-1 cursor-pointer focus:outline-none"
+                                    aria-label="Time of day"
+                                  >
+                                    {SLOT_KEYS.map(({ key, labelKey }) => (
+                                      <option key={key} value={key}>
+                                        {getTranslation(labelKey)}
+                                      </option>
+                                    ))}
+                                  </select>
                                   {editDraft.items.length > 1 && (
                                     <button
                                       type="button"
@@ -1196,7 +1234,17 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                               onClick={() =>
                                 setEditDraft({
                                   ...editDraft,
-                                  items: [...editDraft.items, { name: '', detail: '' }]
+                                  items: [
+                                    ...editDraft.items,
+                                    {
+                                      name: '',
+                                      detail: '',
+                                      // a new activity joins the same slot as the one above it
+                                      slot:
+                                        editDraft.items[editDraft.items.length - 1]?.slot ??
+                                        'morningActivity'
+                                    }
+                                  ]
                                 })
                               }
                               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-stone-500 dark:text-stone-400 bg-white dark:bg-slate-900 border border-dashed border-stone-300 dark:border-stone-600 rounded-xl hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-300 dark:hover:border-violet-700 transition-colors cursor-pointer"

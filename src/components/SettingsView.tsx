@@ -34,7 +34,7 @@ const LANGUAGES = [
   { code: 'cs', name: 'Czech', native: 'Čeština', flag: '🇨🇿' },
   { code: 'da', name: 'Danish', native: 'Dansk', flag: '🇩🇰' },
   { code: 'nl', name: 'Dutch', native: 'Nederlands', flag: '🇳🇱' },
-  { code: 'en', name: 'English', native: 'English', flag: '🇺🇸' },
+  { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
   { code: 'fi', name: 'Finnish', native: 'Suomi', flag: '🇫🇮' },
   { code: 'fr', name: 'French', native: 'Français', flag: '🇫🇷' },
   { code: 'de', name: 'German', native: 'Deutsch', flag: '🇩🇪' },
@@ -69,6 +69,12 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
     return DEFAULT_SETTINGS;
   });
 
+  // Opening Settings should always start at the top of the page, not wherever
+  // the previous screen had scrolled to.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const [savedNotice, setSavedNotice] = useState(false);
   const [langPickerOpen, setLangPickerOpen] = useState(false);
   const currentLangMeta = LANGUAGES.find((l) => l.code === settings.language) || LANGUAGES[0];
@@ -92,7 +98,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
   };
 
   const handleResetData = () => {
-    if (window.confirm('Reset local demo changes and restore initial sample data?')) {
+    if (window.confirm(getTranslation('setResetConfirm'))) {
       localStorage.clear();
       window.location.reload();
     }
@@ -110,12 +116,12 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer mb-3"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Profile</span>
+              <span>{getTranslation('setBackToProfile')}</span>
             </button>
           )}
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400 mb-2">
             <Sliders className="w-3.5 h-3.5" />
-            <span>Preferences</span>
+            <span>{getTranslation('setPreferences')}</span>
           </div>
           <h2 className="font-display text-2xl font-bold text-slate-950 dark:text-slate-50 tracking-tight">
             {getTranslation('settingsTitle')}
@@ -128,7 +134,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
         {savedNotice && (
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-semibold animate-in fade-in">
             <Check className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Preferences Saved</span>
+            <span>{getTranslation('setSaved')}</span>
           </div>
         )}
       </div>
@@ -145,7 +151,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
                 {getTranslation('themeLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Daybreak: bright sky-blue for daytime exploring. Galaxy: deep-space violet for late-night planning.
+                {getTranslation('setThemeSub')}
               </p>
             </div>
           </div>
@@ -161,10 +167,10 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               }`}
             >
               <Sun className="w-5 h-5 text-amber-500" />
-              <span>Daybreak</span>
+              <span>{getTranslation('setDaybreak')}</span>
               {settings.theme === 'light' && (
                 <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-medium">
-                  Active
+                  {getTranslation('setActive')}
                 </span>
               )}
             </button>
@@ -179,10 +185,10 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               }`}
             >
               <Moon className="w-5 h-5 text-indigo-400" />
-              <span>Galaxy</span>
+              <span>{getTranslation('setGalaxy')}</span>
               {settings.theme === 'dark' && (
                 <span className="text-[10px] px-2 py-0.5 bg-indigo-900/60 text-indigo-200 border border-indigo-700 rounded font-medium">
-                  Active
+                  {getTranslation('setActive')}
                 </span>
               )}
             </button>
@@ -200,7 +206,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
                 {getTranslation('languageLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Pick the language for menus, guides and messages.
+                {getTranslation('setLangSub')}
               </p>
             </div>
           </div>
@@ -221,7 +227,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               </span>
             </span>
             <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 shrink-0">
-              Change
+              {getTranslation('setChange')}
               <ChevronRight className="w-3.5 h-3.5" />
             </span>
           </button>
@@ -236,13 +242,13 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
                 <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                  Choose your language
+                  {getTranslation('setChooseLang')}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setLangPickerOpen(false)}
                   className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center cursor-pointer text-slate-500"
-                  aria-label="Close language picker"
+                  aria-label={getTranslation('setChooseLang')}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -293,7 +299,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
                 {getTranslation('unitsLabel')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Distances, hiking trail lengths, and weather temperatures.
+                {getTranslation('setUnitsSub')}
               </p>
             </div>
           </div>
@@ -308,7 +314,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
                   : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}
             >
-              Metric (°C, km, kg)
+              {getTranslation('setMetric')}
             </button>
             <button
               type="button"
@@ -319,7 +325,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
                   : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}
             >
-              Imperial (°F, miles, lbs)
+              {getTranslation('setImperial')}
             </button>
           </div>
         </div>
@@ -332,10 +338,10 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
             </div>
             <div>
               <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                Alerts & Sound
+                {getTranslation('setAlertsTitle')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Sound effects and companion chat notifications.
+                {getTranslation('setAlertsSub')}
               </p>
             </div>
           </div>
@@ -344,7 +350,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
 
             <label className="flex items-center justify-between p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
               <span className="text-slate-700 dark:text-slate-300 font-medium">
-                Morning daily itinerary schedule notifications
+                {getTranslation('setMorningNotif')}
               </span>
               <input
                 type="checkbox"
@@ -364,10 +370,10 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
             </div>
             <div>
               <h3 className="font-display font-bold text-sm text-slate-950 dark:text-slate-50">
-                Emergency GPS Refresh Interval
+                {getTranslation('setEmergencyTitle')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                How often your live location refreshes while you are out exploring solo.
+                {getTranslation('setEmergencySub')}
               </p>
             </div>
           </div>
@@ -384,7 +390,13 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
                     : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
                 }`}
               >
-                {interval === 'off' ? 'Manual Only' : `Every ${interval.replace('min', ' Minutes').replace('hour', ' Hour')}`}
+                {interval === 'off'
+                  ? getTranslation('setManualOnly')
+                  : interval === '15min'
+                    ? getTranslation('setEvery15')
+                    : interval === '30min'
+                      ? getTranslation('setEvery30')
+                      : getTranslation('setEvery60')}
               </button>
             ))}
           </div>
@@ -394,7 +406,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
       {/* Demo Data Management */}
       <div className="pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
         <div>
-          <span className="font-semibold text-slate-900 dark:text-slate-100">WanderLust v2.4</span> · Premium Itinerary Planner
+          <span className="font-semibold text-slate-900 dark:text-slate-100">WanderLust v2.4</span> · {getTranslation('setVersionLine')}
         </div>
         <button
           type="button"
@@ -402,7 +414,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-red-600 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-red-200 transition-colors cursor-pointer self-start sm:self-auto"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          <span>Reset Sample Demo Data</span>
+          <span>{getTranslation('setResetData')}</span>
         </button>
       </div>
     </div>

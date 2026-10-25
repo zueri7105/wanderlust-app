@@ -831,7 +831,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     if (v && new Date(v) >= new Date(start)) setQuickDays(diffDays(start, v));
   };
   const changeDays = (n: number) => {
-    const days = Math.min(14, Math.max(1, n));
+    // Long trips welcome — the only floor is 1 day (no artificial maximum).
+    const days = Math.max(1, Math.min(365, n));
     setQuickDays(days);
     const start = quickStart || defaultStartIso();
     setQuickEnd(addDaysIso(start, days - 1));
@@ -849,7 +850,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     if (!raw || isGeneratingGuide) return;
     const m = raw.match(/^(.+?)\s*(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
     const destination = (m ? m[1] : raw).replace(/^想去\s*/, '').trim() || raw;
-    const dayCount = Math.min(14, Math.max(1, quickDays || (m ? Number(m[2]) : 3) || 3));
+    const dayCount = Math.max(1, Math.min(365, quickDays || (m ? Number(m[2]) : 3) || 3));
     const iso = isoOf;
     const startIso = quickStart || defaultStartIso();
     const endIso = quickEnd && new Date(quickEnd) >= new Date(startIso)
@@ -927,10 +928,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           ref={createBoxRef}
           className="max-w-2xl overflow-hidden bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl shadow-sm"
         >
-          {/* Designed header: gradient icon tile + title + hint */}
-          <div className="relative flex items-center gap-3.5 px-5 sm:px-6 pt-5 pb-4 bg-gradient-to-r from-violet-500/10 via-indigo-500/5 to-transparent dark:from-violet-400/10 dark:via-indigo-400/5 border-b border-stone-100 dark:border-stone-800">
-            <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-violet-500/10 dark:bg-violet-400/10 blur-2xl pointer-events-none" />
-            <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white flex items-center justify-center shadow-md shrink-0">
+          {/* Designed header: gradient icon tile + title + hint.
+              Sky-blue in Daybreak, violet in Galaxy. */}
+          <div className="relative flex items-center gap-3.5 px-5 sm:px-6 pt-5 pb-4 bg-gradient-to-r from-sky-500/10 via-blue-500/5 to-transparent dark:from-violet-400/10 dark:via-indigo-400/5 border-b border-stone-100 dark:border-stone-800">
+            <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-sky-500/10 dark:bg-violet-400/10 blur-2xl pointer-events-none" />
+            <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 dark:from-violet-500 dark:to-indigo-600 text-white flex items-center justify-center shadow-md shrink-0">
               <MapPin className="w-5 h-5" />
             </div>
             <div className="relative min-w-0">
@@ -979,30 +981,36 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           </div>
 
           {/* When: twin date boxes — identical markup so both render the same
-              format, and min-w-0 lets them shrink on phone widths */}
+              format. Each cell clips its own input (overflow-hidden + min-w-0)
+              so the boxes can never spill over each other on any phone
+              browser, whatever intrinsic width its date control has. */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5 min-w-0">
+            <div className="space-y-1.5 min-w-0 overflow-hidden">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 {getTranslation('fromDate')}
               </label>
-              <input
-                type="date"
-                value={quickStart}
-                onChange={(e) => changeStart(e.target.value)}
-                className="w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
-              />
+              <div className="overflow-hidden rounded-2xl">
+                <input
+                  type="date"
+                  value={quickStart}
+                  onChange={(e) => changeStart(e.target.value)}
+                  className="block w-full max-w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5 min-w-0">
+            <div className="space-y-1.5 min-w-0 overflow-hidden">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 {getTranslation('toDate')}
               </label>
-              <input
-                type="date"
-                value={quickEnd}
-                min={quickStart || undefined}
-                onChange={(e) => changeEnd(e.target.value)}
-                className="w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
-              />
+              <div className="overflow-hidden rounded-2xl">
+                <input
+                  type="date"
+                  value={quickEnd}
+                  min={quickStart || undefined}
+                  onChange={(e) => changeEnd(e.target.value)}
+                  className="block w-full max-w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
+                />
+              </div>
             </div>
           </div>
 
@@ -1025,7 +1033,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   type="number"
                   inputMode="numeric"
                   min={1}
-                  max={14}
+                  max={365}
                   aria-label={getTranslation('howLongLabel')}
                   value={daysDraft ?? String(quickDays)}
                   onChange={(e) => {
@@ -1686,9 +1694,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   />
                   <div className="space-y-3">
                     {editTripDays.map((d, idx) => {
-                      const planText = [d.morningActivity, d.afternoonActivity, d.eveningActivity]
-                        .filter((s) => (s || '').trim())
-                        .join('\n');
+                      // Three slot boxes per day — Morning / Afternoon / Evening
+                      // stay separate so the headings survive the edit.
+                      const slotRows: Array<{
+                        key: 'morningActivity' | 'afternoonActivity' | 'eveningActivity';
+                        label: string;
+                      }> = [
+                        { key: 'morningActivity', label: getTranslation('slotMorning') },
+                        { key: 'afternoonActivity', label: getTranslation('slotAfternoon') },
+                        { key: 'eveningActivity', label: getTranslation('slotEvening') }
+                      ];
                       return (
                         <div key={idx} className="relative pl-11">
                           <span
@@ -1722,17 +1737,20 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                                 </button>
                               )}
                             </div>
-                            <textarea
-                              rows={Math.max(3, planText.split('\n').length)}
-                              value={planText}
-                              onChange={(e) => {
-                                handleUpdateEditDay(idx, 'morningActivity', e.target.value);
-                                handleUpdateEditDay(idx, 'afternoonActivity', '');
-                                handleUpdateEditDay(idx, 'eveningActivity', '');
-                              }}
-                              placeholder={getTranslation('activityPh')}
-                              className="w-full mt-1.5 py-1 bg-transparent border-t border-dashed border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 leading-relaxed focus:outline-none resize-none"
-                            />
+                            {slotRows.map(({ key, label }, slotIdx) => (
+                              <div key={key} className={slotIdx === 0 ? 'mt-1.5' : 'mt-1'}>
+                                <div className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                                  {label}
+                                </div>
+                                <textarea
+                                  rows={Math.max(1, (d[key] || '').split('\n').length)}
+                                  value={d[key]}
+                                  onChange={(e) => handleUpdateEditDay(idx, key, e.target.value)}
+                                  placeholder={getTranslation('activityPh')}
+                                  className="w-full py-1 bg-transparent border-t border-dashed border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 leading-relaxed focus:outline-none resize-none"
+                                />
+                              </div>
+                            ))}
                           </div>
                         </div>
                       );

@@ -465,8 +465,9 @@ export const PassportView: React.FC<PassportViewProps> = ({
         {/* page stack — the turning page's absolute top/bottom:0 anchors to
             this inner box so it always matches the page underneath exactly,
             never the controls row below. The binding spine lives in here too,
-            so it hugs the page edge precisely instead of the whole book. */}
-        <div className="relative">
+            so it hugs the page edge precisely instead of the whole book.
+            wl-book-stack scopes the 3D perspective to the pages only. */}
+        <div className="relative wl-book-stack">
         {/* binding spine with stitching */}
         <div className="wl-spine absolute inset-y-3 left-0 w-2.5 rounded-l-[2rem] bg-gradient-to-b from-violet-950 via-stone-950 to-violet-950 dark:from-black dark:via-violet-950 dark:to-black z-20" aria-hidden>
           <div className="absolute inset-y-4 left-1/2 -translate-x-1/2 border-l-2 border-dotted border-violet-300/40" />

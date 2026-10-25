@@ -545,7 +545,11 @@ html.dark .wl-timeline-line-dream {
    space, so the swing stays perfectly registered over the spine — without
    it the two pages composite on slightly different planes and the turn
    looks misaligned. */
-.wl-book { perspective: 2200px; perspective-origin: 50% 50%; transform-style: preserve-3d; }
+/* The 3D perspective context lives ONLY on the page-stack wrapper, never on
+   .wl-book itself: keeping the controls row (a sibling of the stack) out of a
+   preserve-3d context stops iOS Safari from leaving a composited ghost of the
+   flipped page painted over the Previous / Next buttons after a turn. */
+.wl-book-stack { perspective: 2200px; perspective-origin: 50% 50%; transform-style: preserve-3d; }
 /* Book-style turning: the page you ARE on moves — swinging away over the
    LEFT spine like a real page turn — while the page underneath stays still.
    Hinged on the left. */
