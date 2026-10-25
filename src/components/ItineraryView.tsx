@@ -8,7 +8,6 @@ import {
   Users,
   Compass,
   Plus,
-  BookOpen,
   ArrowRight,
   ShieldCheck,
   Clock,
@@ -795,25 +794,67 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     return { days, nights };
   };
 
-  /* ── Pi-Travel creation hub ────────────────────────────────────────────── */
-  const [createTab, setCreateTab] = useState<'quick' | 'parse'>('quick');
+  /* ── Trip creation hub: one big box — search the destination, name the
+      trip, pick dates and duration, then land straight in the day planner. ── */
   const [quickText, setQuickText] = useState('');
-  // Optional trip card name on the question page — unnamed trips default to "Trip N".
+  // Optional trip card name — unnamed trips default to "Untitled trip".
   const [quickName, setQuickName] = useState('');
-  const [parseText, setParseText] = useState('');
+  const [quickStart, setQuickStart] = useState('');
+  const [quickEnd, setQuickEnd] = useState('');
+  const [quickDays, setQuickDays] = useState(3);
+  const createBoxRef = useRef<HTMLDivElement | null>(null);
 
-  /** Quick create: "Japan 5 days" → draft itinerary skeleton, then refine in Edit Trip. */
+  const isoOf = (d: Date) => d.toISOString().slice(0, 10);
+  const addDaysIso = (iso: string, n: number) => {
+    const d = new Date(`${iso}T12:00:00`);
+    d.setDate(d.getDate() + n);
+    return isoOf(d);
+  };
+  const defaultStartIso = () => {
+    const s = new Date();
+    s.setDate(s.getDate() + 14);
+    return isoOf(s);
+  };
+  const diffDays = (a: string, b: string) =>
+    Math.round((new Date(`${b}T12:00:00`).getTime() - new Date(`${a}T12:00:00`).getTime()) / 86400000) + 1;
+
+  const changeStart = (v: string) => {
+    setQuickStart(v);
+    if (!v) return;
+    setQuickEnd((prev) => addDaysIso(v, quickDays - 1));
+  };
+  const changeEnd = (v: string) => {
+    setQuickEnd(v);
+    const start = quickStart || defaultStartIso();
+    if (v && new Date(v) >= new Date(start)) setQuickDays(diffDays(start, v));
+  };
+  const changeDays = (n: number) => {
+    const days = Math.min(14, Math.max(1, n));
+    setQuickDays(days);
+    const start = quickStart || defaultStartIso();
+    setQuickEnd(addDaysIso(start, days - 1));
+  };
+  const focusCreateBox = () => {
+    createBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const input = createBoxRef.current?.querySelector('input');
+    window.setTimeout(() => (input as HTMLInputElement | null)?.focus(), 350);
+  };
+
+  /** Big create box: destination + name + dates + duration → draft skeleton,
+      auto-planned route, then refine in Edit Trip. */
   const handleQuickCreate = async () => {
     const raw = quickText.trim();
     if (!raw || isGeneratingGuide) return;
     const m = raw.match(/^(.+?)\s*(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
     const destination = (m ? m[1] : raw).replace(/^想去\s*/, '').trim() || raw;
-    const dayCount = m ? Math.min(14, Math.max(1, Number(m[2]))) : 3;
-    const start = new Date();
-    start.setDate(start.getDate() + 14);
-    const end = new Date(start);
-    end.setDate(end.getDate() + dayCount - 1);
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const dayCount = Math.min(14, Math.max(1, quickDays || (m ? Number(m[2]) : 3) || 3));
+    const iso = isoOf;
+    const startIso = quickStart || defaultStartIso();
+    const endIso = quickEnd && new Date(quickEnd) >= new Date(startIso)
+      ? quickEnd
+      : addDaysIso(startIso, dayCount - 1);
+    const start = new Date(`${startIso}T12:00:00`);
+    const end = new Date(`${endIso}T12:00:00`);
     // Auto-plan the route: real sights near the destination fill the day slots
     // so the route map has numbered stops & legs the moment the trip exists.
     const suggestions = suggestPlacesFor(destination, dayCount * 3);
@@ -854,113 +895,12 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     onAddItinerary(newItinerary);
     setQuickText('');
     setQuickName('');
+    setQuickStart('');
+    setQuickEnd('');
+    setQuickDays(3);
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
     setRouteMapOpenFor(newItinerary.id); // route map opens already planned
     handleOpenEditTrip(newItinerary);
-  };
-
-  /** "+ Add a new trip" — no form, no popup: create the trip instantly and
-      land straight on its route map & day-planning page. */
-  const handleInstantCreate = () => {
-    const quick = quickText.trim();
-    const start = new Date();
-    start.setDate(start.getDate() + 14);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 2);
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
-    const days: ItineraryDay[] = Array.from({ length: 3 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      return {
-        dayNumber: i + 1,
-        date: iso(d),
-        title: '',
-        morningActivity: '',
-        afternoonActivity: '',
-        eveningActivity: ''
-      };
-    });
-    const newItinerary: TravelItinerary = {
-      id: `itin_${Date.now()}`,
-      travelerId: currentUser.id,
-      name: nextTripName(),
-      destination: quick,
-      country: quick.includes(',') ? (quick.split(',').pop() || '').trim() : '',
-      startDate: iso(start),
-      endDate: iso(end),
-      companionPurpose: [],
-      notes: '',
-      days,
-      visibility: 'private'
-    };
-    onAddItinerary(newItinerary);
-    setQuickText('');
-    onOpenTripDetail?.(newItinerary);
-  };
-
-  /** Parse pasted guide text: named places fall into the Want-to-go pool of a draft trip. */
-  const handleParseImport = async () => {
-    const text = parseText.trim();
-    if (!text || isGeneratingGuide) return;
-    const dayCount = Math.max(2, Math.min(7, Math.round(text.length / 400) || 2));
-    const places: string[] = [];
-    const seen = new Set<string>();
-    text
-      .split(/[\n,，。;；、·•]+/)
-      .map((s) => s.trim())
-      .filter((s) => s.length >= 2 && s.length <= 60)
-      .forEach((s) => {
-        if (!findPlaceGeo(s) || seen.has(s.toLowerCase())) return;
-        seen.add(s.toLowerCase());
-        places.push(s);
-      });
-    const start = new Date();
-    start.setDate(start.getDate() + 14);
-    const end = new Date(start);
-    end.setDate(end.getDate() + dayCount - 1);
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
-    const firstPlace = places[0] ? findPlaceGeo(places[0])?.name || '' : '';
-    // Auto-plan the route: parsed places are spread across the days first,
-    // then curated sights near the destination top up any empty slots.
-    const suggestions = suggestPlacesFor(firstPlace || text.slice(0, 40), dayCount * 3)
-      .map((s) => s.name)
-      .filter((n) => !places.some((p) => p.toLowerCase().includes(n.toLowerCase())));
-    const planPool = [...places, ...suggestions];
-    const days: ItineraryDay[] = Array.from({ length: dayCount }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      const picks = planPool.slice(i * 3, i * 3 + 3);
-      return {
-        dayNumber: i + 1,
-        date: iso(d),
-        title: '',
-        morningActivity: picks[0] || '',
-        afternoonActivity: picks[1] || '',
-        eveningActivity: picks[2] || ''
-      };
-    });
-    const guide = buildBasicGuide(firstPlace || text.slice(0, 40), '', firstPlace, currentUser.country || '', iso(start), iso(end));
-    const newItinerary: TravelItinerary = {
-      id: `itin_${Date.now()}`,
-      travelerId: currentUser.id,
-      name: nextTripName(),
-      destination: firstPlace
-        ? firstPlace.replace(/\b\w/g, (c) => c.toUpperCase())
-        : getTranslation('untitledTrip'),
-      country: '',
-      startDate: iso(start),
-      endDate: iso(end),
-      companionPurpose: [],
-      notes: tv('parsedFromGuide', { n: places.length }),
-      days,
-      travelGuide: guide,
-      wishlist: places,
-      visibility: 'private'
-    };
-    onAddItinerary(newItinerary);
-    setParseText('');
-    setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
-    setRouteMapOpenFor(newItinerary.id); // route map opens already planned
   };
 
   return (
@@ -980,102 +920,114 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           </p>
         </div>
 
-        {/* Command-bar creation card */}
-        <div className="max-w-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl shadow-sm p-4 sm:p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <button
-              type="button"
-              onClick={() => setCreateTab('quick')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
-                createTab === 'quick'
-                  ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'
-                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{getTranslation('quickCreateTab')}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setCreateTab('parse')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer ${
-                createTab === 'parse'
-                  ? 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'
-                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{getTranslation('parseGuideTab')}</span>
-            </button>
+        {/* One-box trip creation: search where, name it, pick dates + duration */}
+        <div
+          ref={createBoxRef}
+          className="max-w-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-3xl shadow-sm p-5 sm:p-6 space-y-4"
+        >
+          <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
+            <Plus className="w-4 h-4" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
+              {getTranslation('planNewItinerary')}
+            </span>
           </div>
 
-          {createTab === 'quick' ? (
-            <div className="space-y-2.5">
-              <div className="flex gap-2">
-                <PlaceTypeahead
-                  value={quickText}
-                  onChange={setQuickText}
-                  onEnter={handleQuickCreate}
-                  onPick={(hit) => {
-                    // Keep any typed day count: "bucha 4 days" → "Bucharest, Romania 4 days"
-                    const m = quickText.match(/(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
-                    const days = m ? ` ${m[1]} days${m[2] ? ` ${m[2]} nights` : ''}` : '';
-                    const label = hit.kind === 'country' ? hit.name : `${hit.name}, ${hit.countryName}`;
-                    setQuickText(`${label}${days}`);
-                  }}
-                  placeholder={getTranslation('quickCreatePh')}
-                  className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
-                  wrapperClassName="flex-1 min-w-0"
-                />
-                <button
-                  type="button"
-                  onClick={handleQuickCreate}
-                  className="w-12 h-12 rounded-2xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
-                  title={getTranslation('createTripBtn')}
-                >
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-              {/* Optional trip card name — an unnamed trip card shows "Trip N". */}
+          {/* Where to? */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+              {getTranslation('whereLabel')}
+            </label>
+            <PlaceTypeahead
+              value={quickText}
+              onChange={setQuickText}
+              onEnter={handleQuickCreate}
+              onPick={(hit) => {
+                const label = hit.kind === 'country' ? hit.name : `${hit.name}, ${hit.countryName}`;
+                setQuickText(label);
+              }}
+              placeholder={getTranslation('whereToPh')}
+              className="w-full px-4 py-3.5 text-sm sm:text-base border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+              wrapperClassName="w-full"
+            />
+          </div>
+
+          {/* Trip name */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+              {getTranslation('tripNameLabel')}
+            </label>
+            <input
+              type="text"
+              value={quickName}
+              onChange={(e) => setQuickName(e.target.value)}
+              placeholder={getTranslation('tripNamePh')}
+              className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+            />
+          </div>
+
+          {/* When + how long */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+                {getTranslation('fromDate')}
+              </label>
               <input
-                type="text"
-                value={quickName}
-                onChange={(e) => setQuickName(e.target.value)}
-                placeholder="Trip name"
-                className="w-full px-4 py-2.5 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                type="date"
+                value={quickStart}
+                onChange={(e) => changeStart(e.target.value)}
+                className="w-full px-3.5 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
               />
             </div>
-          ) : (
-            <div className="space-y-2.5">
-              <textarea
-                value={parseText}
-                onChange={(e) => setParseText(e.target.value)}
-                rows={3}
-                placeholder={getTranslation('parseGuidePh')}
-                className="w-full px-4 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+                {getTranslation('toDate')}
+              </label>
+              <input
+                type="date"
+                value={quickEnd}
+                min={quickStart || undefined}
+                onChange={(e) => changeEnd(e.target.value)}
+                className="w-full px-3.5 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
               />
-              <div className="flex justify-end">
+            </div>
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+                {getTranslation('howLongLabel')}
+              </label>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleParseImport}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:scale-[1.03] transition-all cursor-pointer shadow-md"
+                  onClick={() => changeDays(quickDays - 1)}
+                  className="w-11 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-lg font-bold hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer shrink-0"
+                  aria-label="fewer days"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{getTranslation('parseGuideBtn')}</span>
+                  −
+                </button>
+                <div className="flex-1 h-11 px-2 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 flex items-center justify-center gap-1">
+                  <span className="text-base font-bold text-stone-900 dark:text-stone-100 tabular-nums">{quickDays}</span>
+                  <span className="text-xs text-stone-400">{getTranslation('daysWord')}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => changeDays(quickDays + 1)}
+                  className="w-11 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-lg font-bold hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer shrink-0"
+                  aria-label="more days"
+                >
+                  +
                 </button>
               </div>
             </div>
-          )}
-
-          <div className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 text-right">
-            <button
-              type="button"
-              onClick={handleInstantCreate}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl border border-dashed border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-500 dark:text-stone-400 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-400 dark:hover:border-violet-500 transition-colors cursor-pointer"
-            >
-              {getTranslation('manualCreateLink')}
-            </button>
           </div>
+
+          <button
+            type="button"
+            onClick={handleQuickCreate}
+            disabled={!quickText.trim() || isGeneratingGuide}
+            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 text-sm font-bold transition-all hover:brightness-110 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer shadow-md"
+          >
+            <ArrowRight className="w-4 h-4" />
+            <span>{getTranslation('createTripBtn')}</span>
+          </button>
         </div>
       </div>
 
@@ -1102,7 +1054,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             Create your first detailed itinerary box with multi-day morning, afternoon, and evening schedules.
           </p>
           <button
-            onClick={handleInstantCreate}
+            onClick={focusCreateBox}
             className="mt-4 inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />

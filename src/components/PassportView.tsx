@@ -462,15 +462,15 @@ export const PassportView: React.FC<PassportViewProps> = ({
     <div className="space-y-8">
       {/* ── The passport book ──────────────────────────────────────────── */}
       <div className="wl-book relative">
-        {/* binding spine with stitching */}
-        <div className="absolute inset-y-3 left-0 w-2.5 rounded-l-[2rem] bg-gradient-to-b from-violet-950 via-stone-950 to-violet-950 dark:from-black dark:via-violet-950 dark:to-black z-20" aria-hidden>
-          <div className="absolute inset-y-4 left-1/2 -translate-x-1/2 border-l-2 border-dotted border-violet-300/40" />
-        </div>
-
         {/* page stack — the turning page's absolute top/bottom:0 anchors to
             this inner box so it always matches the page underneath exactly,
-            never the controls row below */}
+            never the controls row below. The binding spine lives in here too,
+            so it hugs the page edge precisely instead of the whole book. */}
         <div className="relative">
+        {/* binding spine with stitching */}
+        <div className="wl-spine absolute inset-y-3 left-0 w-2.5 rounded-l-[2rem] bg-gradient-to-b from-violet-950 via-stone-950 to-violet-950 dark:from-black dark:via-violet-950 dark:to-black z-20" aria-hidden>
+          <div className="absolute inset-y-4 left-1/2 -translate-x-1/2 border-l-2 border-dotted border-violet-300/40" />
+        </div>
         {flip === null || targetPage === null ? (
           <BookPage p={page} />
         ) : flip === 'next' ? (
@@ -490,8 +490,9 @@ export const PassportView: React.FC<PassportViewProps> = ({
         )}
         </div>
 
-        {/* page-turn controls */}
-        <div className="mt-4 flex items-center justify-between gap-3">
+        {/* page-turn controls — clear air below the book so the buttons never
+            crowd (or get visually clipped by) the page above */}
+        <div className="mt-6 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => goTo(page - 1)}

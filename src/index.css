@@ -98,8 +98,9 @@ html:not(.dark) .wl-passport-cover [stroke="rgba(196,181,253,0.4)"] { stroke: rg
 
 /* Passport spine: hug the page edge on both sides — the page carries an
    8px left margin for the binding, so the spine sits inset the same amount
-   and follows the page's rounded corners. */
-.wl-book > .absolute.inset-y-3.left-0 { left: 8px; border-radius: 1.4rem 0 0 1.4rem !important; }
+   and follows the page's rounded corners. (Lives inside the page-stack
+   wrapper so it tracks the page, not the controls row.) */
+.wl-book .wl-spine { left: 8px; border-radius: 1.4rem 0 0 1.4rem !important; }
 
 .leaflet-container { background: #dbeafe; }
 /* maps join the night sky in galaxy mode */
