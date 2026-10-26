@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { X, Maximize2, Minimize2 } from 'lucide-react';
@@ -14,7 +14,7 @@ import {
   getLegRoute,
   onRouteResolved,
   routeDataVersion,
-  coachOperatorFor,
+  legOperatorFor,
   type TravelMode
 } from '../utils/placeGeo';
 import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, iso2ForCountry } from '../utils/geocode';
@@ -80,6 +80,9 @@ const LEG_MODES: Array<{ mode: TravelMode; glyph: string; labelKey: string }> = 
 ];
 
 const glyphFor = (mode: TravelMode) => LEG_MODES.find((m) => m.mode === mode)?.glyph || '🚶';
+
+const modeLabelFor = (mode: TravelMode) =>
+  getTranslation(LEG_MODES.find((m) => m.mode === mode)?.labelKey || '');
 
 /** Per-day outlines so light route colours (yellow) stay readable on the map's own roads. */
 const PIN_OUTLINES: Record<string, string> = {
@@ -539,17 +542,29 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                   const key = legKey(from, to);
                   return (
                     <React.Fragment key={`${day.dayNumber}_leg_${i}`}>
-                      {/* White under-stroke — separates the day's colour from the
-                          map's own roads so similar hues (yellow routes on yellow
-                          motorways) never blend together. */}
+                      {/* Dark casing — the visible "box outline" that separates
+                          the route from the map's own roads, then a white halo,
+                          then the day's colour. Yellow legs can never blend
+                          into yellow motorways again. */}
+                      <Polyline
+                        positions={positions}
+                        smoothFactor={positions.length > 2 ? 0 : 1}
+                        interactive={false}
+                        pathOptions={{
+                          color: '#0f172a',
+                          weight: (focused ? 4.5 : 3.5) + 9,
+                          opacity: 0.9,
+                          lineCap: 'round'
+                        }}
+                      />
                       <Polyline
                         positions={positions}
                         smoothFactor={positions.length > 2 ? 0 : 1}
                         interactive={false}
                         pathOptions={{
                           color: '#ffffff',
-                          weight: (focused ? 4.5 : 3.5) + 3.5,
-                          opacity: 0.85,
+                          weight: (focused ? 4.5 : 3.5) + 4,
+                          opacity: 0.95,
                           lineCap: 'round'
                         }}
                       />
@@ -577,16 +592,25 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                               toLabel: to.label,
                               km,
                               mode,
-                              operator:
-                                mode === 'bus'
-                                  ? coachOperatorFor(from.label, to.label)
-                                  : mode === 'train'
-                                  ? 'Rail'
-                                  : null,
+                              operator: legOperatorFor(mode, itinerary.country, from.label, to.label),
                               measuredKm: route?.km ?? null
                             })
                         }}
-                      />
+                      >
+                        {/* WHO runs this leg — always on the map, no tap needed.
+                            Real brand per country (ALSA, Greyhound, JR…) when
+                            known; falls back to the plain mode word. */}
+                        <Tooltip
+                          permanent
+                          direction="top"
+                          offset={[0, -16]}
+                          className="wl-leg-tip"
+                        >
+                          <span>
+                            {Math.round(km)} km · {legOperatorFor(mode, itinerary.country, from.label, to.label) ?? modeLabelFor(mode)}
+                          </span>
+                        </Tooltip>
+                      </Marker>
                     </React.Fragment>
                   );
                 })}

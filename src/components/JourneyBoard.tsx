@@ -634,7 +634,31 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     candidates: GeocodeCandidate[];
     best: GeocodeCandidate | null;
     searching: boolean;
-  }>({ label: '', q: '', candidates: [], best: null, searching: false });
+    open: boolean;
+  }>({ label: '', q: '', candidates: [], best: null, searching: false, open: false });
+  const pinSuggestTimer = useRef<number | null>(null);
+
+  /* Live suggestions for the PINPOINT box too — as the traveller types an
+     address / station / store, matches appear in a fixed scrollable box
+     (same behaviour as the activity-name field). */
+  const handlePinSuggest = (label: string, value: string) => {
+    if (pinSuggestTimer.current) window.clearTimeout(pinSuggestTimer.current);
+    const v = value.trim();
+    if (v.length < 3) {
+      setLocSuggest((s) => ({ ...s, label, q: v, candidates: [], best: null, searching: false, open: false }));
+      return;
+    }
+    setLocSuggest((s) => ({ ...s, label, q: v, searching: true }));
+    pinSuggestTimer.current = window.setTimeout(() => {
+      void searchPlaceSuggestions(v, geoContext, 6).then((items) => {
+        setLocSuggest((s) =>
+          s.label === label && s.q.trim() === v
+            ? { ...s, candidates: items, best: items[0] ?? null, searching: false, open: true }
+            : s
+        );
+      });
+    }, 320);
+  };
 
   /* ── Live place suggestions for the activity NAME fields ─────────────────
      While the traveller types a store / landmark / address, Photon &
@@ -718,7 +742,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     storeGeocode(label, geoContext, c.lat, c.lng);
     storeGeocode(pin, geoContext, c.lat, c.lng);
     updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: pin } });
-    setLocSuggest((s) => ({ ...s, candidates: [], best: null, searching: false }));
+    setLocSuggest((s) => ({ ...s, candidates: [], best: null, searching: false, open: false }));
   };
 
   const resolvePin = (d: ItineraryDay, label: string) => {
@@ -730,19 +754,19 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
       storeGeocode(label, geoContext, g.lat, g.lng);
       return;
     }
-    setLocSuggest((s) => ({ ...s, label, q: v, searching: true, candidates: [], best: null }));
+    setLocSuggest((s) => ({ ...s, label, q: v, searching: true, candidates: [], best: null, open: false }));
     void (async () => {
       const res = await geocodeAddress(v, geoContext);
       setLocSuggest((s) => {
-        if (s.label !== label || s.q !== v) return { ...s, searching: false };
+        if (s.label !== label || s.q !== v) return { ...s, searching: false, open: false };
         if (res && res !== 'miss' && res.best) {
           // Pin immediately at the best match — exact for addresses.
           applyPinQuiet(label, res.best);
-          return { ...s, searching: false, best: res.best, candidates: res.candidates.slice(1) };
+          return { ...s, searching: false, best: res.best, candidates: [], open: false };
         }
         // No building-level hit — fall back to the queued geocoder (city).
         requestGeocode(v, geoContext, isAddressQuery(v));
-        return { ...s, searching: false, candidates: [], best: null };
+        return { ...s, searching: false, candidates: [], best: null, open: false };
       });
     })();
   };
@@ -1570,10 +1594,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                           value={d.locationOverrides?.[stop.label] ?? ''}
                                           onChange={(e) => {
                                             setStopLocation(d, stop.label, e.target.value);
-                                            const v = e.target.value.trim();
-                                            if (locSuggest.label !== stop.label || locSuggest.q !== v) {
-                                              setLocSuggest((s) => ({ ...s, label: stop.label, q: v, candidates: [], best: null, searching: false }));
-                                            }
+                                            handlePinSuggest(stop.label, e.target.value);
                                           }}
                                           onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
@@ -1586,7 +1607,11 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                               }
                                             }
                                           }}
-                                          onBlur={() => resolvePin(d, stop.label)}
+                                          onBlur={() => {
+                                            // close shortly after blur so a tap on a row still lands
+                                            window.setTimeout(() => setLocSuggest((s) => ({ ...s, open: false })), 180);
+                                            resolvePin(d, stop.label);
+                                          }}
                                           placeholder={getTranslation('jdLocationPh')}
                                           className="flex-1 min-w-0 py-0.5 bg-transparent text-[10px] text-stone-600 dark:text-stone-300 placeholder:text-stone-400/70 dark:placeholder:text-stone-500 focus:outline-none border-b border-transparent focus:border-violet-400 transition-colors"
                                         />
@@ -1599,7 +1624,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                           </span>
                                         )}
                                       </div>
-                                      {locSuggest.label === stop.label && locSuggest.candidates.length > 0 && (
+                                      {locSuggest.label === stop.label && locSuggest.open && locSuggest.candidates.length > 0 && (
                                         <div className="absolute left-4 right-0 top-full mt-0.5 z-30 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
                                           <div className="max-h-44 overflow-y-auto overscroll-contain">
                                           {locSuggest.candidates.map((c, ci) => (

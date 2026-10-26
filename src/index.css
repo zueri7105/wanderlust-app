@@ -103,6 +103,22 @@ html:not(.dark) .wl-passport-cover [stroke="rgba(196,181,253,0.4)"] { stroke: rg
 .wl-book .wl-spine { left: 8px; border-radius: 1.4rem 0 0 1.4rem !important; }
 
 .leaflet-container { background: #dbeafe; }
+
+/* Permanent per-leg label: "67 km · ALSA" — pill that never touches the map tiles */
+.leaflet-tooltip.wl-leg-tip {
+  background: #0f172a;
+  color: #f8fafc;
+  border: 2px solid #ffffff;
+  border-radius: 9999px;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.45);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 3px 9px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.leaflet-tooltip.wl-leg-tip::before { display: none; }
 /* maps join the night sky in galaxy mode */
 html.dark .leaflet-container { background: #0b0620; }
 html.dark .leaflet-tile {

@@ -313,7 +313,7 @@ const geoCache = new Map<string, PlaceGeo | null>();
 
 /** Lowercase + strip diacritics so "zürich" matches "zurich". */
 const normText = (s: string): string =>
-  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 /**
  * Substring match that still respects word boundaries — "gion" must NOT light
@@ -551,6 +551,173 @@ const COACH_PATTERNS: Array<{ re: RegExp; operator: string }> = [
 export const coachOperatorFor = (fromLabel: string, toLabel: string): string | null => {
   const both = `${fromLabel} ${toLabel}`;
   for (const p of COACH_PATTERNS) if (p.re.test(both)) return p.operator;
+  return null;
+};
+
+/**
+ * Real intercity transport brands per country — coach AND rail — so the map
+ * can name WHO runs a leg, not just "bus". Countries with no confident
+ * national brand map to null (the UI then shows the plain mode word instead
+ * of inventing a name). Keys are lowercase country names.
+ */
+const COUNTRY_OPERATORS: Record<string, { coach: string | null; rail: string | null }> = {
+  // ── Europe
+  spain: { coach: 'ALSA', rail: 'Renfe' },
+  portugal: { coach: 'Rede Expressos', rail: 'CP' },
+  france: { coach: 'FlixBus', rail: 'SNCF' },
+  germany: { coach: 'FlixBus', rail: 'Deutsche Bahn' },
+  italy: { coach: 'FlixBus', rail: 'Trenitalia' },
+  'united kingdom': { coach: 'National Express', rail: 'National Rail' },
+  ireland: { coach: 'Bus Éireann', rail: 'Iarnród Éireann' },
+  netherlands: { coach: 'FlixBus', rail: 'NS' },
+  belgium: { coach: 'FlixBus', rail: 'SNCB' },
+  luxembourg: { coach: 'FlixBus', rail: 'CFL' },
+  switzerland: { coach: 'FlixBus', rail: 'SBB' },
+  austria: { coach: 'FlixBus', rail: 'ÖBB' },
+  poland: { coach: 'FlixBus', rail: 'PKP' },
+  'czech republic': { coach: 'RegioJet', rail: 'ČD' },
+  czechia: { coach: 'RegioJet', rail: 'ČD' },
+  slovakia: { coach: 'FlixBus', rail: 'ZSSK' },
+  hungary: { coach: 'FlixBus', rail: 'MÁV' },
+  romania: { coach: 'FlixBus', rail: 'CFR' },
+  bulgaria: { coach: 'Union Ivkoni', rail: 'BDZ' },
+  serbia: { coach: 'Lasta', rail: 'Srbija Voz' },
+  croatia: { coach: 'FlixBus', rail: 'HŽ' },
+  slovenia: { coach: 'FlixBus', rail: 'SŽ' },
+  'bosnia and herzegovina': { coach: 'Centrotrans', rail: 'ŽFBH' },
+  montenegro: { coach: null, rail: 'ŽCG' },
+  'north macedonia': { coach: null, rail: 'MŽ' },
+  albania: { coach: null, rail: 'HSH' },
+  greece: { coach: 'KTEL', rail: 'Hellenic Train' },
+  turkey: { coach: 'Metro Turizm', rail: 'TCDD' },
+  norway: { coach: 'NOR-WAY Bussekspress', rail: 'Vy' },
+  sweden: { coach: 'FlixBus', rail: 'SJ' },
+  denmark: { coach: 'FlixBus', rail: 'DSB' },
+  finland: { coach: 'Onnibus', rail: 'VR' },
+  lithuania: { coach: 'Kautra', rail: 'LTG' },
+  latvia: { coach: 'Lux Express', rail: 'Vivi' },
+  estonia: { coach: 'Lux Express', rail: 'Elron' },
+  iceland: { coach: 'Strætó', rail: null },
+  cyprus: { coach: 'Intercity Buses', rail: null },
+  malta: { coach: null, rail: null },
+  russia: { coach: null, rail: 'RZD' },
+  belarus: { coach: null, rail: 'BCh' },
+  ukraine: { coach: null, rail: 'Ukrzaliznytsia' },
+  moldova: { coach: null, rail: 'CFM' },
+  // ── Caucasus & Central Asia
+  georgia: { coach: null, rail: 'Georgian Railway' },
+  armenia: { coach: null, rail: 'South Caucasus Railway' },
+  azerbaijan: { coach: null, rail: 'ADY' },
+  kazakhstan: { coach: null, rail: 'KTZ' },
+  uzbekistan: { coach: null, rail: 'Uzbekistan Railways' },
+  // ── East & Southeast Asia
+  china: { coach: null, rail: 'China Railway' },
+  japan: { coach: 'JR Highway Bus', rail: 'JR' },
+  'south korea': { coach: null, rail: 'Korail' },
+  taiwan: { coach: null, rail: 'Taiwan Railway' },
+  mongolia: { coach: null, rail: null },
+  india: { coach: null, rail: 'Indian Railways' },
+  pakistan: { coach: 'Daewoo Express', rail: 'Pakistan Railways' },
+  bangladesh: { coach: 'Green Line', rail: 'Bangladesh Railway' },
+  'sri lanka': { coach: null, rail: 'Sri Lanka Railways' },
+  nepal: { coach: null, rail: null },
+  bhutan: { coach: null, rail: null },
+  myanmar: { coach: 'JJ Express', rail: 'Myanma Railways' },
+  thailand: { coach: 'The Transport Co.', rail: 'SRT' },
+  laos: { coach: null, rail: null },
+  vietnam: { coach: 'Futa Bus Lines', rail: 'Vietnam Railways' },
+  cambodia: { coach: 'Giant Ibis', rail: 'Royal Railways' },
+  malaysia: { coach: 'Transnasional', rail: 'KTM' },
+  singapore: { coach: null, rail: null },
+  brunei: { coach: null, rail: null },
+  indonesia: { coach: null, rail: 'KAI' },
+  philippines: { coach: 'Victory Liner', rail: 'PNR' },
+  // ── Middle East
+  iran: { coach: null, rail: 'RAI' },
+  'saudi arabia': { coach: 'SAPTCO', rail: 'SAR' },
+  'united arab emirates': { coach: null, rail: 'Etihad Rail' },
+  israel: { coach: 'Egged', rail: 'Israel Railways' },
+  jordan: { coach: 'JETT', rail: null },
+  lebanon: { coach: null, rail: null },
+  iraq: { coach: null, rail: null },
+  syria: { coach: null, rail: null },
+  // ── Africa
+  egypt: { coach: null, rail: 'ENR' },
+  morocco: { coach: 'CTM', rail: 'ONCF' },
+  algeria: { coach: null, rail: 'SNTF' },
+  tunisia: { coach: 'SNTRI', rail: 'SNCFT' },
+  libya: { coach: null, rail: null },
+  sudan: { coach: null, rail: null },
+  'south africa': { coach: 'Intercape', rail: 'PRASA' },
+  namibia: { coach: 'Intercape', rail: null },
+  botswana: { coach: null, rail: null },
+  zimbabwe: { coach: null, rail: 'NRZ' },
+  zambia: { coach: null, rail: 'TAZARA' },
+  mozambique: { coach: null, rail: 'CFM' },
+  malawi: { coach: null, rail: null },
+  tanzania: { coach: null, rail: 'Tanzania Railways' },
+  kenya: { coach: 'Easy Coach', rail: 'Kenya Railways' },
+  uganda: { coach: null, rail: 'Uganda Railways' },
+  rwanda: { coach: null, rail: null },
+  ethiopia: { coach: null, rail: 'Ethio-Djibouti Railway' },
+  nigeria: { coach: 'GIG Mobility', rail: 'NRC' },
+  ghana: { coach: 'VIP Jeoun', rail: 'Ghana Railways' },
+  senegal: { coach: null, rail: null },
+  'ivory coast': { coach: null, rail: null },
+  cameroon: { coach: null, rail: 'Camrail' },
+  angola: { coach: null, rail: null },
+  // ── Americas
+  'united states': { coach: 'Greyhound', rail: 'Amtrak' },
+  canada: { coach: 'Megabus', rail: 'VIA Rail' },
+  mexico: { coach: 'ADO', rail: null },
+  cuba: { coach: 'Viazul', rail: null },
+  guatemala: { coach: null, rail: null },
+  'costa rica': { coach: null, rail: null },
+  panama: { coach: null, rail: null },
+  colombia: { coach: 'Expreso Bolivariano', rail: null },
+  venezuela: { coach: null, rail: null },
+  ecuador: { coach: null, rail: 'Tren Ecuador' },
+  peru: { coach: 'Cruz del Sur', rail: 'PeruRail' },
+  brazil: { coach: 'Cometa', rail: null },
+  bolivia: { coach: null, rail: null },
+  chile: { coach: 'Tur-Bus', rail: 'EFE' },
+  argentina: { coach: 'Flecha Bus', rail: 'Trenes Argentinos' },
+  uruguay: { coach: null, rail: null },
+  paraguay: { coach: null, rail: null },
+  // ── Oceania
+  australia: { coach: 'Greyhound Australia', rail: 'NSW TrainLink' },
+  'new zealand': { coach: 'InterCity', rail: 'KiwiRail' },
+  fiji: { coach: null, rail: null },
+  'papua new guinea': { coach: null, rail: null }
+};
+
+const normCountry = (c: string) =>
+  c
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+/** Coach brand for a bus leg, preferring the trip's country table. */
+export const coachBrandForCountry = (country: string, fromLabel: string, toLabel: string): string | null =>
+  COUNTRY_OPERATORS[normCountry(country)]?.coach ?? coachOperatorFor(fromLabel, toLabel);
+
+/** Rail brand for a train leg in the trip's country, when one is well known. */
+export const railBrandForCountry = (country: string): string | null =>
+  COUNTRY_OPERATORS[normCountry(country)]?.rail ?? null;
+
+/**
+ * WHO runs this leg — the real brand when we know it (every continent covered
+ * above), otherwise null and the UI shows the plain mode word.
+ */
+export const legOperatorFor = (
+  mode: TravelMode,
+  country: string,
+  fromLabel: string,
+  toLabel: string
+): string | null => {
+  if (mode === 'bus') return coachBrandForCountry(country, fromLabel, toLabel);
+  if (mode === 'train') return railBrandForCountry(country);
   return null;
 };
 
