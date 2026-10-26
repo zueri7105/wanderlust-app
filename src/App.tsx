@@ -28,6 +28,8 @@ import { TripChatModal } from './components/TripChatModal';
 import { CreateTripModal } from './components/CreateTripModal';
 import { EmergencySOSModal } from './components/EmergencySOSModal';
 import { SettingsView } from './components/SettingsView';
+import { AccountView } from './components/AccountView';
+import { usePingCollector } from './hooks/usePingCollector';
 import { TravelMapMemoriesView } from './components/TravelMapMemoriesView';
 import { PassportView } from './components/PassportView';
 import { ExploreView } from './components/ExploreView';
@@ -48,6 +50,8 @@ export default function App() {
     throw new Error('intentional crash test');
   }
   const [activeTab, setActiveTab] = useState<NavTab>('itinerary');
+  // Server-side GPS ping collection — runs app-wide (consent-gated, signed-in only)
+  usePingCollector();
   // Trip detail page — set when a trip card is tapped; cleared by "Back to trips"
   const [detailTripId, setDetailTripId] = useState<string | null>(null);
   const [selectedDestination, setSelectedDestination] = useState<string>('All Destinations');
@@ -724,6 +728,7 @@ export default function App() {
               onUpdateProfile={handleUpdateProfile}
               onUpdateSafetyRecord={handleUpdateSafetyRecord}
               onOpenSettings={() => setActiveTab('settings')}
+              onOpenAccount={() => setActiveTab('account')}
             />
           </div>
         )}
@@ -745,6 +750,11 @@ export default function App() {
         {/* Settings lives inside the Passport panel — reached via its gear button */}
         {activeTab === 'settings' && (
           <SettingsView userGender={currentUser.gender} onBack={() => setActiveTab('map')} />
+        )}
+
+        {/* Account — sign-in, linked providers, server-side location pings */}
+        {activeTab === 'account' && (
+          <AccountView onBack={() => setActiveTab('map')} />
         )}
       </main>
 

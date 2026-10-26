@@ -4,6 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import { startWorldGeoLoad } from './utils/worldGeo';
 import { AppErrorBoundary } from './utils/errorBoundary.tsx';
+import { TRPCProvider } from '@/providers/trpc';
 
 // ── Fresh-platform reset ─────────────────────────────────────────────────
 // One-time migration: wipe any previously stored demo data (trips, itineraries,
@@ -25,7 +26,9 @@ if (!localStorage.getItem('wanderlust_fresh_v1')) {
 // delay or blank the first paint. The app is fully interactive before it lands.
 createRoot(document.getElementById('root')!).render(
   <AppErrorBoundary>
-    <App />
+    <TRPCProvider>
+      <App />
+    </TRPCProvider>
   </AppErrorBoundary>
 );
 requestIdleCallback

@@ -5,7 +5,9 @@ import {
   varchar,
   text,
   timestamp,
-  // bigint,
+  double,
+  bigint,
+  index,
 } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
@@ -26,7 +28,31 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here. See docs/Database.md for schema examples and patterns.
+// ── Location pings ──────────────────────────────────────────────────────
+// One row per GPS sample collected from a signed-in traveller's device,
+// grouped under their account. Retention: user can delete rows any time;
+// the clear procedure wipes all of their own pings.
+export const locationPings = mysqlTable(
+  "location_pings",
+  {
+    id: serial("id").primaryKey(),
+    userId: bigint("userId", { mode: "number", unsigned: true })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    lat: double("lat").notNull(),
+    lng: double("lng").notNull(),
+    accuracyM: double("accuracyM"),
+    source: mysqlEnum("source", ["gps", "network", "manual"]).default("gps").notNull(),
+    recordedAt: timestamp("recordedAt").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [
+    index("location_pings_user_recorded_idx").on(table.userId, table.recordedAt),
+  ],
+);
+
+export type LocationPing = typeof locationPings.$inferSelect;
+export type InsertLocationPing = typeof locationPings.$inferInsert;
 //
 // Example:
 // export const posts = mysqlTable("posts", {

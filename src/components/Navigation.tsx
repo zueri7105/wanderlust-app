@@ -14,7 +14,8 @@ export type NavTab =
   | 'activities'
   | 'costs'
   | 'profile'
-  | 'settings';
+  | 'settings'
+  | 'account';
 
 interface NavigationProps {
   activeTab: NavTab;

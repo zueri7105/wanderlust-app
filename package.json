@@ -10,7 +10,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "start": "NODE_ENV=production node dist/boot.js",
-    "check": "tsc -b",
+    "check": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json",
     "format": "prettier --write .",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",

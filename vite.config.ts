@@ -10,16 +10,23 @@ export default defineConfig(() => {
     plugins: [
     devServer({ entry: "api/boot.ts", exclude: [/^\/(?!api\/).*$/] }),
     react(), tailwindcss()],
+    envDir: path.resolve(__dirname),
     build: {
+      outDir: 'dist/public',
+      emptyOutDir: true,
       assetsInlineLimit: 100000000, // inline every asset (css/js/images) as data URIs
       cssCodeSplit: false,
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, './src'),
+        '@contracts': path.resolve(__dirname, './contracts'),
+        '@db': path.resolve(__dirname, './db'),
       },
     },
     server: {
+      port: 3000,
+      host: '0.0.0.0',
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
@@ -27,5 +34,4 @@ export default defineConfig(() => {
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };
-  envDir: path.resolve(__dirname),
 });

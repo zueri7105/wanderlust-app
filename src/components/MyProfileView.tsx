@@ -19,7 +19,8 @@ import {
   X,
   Instagram,
   Link2,
-  Settings
+  Settings,
+  UserRound
 } from 'lucide-react';
 import { PresenceBadge } from './MessagesView';
 import { presenceForTraveler } from '../utils/settings';
@@ -32,6 +33,7 @@ interface MyProfileViewProps {
   onUpdateProfile: (updated: Partial<SoloTraveler>) => void;
   onUpdateSafetyRecord: (updated: Partial<SafeCheckinRecord>) => void;
   onOpenSettings?: () => void;
+  onOpenAccount?: () => void;
   /** Render inside the Passport page — section header instead of a page header */
   embedded?: boolean;
 }
@@ -57,6 +59,7 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
   onUpdateProfile,
   onUpdateSafetyRecord,
   onOpenSettings,
+  onOpenAccount,
   embedded = false
 }) => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -224,6 +227,16 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
           Safety
         </div>
         <div className="flex items-center gap-2">
+          {onOpenAccount && (
+            <button
+              type="button"
+              onClick={onOpenAccount}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors cursor-pointer"
+              title={getTranslation('acctTitle')}
+            >
+              <UserRound className="w-4 h-4" />
+            </button>
+          )}
           {onOpenSettings && (
             <button
               type="button"

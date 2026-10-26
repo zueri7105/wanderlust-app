@@ -1,19 +1,12 @@
 import { trpc } from "@/providers/trpc";
-import { useCallback, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router";
-import { LOGIN_PATH } from "@/const";
+import { useCallback, useMemo } from "react";
 
-type UseAuthOptions = {
-  redirectOnUnauthenticated?: boolean;
-  redirectPath?: string;
-};
-
-export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = LOGIN_PATH } =
-    options ?? {};
-
-  const navigate = useNavigate();
-
+/**
+ * Authentication state for WanderLust. The app uses tab-based navigation
+ * (no react-router), so this hook exposes plain state + actions; views that
+ * need a signed-in user render a sign-in prompt instead of redirecting.
+ */
+export function useAuth() {
   const utils = trpc.useUtils();
 
   const {
@@ -29,20 +22,13 @@ export function useAuth(options?: UseAuthOptions) {
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: async () => {
       await utils.invalidate();
-      navigate(redirectPath);
+      // Without a route change, a failed post-logout refetch (401) keeps the
+      // last successful user cached — reset drops it so the UI signs out.
+      await utils.auth.me.reset();
     },
   });
 
   const logout = useCallback(() => logoutMutation.mutate(), [logoutMutation]);
-
-  useEffect(() => {
-    if (redirectOnUnauthenticated && !isLoading && !user) {
-      const currentPath = window.location.pathname;
-      if (currentPath !== redirectPath) {
-        navigate(redirectPath);
-      }
-    }
-  }, [redirectOnUnauthenticated, isLoading, user, navigate, redirectPath]);
 
   return useMemo(
     () => ({
