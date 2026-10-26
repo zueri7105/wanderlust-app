@@ -1,0 +1,301 @@
+export type TravelPace = 'Chill & Scenic' | 'Moderate Explorer' | 'Brisk & Fast-Paced';
+export type BudgetTier = '$' | '$$' | '$$$';
+export type TripScope = 'Full Trip' | 'Part of Trip' | 'Flexible (Full or Part)';
+export type TravelerGender = 'female' | 'male' | 'non-binary' | 'prefer-not-to-say';
+
+export interface EmergencyContact {
+  id: string;
+  name: string;
+  relationship: string; // Relationship to the traveler e.g. Mother, Spouse, Sibling, Friend
+  countryCode: string; // e.g. +49, +1, +81, +44, +86
+  phone: string; // e.g. 170 555 4912
+}
+
+export interface SoloTraveler {
+  id: string;
+  name: string;
+  avatar: string;
+  age: number;
+  gender?: TravelerGender;
+  homeCity: string;
+  country: string; // Nationality
+  bio: string;
+  languages: string[];
+  travelPace: TravelPace;
+  budgetTier: BudgetTier;
+  interests: string[];
+  emergencyContactLinked: boolean;
+  soloTripsCount: number;
+  safetyRating: number;
+  vouchedByCount: number;
+  currentDestination?: string;
+  instagram?: string; // Instagram handle (without @) shown as a social chip on the profile
+  website?: string;   // Personal website / blog / portfolio link
+  travelGoals?: string[]; // What the traveller hopes to share/find — shown on their bio
+  isStarred?: boolean;
+  reviews?: CompanionReview[];
+  isConfirmedBuddy?: boolean;
+}
+
+export interface TravelTrip {
+  id: string;
+  travelerId: string;
+  destination: string;
+  country: string;
+  region: string;
+  coverImage: string;
+  startDate: string; // ISO date YYYY-MM-DD
+  endDate: string;   // ISO date YYYY-MM-DD
+  flexibilityDays: number; // 0, 1, 2, 3
+  tripScope: TripScope; // Full trip vs Part of trip
+  desiredPace: TravelPace;
+  budgetTier: BudgetTier;
+  interests: string[];
+  headline: string;
+  description: string;
+  plannedActivities: string[];
+}
+
+export type ActivityCategory =
+  | 'Adventure'
+  | 'Food & Drink'
+  | 'Culture & Sights'
+  | 'Transport & Roadtrip'
+  | 'Nightlife'
+  | 'Street Food Crawl'
+  | 'Sunrise & Sunset Spots'
+  | 'Photography Walk'
+  | 'Hiking & Trail Safety'
+  | 'Culture & Temples'
+  | 'Museums & Art'
+  | 'Boat & Water Sports'
+  | 'Night Markets & Shopping'
+  | 'Coffee & Co-working'
+  | 'Language & Cultural Exchange'
+  | 'Cooking Class & Workshops'
+  | 'Wellness & Yoga'
+  | string;
+
+export interface TravelActivity {
+  id: string;
+  destination: string;
+  /** All cities covered by the activity (multi-city socials) */
+  cities?: string[];
+  title: string;
+  category: ActivityCategory;
+  date: string;
+  /** Optional end date for multi-day activities (YYYY-MM-DD) */
+  endDate?: string;
+  time: string;
+  locationName: string;
+  meetPointPublic: string;
+  hostId: string;
+  participantIds: string[];
+  maxCapacity: number;
+  estimatedCostTotal: number;
+  currency: string;
+  costSplitNote: string;
+  description: string;
+  status: 'open' | 'confirmed' | 'completed';
+}
+
+export interface ExpenseItem {
+  id: string;
+  activityId?: string;
+  destination: string;
+  title: string;
+  payerId: string;
+  amount: number;
+  currency: string;
+  splitBetweenIds: string[];
+  category: 'Transport' | 'Tour / Guide' | 'Rental & Fuel' | 'Shared Meal' | 'Tickets & Passes';
+  date: string;
+  settled: boolean;
+  receiptNote?: string;
+}
+
+export interface SoloPersonalExpense {
+  id: string;
+  destination: string;
+  title: string;
+  category: 'Flights & Rail' | 'Lodging / Hotel' | 'Daily Food & Cafes' | 'Local Transit' | 'Sightseeing & Passes' | 'Gear & Misc';
+  amount: number;
+  currency: string;
+  date: string;
+  note?: string;
+}
+
+export interface ItineraryDay {
+  dayNumber: number;
+  date?: string;
+  title: string;
+  morningActivity: string;
+  afternoonActivity: string;
+  eveningActivity: string;
+  companionGoal?: string;
+  /** Optional clock time per activity box, keyed "slotKey:taskIndex" (e.g. "morningActivity:0") */
+  activityTimes?: Record<string, string>;
+  /** Chosen transport per route leg, keyed "fromLabel→toLabel" (walk/taxi/train/bus/ferry/flight…) */
+  legModes?: Record<string, string>;
+  /** Free-form journal note the traveller pens for this specific day */
+  note?: string;
+  /** Per-stop write box: stop label → the traveller's notes for that place */
+  stopDetails?: Record<string, string>;
+  /** Per-stop photo box: stop label → photos attached to that activity */
+  stopPhotos?: Record<string, string[]>;
+  /** Photos attached to this day (data URLs or image links) */
+  photos?: string[];
+  /** Per-stop pinpoint override: stop label → the address / street / postal
+      code / coordinates the traveller typed for a more accurate map pin */
+  locationOverrides?: Record<string, string>;
+}
+
+export interface CityWeatherOutlook {
+  cityName: string;
+  seasonPeriod: string;
+  temperatureRange: string;
+  daytimeAvg: string;
+  nighttimeAvg: string;
+  rainProbability: string;
+  conditions: string;
+  daylightSummary: string;
+  clothingAdvice: string;
+}
+
+export interface LocalGreeting {
+  phrase: string;
+  translation: string;
+  phonetic: string;
+}
+
+export interface CulturalShockItem {
+  title: string;
+  description: string;
+  tip: string;
+}
+
+export interface TravelGuideInfo {
+  travelerNationality: string;
+  destinationCity: string;
+  destinationCountry: string;
+  visaRequirements: string;
+  specificCurrency: {
+    code: string;
+    name: string;
+    symbol: string;
+    rateBenchmark: string;
+    cardAcceptance: string;
+    tippingRules: string;
+  };
+  weatherOutlook: CityWeatherOutlook;
+  recommendedToBring: string[];
+  arrivalRulesAndApps: {
+    connectivityAdvice: string; // e.g. VPN, eSIM, Roaming
+    recommendedApps: { name: string; purpose: string }[];
+    entryRegulations: string[];
+  };
+  culturalNorms: string[];
+  basicGreetings: LocalGreeting[];
+  culturalShocks: CulturalShockItem[];
+  soloSafetyAdvisories: string[];
+}
+
+export interface TravelItinerary {
+  id: string;
+  travelerId: string;
+  /** Custom trip card name — defaults to "Trip N" when the traveller didn't name it. */
+  name?: string;
+  destination: string;
+  country: string;
+  /** All cities visited on this trip (multi-city trips); empty when only a country was given */
+  cities?: string[];
+  startDate: string;
+  endDate: string;
+  companionPurpose: string[];
+  notes: string;
+  days: ItineraryDay[];
+  travelGuide?: TravelGuideInfo;
+  tripScope?: TripScope;
+  dateFlexibility?: 'Exact Dates' | '±1 Day' | '±2 Days' | '±3 Days';
+  visibility?: 'public' | 'companions_only' | 'private';
+  /** Want-to-go pool: places stashed for later, assignable to a day slot (圆周旅迹-style 待规划地点) */
+  wishlist?: string[];
+}
+
+export interface ChatMessage {
+  id: string;
+  threadId: string; // activity id or direct traveler id
+  senderId: string;
+  recipientId?: string;
+  text: string;
+  timestamp: string;
+  isSystem?: boolean;
+  type?: 'text' | 'buddy_proposal' | 'buddy_accepted';
+  buddyStatus?: 'pending' | 'accepted' | 'declined';
+}
+
+export interface CompanionReview {
+  id: string;
+  reviewerId: string;
+  reviewerName: string;
+  reviewerAvatar: string;
+  travelerId: string;
+  rating: number; // 1-5
+  comment: string;
+  date: string;
+  destinationVisited: string;
+}
+
+export interface TravelMemory {
+  id: string;
+  destination: string;
+  country: string;
+  coordinates: { x: number; y: number; lat?: number; lng?: number }; // x/y legacy % on artwork, lat/lng real geo
+  date: string;
+  photos: string[];
+  memoryNote: string;
+  companionsTagged: string[];
+  status: 'Visited' | 'Current Location' | 'Dream Next';
+}
+
+export type KnowledgeArticleCategory =
+  | 'Culture & Traditions'
+  | 'Solo Female Safety'
+  | 'Local Dining Etiquette'
+  | 'Transit & Digital Hacks'
+  | 'Hidden Gems'
+  | 'Budget & Money Hacks'
+  | 'Visas & Border Crossings'
+  | 'Accommodation Hacks'
+  | 'Adventure & Outdoors'
+  | 'Food & Street Eats'
+  | 'Nightlife & Social Scene'
+  | 'Photography & Content'
+  | 'Health & Wellbeing'
+  | 'Meeting People & Companions'
+  | 'Packing & Gear';
+
+export interface KnowledgeArticle {
+  id: string;
+  title: string;
+  category: KnowledgeArticleCategory;
+  destination: string;
+  authorName: string;
+  authorAvatar: string;
+  authorCity: string;
+  date: string;
+  readTime: string;
+  summary: string;
+  content: string[];
+  tags: string[];
+  likesCount: number;
+  isUserCustom?: boolean;
+}
+
+export interface SafeCheckinRecord {
+  emergencyContacts: EmergencyContact[];
+  activeDestination: string;
+  lastCheckinTime: string;
+  shareLiveStatus: boolean;
+  safePledgeSigned: boolean;
+}

@@ -1,0 +1,8 @@
+{
+  "name": "WanderLust - Solo Group Travel Planner",
+  "description": "Connect with solo travellers around the world and be part of your journey. Coordinate shared activities, split transport and tour costs, and explore safely with interest-based matching.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

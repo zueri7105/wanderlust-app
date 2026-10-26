@@ -1,0 +1,140 @@
+/**
+ * journalSync — keeps My Journal (memories, map droplets, country colouring)
+ * in step with My Trips. Creating a trip pins a corresponding memory onto the
+ * journal timeline & map; editing the trip refreshes the memory's derived
+ * fields (place, date, status); deleting the trip removes the memory.
+ * Notes, photos and companions the user edited on the memory are preserved.
+ *
+ * Storage is the same `wanderlust_travel_memories` localStorage key the
+ * journal view reads on mount — Trips and Journal never render at the same
+ * time, so a write here is always picked up on the next Journal visit.
+ */
+
+import { TravelItinerary, TravelMemory } from '../types/travel';
+import { findPlaceGeo } from './placeGeo';
+import { getTripCover } from './tripCovers';
+import { lookupWorldGeoSync } from './worldGeo';
+import { iso2ForCountry } from './geocode';
+
+const STORAGE_KEY = 'wanderlust_travel_memories';
+
+const memIdFor = (itineraryId: string) => `mem_itin_${itineraryId}`;
+
+const readMemories = (): TravelMemory[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeMemories = (memories: TravelMemory[]) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(memories));
+};
+
+/** Trip dates → journal status, same rule as the journal's auto-fill. */
+export const statusForItinerary = (it: TravelItinerary): TravelMemory['status'] => {
+  const today = new Date();
+  const start = new Date(it.startDate);
+  const end = new Date(it.endDate);
+  if (end < today) return 'Visited';
+  if (start <= today) return 'Current Location';
+  return 'Dream Next';
+};
+
+/** "Day 1 — Title: morning · afternoon · evening" lines for the journal note. */
+const dayLinesFor = (it: TravelItinerary): string[] =>
+  (it.days || []).map((d) => {
+    const parts = [d.morningActivity, d.afternoonActivity, d.eveningActivity].filter(Boolean);
+    return `Day ${d.dayNumber}${d.title ? ` — ${d.title}` : ''}: ${parts.join(' · ')}`;
+  });
+
+/** Build the journal memory for a trip (used on create; edits merge instead). */
+const memoryFromItinerary = (it: TravelItinerary): TravelMemory => {
+  const city = it.cities?.[0] || it.destination.split(',')[0].trim();
+  // World gazetteer: any typed city/region resolves to its real country, so
+  // the journal colours exactly the country the pin lands in. The lookup is
+  // constrained to the trip's country, so "Córdoba, Spain" pins Córdoba,
+  // Spain — never Córdoba, Argentina.
+  const isoHint = iso2ForCountry(it.country || it.destination);
+  const world = it.country
+    ? // Country already known: the pin must stay inside it.
+      lookupWorldGeoSync(city, isoHint) || lookupWorldGeoSync(it.destination, isoHint)
+    : // Country unknown: the same hit that places the pin also names the country.
+      lookupWorldGeoSync(city) || lookupWorldGeoSync(it.destination);
+  const country = (it.country || world?.countryName || it.destination.split(',').slice(-1)[0] || '').trim();
+  const geo =
+    findPlaceGeo(city) ||
+    findPlaceGeo(it.destination) ||
+    findPlaceGeo(country) ||
+    (world ? { lat: world.lat, lng: world.lng, name: world.name } : null);
+  const start = new Date(it.startDate);
+  const dayLines = dayLinesFor(it);
+  // Photo syncs with the trip card cover; with no cover we store none and the
+  // journal renders its galaxy placeholder instead of a random stock photo.
+  const cover = getTripCover(it.id);
+
+  return {
+    id: memIdFor(it.id),
+    destination: city,
+    country,
+    // Never invent coordinates — an unresolved place stays unpinned until the
+    // journal's geocoder resolves it, so a pin can never land in the wrong country.
+    coordinates: geo
+      ? { x: 0, y: 0, lat: geo.lat, lng: geo.lng }
+      : { x: 0, y: 0 },
+    date: start.toLocaleString('default', { month: 'long', year: 'numeric' }),
+    photos: cover ? [cover] : [],
+    memoryNote:
+      `My ${it.days.length}-day ${it.tripScope || 'trip'} in ${it.destination}. ` +
+      (it.notes ? `${it.notes} ` : '') +
+      (dayLines.length > 0 ? `\n\n${dayLines.join('\n')}` : ''),
+    companionsTagged: [],
+    status: statusForItinerary(it)
+  };
+};
+
+/**
+ * Create or refresh the memory linked to a trip. User-touched content
+ * (note, photos, tagged companions) survives trip edits — only the fields
+ * derived from the trip itself (place, coordinates, date, status) update.
+ */
+export const upsertMemoryFromItinerary = (it: TravelItinerary) => {
+  const id = memIdFor(it.id);
+  // A trip with no place yet (fresh "New trip") gets no journal pin at all.
+  const hasPlace = Boolean(
+    (it.cities && it.cities.length > 0) || it.destination.trim() || it.country.trim()
+  );
+  if (!hasPlace) {
+    removeMemoryForItinerary(it.id);
+    return;
+  }
+  const memories = readMemories();
+  const idx = memories.findIndex((m) => m.id === id);
+  if (idx === -1) {
+    writeMemories([memoryFromItinerary(it), ...memories]);
+    return;
+  }
+  const fresh = memoryFromItinerary(it);
+  const prev = memories[idx];
+  const prevPhotos = Array.isArray(prev.photos) ? prev.photos : [];
+  memories[idx] = {
+    ...fresh,
+    memoryNote: prev.memoryNote || fresh.memoryNote,
+    // Trip cover leads (synced with the card); user-added photos stay after it.
+    photos:
+      fresh.photos.length > 0
+        ? [...fresh.photos, ...prevPhotos.filter((p) => !fresh.photos.includes(p))]
+        : prevPhotos,
+    companionsTagged: prev.companionsTagged || []
+  };
+  writeMemories(memories);
+};
+
+/** Remove the memory linked to a trip (trip deleted). */
+export const removeMemoryForItinerary = (itineraryId: string) => {
+  const id = memIdFor(itineraryId);
+  writeMemories(readMemories().filter((m) => m.id !== id));
+};

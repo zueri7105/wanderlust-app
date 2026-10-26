@@ -1,0 +1,609 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #dbeafe;
+  color: #0F172A;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Daybreak theme (light mode): blue-sky base, violet accents ──
+   Light mode is a first-class identity, not an afterthought: a fresh
+   sky gradient with sun-lit clouds replaces the default flat light page,
+   so switching Bright ↔ Dark feels like changing worlds. Dark-mode
+   surfaces everywhere already carry explicit dark: overrides, so this
+   stays purely additive. */
+body {
+  background:
+    radial-gradient(ellipse 70% 50% at 82% -8%, rgba(2, 132, 199, 0.35), transparent 72%),
+    radial-gradient(ellipse 55% 40% at 6% 108%, rgba(67, 56, 202, 0.25), transparent 72%),
+    radial-gradient(ellipse 60% 40% at 50% 50%, rgba(56, 189, 248, 0.18), transparent 78%),
+    linear-gradient(180deg, #bae6fd 0%, #dbeafe 38%, #bfdbfe 72%, #c7d2fe 100%);
+}
+html.dark body {
+  background:
+    radial-gradient(ellipse 55% 40% at 72% 6%, rgba(139, 92, 246, 0.22), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 10% 80%, rgba(76, 29, 149, 0.30), transparent 70%),
+    radial-gradient(ellipse 32% 26% at 90% 64%, rgba(219, 39, 119, 0.12), transparent 70%),
+    radial-gradient(ellipse 42% 32% at 28% 34%, rgba(59, 7, 100, 0.24), transparent 75%),
+    linear-gradient(180deg, #06030f, #06030f);
+}
+
+/* Daybreak: a few light-mode-only surfaces that read flat against the sky
+   backdrop get a whisper of blue so cards stay crisp */
+html:not(.dark) .bg-stone-50,
+html:not(.dark) .bg-slate-50 {
+  background-color: rgba(255, 255, 255, 0.82);
+}
+
+/* Daybreak harmony: the deep-space near-black primary buttons & chips
+   (bg-stone-950 with lavender text) become a refreshing sky-blue gradient
+   in the bright theme, so every button integrates with the blue layout.
+   Galaxy (dark) styling is untouched. */
+html:not(.dark) .bg-stone-950 {
+  background-color: #0369a1 !important;
+  background-image: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important;
+}
+html:not(.dark) .border-stone-950 {
+  border-color: #0369a1 !important;
+}
+html:not(.dark) .bg-stone-950.text-violet-300,
+html:not(.dark) .bg-stone-950 .text-violet-300 {
+  color: #ffffff !important;
+}
+
+/* Daybreak: the onboarding / question wizard backdrop swaps its dark-space
+   purple gradient for a bright sky wash so it matches the Daybreak layout. */
+html:not(.dark) .wl-onboard-backdrop {
+  background: linear-gradient(180deg, #eaf3fe 0%, #dbeafe 45%, #cfe3fd 100%) !important;
+}
+html:not(.dark) .wl-onboard-backdrop .bg-violet-600\/20 {
+  background: rgba(56, 189, 248, 0.28) !important;
+}
+html:not(.dark) .wl-onboard-backdrop .bg-rose-500\/10 {
+  background: rgba(244, 114, 182, 0.16) !important;
+}
+
+/* Daybreak: the passport cover page becomes a crisp sky document — the
+   constellation, globe watermark and dotted flight path stay, just drawn in
+   deep indigo on a bright gradient so they read in the light theme too. */
+html:not(.dark) .wl-passport-cover {
+  background: linear-gradient(160deg, #ffffff 0%, #eef5ff 55%, #e2eeff 100%) !important;
+  border: 1px solid #d3e2f5 !important;
+  color: #1e3a5f !important;
+}
+html:not(.dark) .wl-passport-cover .text-white { color: #16345c !important; }
+html:not(.dark) .wl-passport-cover .text-stone-400 { color: #5b7ba6 !important; }
+html:not(.dark) .wl-passport-cover .text-stone-200 { color: #47678f !important; }
+html:not(.dark) .wl-passport-cover .text-stone-300 { color: #5b7ba6 !important; }
+html:not(.dark) .wl-passport-cover .text-stone-500 { color: #6b8ab3 !important; }
+html:not(.dark) .wl-passport-cover .text-violet-300 { color: #5b4bc4 !important; }
+html:not(.dark) .wl-passport-cover .text-violet-300\/50,
+html:not(.dark) .wl-passport-cover .text-violet-300\/60,
+html:not(.dark) .wl-passport-cover .text-violet-300\/70,
+html:not(.dark) .wl-passport-cover .text-violet-300\/80 { color: rgba(91, 75, 196, 0.62) !important; }
+html:not(.dark) .wl-passport-cover .text-violet-200\/10 { color: rgba(91, 75, 196, 0.12) !important; }
+html:not(.dark) .wl-passport-cover .bg-violet-300 { background-color: #c4b5fd !important; }
+html:not(.dark) .wl-passport-cover .border-violet-300\/70 { border-color: rgba(139, 122, 230, 0.75) !important; }
+html:not(.dark) .wl-passport-cover [stroke="rgba(196,181,253,0.4)"] { stroke: rgba(91, 75, 196, 0.5) !important; }
+
+/* Passport spine: hug the page edge on both sides — the page carries an
+   8px left margin for the binding, so the spine sits inset the same amount
+   and follows the page's rounded corners. (Lives inside the page-stack
+   wrapper so it tracks the page, not the controls row.) */
+.wl-book .wl-spine { left: 8px; border-radius: 1.4rem 0 0 1.4rem !important; }
+
+.leaflet-container { background: #dbeafe; }
+/* maps join the night sky in galaxy mode */
+html.dark .leaflet-container { background: #0b0620; }
+html.dark .leaflet-tile {
+  filter: invert(0.92) hue-rotate(185deg) brightness(0.86) contrast(0.92) saturate(0.55);
+}
+
+/* ── Galaxy theme: deep-space backdrop + starfield, dark mode only ── */
+html.dark body {
+  color: #F1F5F9;
+}
+
+/* nebula glows */
+html.dark body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 40% at 72% 6%, rgba(139, 92, 246, 0.22), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 10% 80%, rgba(76, 29, 149, 0.30), transparent 70%),
+    radial-gradient(ellipse 32% 26% at 90% 64%, rgba(219, 39, 119, 0.12), transparent 70%),
+    radial-gradient(ellipse 42% 32% at 28% 34%, rgba(59, 7, 100, 0.24), transparent 75%);
+}
+
+/* starfield — two populations of pinpoint stars scattered across the viewport */
+html.dark body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1.5px;
+  height: 1.5px;
+  border-radius: 50%;
+  background: transparent;
+  z-index: -1;
+  pointer-events: none;
+  box-shadow:
+    1309px 228px rgba(255,255,255,0.51),
+    563px 501px rgba(255,255,255,0.60),
+    1508px 209px rgba(255,255,255,0.80),
+    1827px 1116px rgba(255,255,255,0.54),
+    864px 65px rgba(255,255,255,0.51),
+    447px 476px rgba(255,255,255,0.73),
+    54px 1149px rgba(255,255,255,0.59),
+    1330px 1116px rgba(255,255,255,0.69),
+    919px 569px rgba(255,255,255,0.86),
+    13px 326px rgba(255,255,255,0.81),
+    696px 569px rgba(255,255,255,0.57),
+    1563px 689px rgba(255,255,255,0.55),
+    778px 198px rgba(255,255,255,0.66),
+    704px 541px rgba(255,255,255,0.86),
+    1494px 940px rgba(255,255,255,0.74),
+    1888px 775px rgba(255,255,255,0.54),
+    600px 740px rgba(255,255,255,0.76),
+    1442px 142px rgba(255,255,255,0.52),
+    466px 592px rgba(255,255,255,0.94),
+    1751px 476px rgba(255,255,255,0.89),
+    778px 569px rgba(255,255,255,0.70),
+    1708px 747px rgba(255,255,255,0.57),
+    727px 429px rgba(255,255,255,0.80),
+    1437px 146px rgba(255,255,255,0.77),
+    350px 1093px rgba(255,255,255,0.83),
+    334px 946px rgba(255,255,255,0.67),
+    1895px 1140px rgba(255,255,255,0.60),
+    664px 114px rgba(255,255,255,0.60),
+    65px 646px rgba(255,255,255,0.68),
+    135px 432px rgba(255,255,255,0.91),
+    1161px 644px rgba(255,255,255,0.60),
+    1022px 810px rgba(255,255,255,0.90),
+    1316px 939px rgba(255,255,255,0.56),
+    285px 505px rgba(255,255,255,0.84),
+    1103px 538px rgba(255,255,255,0.84),
+    877px 1195px rgba(255,255,255,0.68),
+    449px 283px rgba(255,255,255,0.73),
+    186px 96px rgba(255,255,255,0.89),
+    313px 327px rgba(255,255,255,0.86),
+    864px 130px rgba(255,255,255,0.67),
+    1220px 958px rgba(255,255,255,0.74),
+    1133px 23px rgba(255,255,255,0.81),
+    234px 1099px rgba(255,255,255,0.84),
+    1574px 696px rgba(255,255,255,0.55),
+    890px 323px rgba(255,255,255,0.70),
+    1478px 539px rgba(255,255,255,0.94),
+    1560px 365px rgba(255,255,255,0.73),
+    217px 611px rgba(255,255,255,0.88),
+    1039px 407px rgba(255,255,255,0.57),
+    1561px 330px rgba(255,255,255,0.74),
+    1594px 1086px rgba(255,255,255,0.91),
+    1226px 663px rgba(255,255,255,0.72),
+    229px 743px rgba(255,255,255,0.90),
+    1703px 629px rgba(255,255,255,0.61),
+    493px 1161px rgba(255,255,255,0.93),
+    175px 995px rgba(255,255,255,0.87),
+    1557px 1090px rgba(255,255,255,0.84),
+    262px 973px rgba(255,255,255,0.93),
+    338px 542px rgba(255,255,255,0.74),
+    1242px 866px rgba(255,255,255,0.93),
+    1902px 1104px rgba(255,255,255,0.84),
+    1412px 411px rgba(255,255,255,0.82),
+    817px 764px rgba(255,255,255,0.70),
+    1059px 924px rgba(255,255,255,0.55),
+    460px 131px rgba(255,255,255,0.65),
+    1204px 1134px rgba(255,255,255,0.60),
+    451px 14px rgba(255,255,255,0.53),
+    1292px 120px rgba(255,255,255,0.60),
+    1854px 64px rgba(255,255,255,0.89),
+    145px 1052px rgba(255,255,255,0.61),
+    1370px 994px rgba(255,255,255,0.60),
+    270px 1169px rgba(255,255,255,0.76),
+    497px 968px rgba(255,255,255,0.86),
+    389px 193px rgba(255,255,255,0.54),
+    882px 725px rgba(255,255,255,0.69),
+    956px 110px rgba(255,255,255,0.80),
+    1323px 201px rgba(255,255,255,0.53),
+    1491px 694px rgba(255,255,255,0.86),
+    223px 509px rgba(255,255,255,0.59),
+    1098px 918px rgba(255,255,255,0.56),
+    375px 570px rgba(255,255,255,0.71),
+    1790px 154px rgba(255,255,255,0.70),
+    1764px 1127px rgba(255,255,255,0.54),
+    1335px 1107px rgba(255,255,255,0.88),
+    191px 484px rgba(255,255,255,0.57),
+    994px 985px rgba(255,255,255,0.60),
+    821px 120px rgba(255,255,255,0.57),
+    4px 799px rgba(255,255,255,0.62),
+    1605px 931px rgba(255,255,255,0.63),
+    1426px 1138px rgba(255,255,255,0.80),
+    996px 317px rgba(165,180,252,0.34),
+    119px 1186px rgba(196,181,253,0.47),
+    117px 102px rgba(240,171,252,0.40),
+    1746px 1087px rgba(165,180,252,0.27),
+    1040px 164px rgba(165,180,252,0.27),
+    139px 481px rgba(240,171,252,0.29),
+    1823px 1166px rgba(165,180,252,0.42),
+    81px 167px rgba(240,171,252,0.45),
+    1157px 1070px rgba(255,255,255,0.53),
+    418px 643px rgba(165,180,252,0.33),
+    268px 614px rgba(240,171,252,0.34),
+    1539px 148px rgba(196,181,253,0.39),
+    1153px 204px rgba(196,181,253,0.41),
+    1036px 543px rgba(165,180,252,0.53),
+    1804px 140px rgba(165,180,252,0.36),
+    323px 897px rgba(255,255,255,0.43),
+    1652px 1083px rgba(196,181,253,0.45),
+    1135px 613px rgba(196,181,253,0.53),
+    275px 541px rgba(196,181,253,0.52),
+    1520px 1133px rgba(165,180,252,0.33),
+    1238px 431px rgba(255,255,255,0.31),
+    1298px 540px rgba(240,171,252,0.33),
+    1859px 104px rgba(196,181,253,0.44),
+    1698px 566px rgba(196,181,253,0.25),
+    1579px 267px rgba(255,255,255,0.30),
+    904px 1129px rgba(240,171,252,0.42),
+    229px 154px rgba(165,180,252,0.41),
+    1709px 756px rgba(165,180,252,0.38),
+    85px 631px rgba(255,255,255,0.52),
+    1630px 81px rgba(255,255,255,0.31),
+    511px 210px rgba(255,255,255,0.48),
+    1810px 832px rgba(165,180,252,0.53),
+    484px 332px rgba(165,180,252,0.51),
+    50px 367px rgba(255,255,255,0.48),
+    843px 508px rgba(255,255,255,0.30),
+    1436px 221px rgba(240,171,252,0.51),
+    1758px 963px rgba(165,180,252,0.31),
+    1880px 942px rgba(255,255,255,0.34),
+    1628px 466px rgba(165,180,252,0.26),
+    395px 816px rgba(255,255,255,0.33),
+    142px 571px rgba(255,255,255,0.44),
+    818px 1098px rgba(255,255,255,0.53),
+    236px 534px rgba(165,180,252,0.42),
+    543px 78px rgba(196,181,253,0.43),
+    707px 642px rgba(240,171,252,0.43),
+    1047px 236px rgba(240,171,252,0.52),
+    389px 521px rgba(196,181,253,0.46),
+    3px 1064px rgba(165,180,252,0.36),
+    143px 676px rgba(255,255,255,0.45),
+    255px 615px rgba(255,255,255,0.45),
+    668px 824px rgba(255,255,255,0.42),
+    392px 861px rgba(240,171,252,0.45),
+    1848px 356px rgba(255,255,255,0.37),
+    1707px 0px rgba(255,255,255,0.34),
+    880px 1187px rgba(255,255,255,0.39),
+    905px 437px rgba(240,171,252,0.49),
+    1630px 347px rgba(196,181,253,0.34),
+    1359px 686px rgba(196,181,253,0.50),
+    1538px 481px rgba(255,255,255,0.32),
+    407px 301px rgba(196,181,253,0.26),
+    973px 149px rgba(240,171,252,0.37),
+    1289px 1178px rgba(165,180,252,0.47),
+    786px 1012px rgba(240,171,252,0.32),
+    1343px 11px rgba(196,181,253,0.48),
+    448px 360px rgba(240,171,252,0.27),
+    510px 248px rgba(240,171,252,0.29),
+    951px 1087px rgba(255,255,255,0.54),
+    1825px 906px rgba(240,171,252,0.50),
+    1122px 913px rgba(165,180,252,0.47),
+    972px 921px rgba(255,255,255,0.48),
+    1720px 567px rgba(240,171,252,0.44),
+    562px 900px rgba(196,181,253,0.46),
+    480px 556px rgba(255,255,255,0.35),
+    1106px 165px rgba(165,180,252,0.30),
+    784px 312px rgba(165,180,252,0.27),
+    834px 677px rgba(240,171,252,0.37),
+    423px 860px rgba(240,171,252,0.52),
+    1196px 40px rgba(240,171,252,0.39),
+    720px 611px rgba(240,171,252,0.51),
+    1711px 858px rgba(165,180,252,0.40),
+    558px 892px rgba(240,171,252,0.26),
+    688px 828px rgba(165,180,252,0.50),
+    1883px 261px rgba(196,181,253,0.52),
+    1212px 1155px rgba(196,181,253,0.28),
+    877px 277px rgba(240,171,252,0.30),
+    532px 776px rgba(255,255,255,0.31),
+    669px 691px rgba(240,171,252,0.33),
+    1703px 863px rgba(255,255,255,0.50),
+    963px 39px rgba(196,181,253,0.55),
+    716px 459px rgba(196,181,253,0.48),
+    1334px 82px rgba(196,181,253,0.53),
+    408px 41px rgba(165,180,252,0.32),
+    969px 234px rgba(165,180,252,0.39),
+    524px 755px rgba(165,180,252,0.43),
+    1531px 234px rgba(165,180,252,0.54),
+    221px 1185px rgba(196,181,253,0.53),
+    1179px 768px rgba(240,171,252,0.53),
+    406px 155px rgba(165,180,252,0.28),
+    1582px 617px rgba(196,181,253,0.49),
+    1159px 84px rgba(255,255,255,0.41),
+    1354px 758px rgba(196,181,253,0.40),
+    698px 25px rgba(240,171,252,0.50),
+    216px 887px rgba(255,255,255,0.44),
+    1697px 941px rgba(165,180,252,0.38),
+    1502px 1068px rgba(255,255,255,0.43),
+    1883px 1102px rgba(240,171,252,0.39),
+    1691px 549px rgba(255,255,255,0.51),
+    1701px 177px rgba(255,255,255,0.51),
+    499px 951px rgba(240,171,252,0.35),
+    1012px 665px rgba(165,180,252,0.40);
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
+}
+
+/* Custom scrollbars for clean phone app feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+}
+
+
+/* ── WanderLust modal design system ─────────────────────────────────────────
+   One shared shell for every dialog: cosmic overlay, glass card, consistent
+   header (eyebrow + title + round close) and galaxy-tinted field defaults. */
+.wl-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(28, 25, 23, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+html.dark .wl-modal-overlay {
+  background: rgba(3, 1, 10, 0.72);
+}
+
+.wl-modal-card {
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 1.5rem;
+  background: #ffffff;
+  border: 1px solid #e7e5e4;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.35);
+}
+html.dark .wl-modal-card {
+  background:
+    radial-gradient(ellipse 80% 40% at 85% -5%, rgba(139, 92, 246, 0.14), transparent 70%),
+    linear-gradient(165deg, rgba(26, 17, 48, 0.97), rgba(10, 6, 22, 0.98));
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.06),
+    0 24px 70px -12px rgba(0, 0, 0, 0.85),
+    0 0 70px -24px rgba(139, 92, 246, 0.4);
+}
+
+.wl-modal-eyebrow {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #7c3aed;
+}
+html.dark .wl-modal-eyebrow { color: #a78bfa; }
+
+.wl-modal-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #1c1917;
+}
+html.dark .wl-modal-title { color: #fafaf9; }
+
+.wl-modal-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a8a29e;
+  border: 1px solid #e7e5e4;
+  background: #fafaf9;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.wl-modal-close:hover { color: #1c1917; border-color: #d6d3d1; transform: rotate(90deg); }
+html.dark .wl-modal-close {
+  color: #a8a29e;
+  border-color: rgba(167, 139, 250, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+}
+html.dark .wl-modal-close:hover { color: #f5f5f4; border-color: rgba(167, 139, 250, 0.5); }
+
+/* Field defaults — zero-specificity so per-field utility classes still win */
+:where(.wl-modal-card) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) {
+  border-radius: 0.75rem;
+  border: 1px solid #e7e5e4;
+  background: #fafaf9;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.8125rem;
+  color: #1c1917;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+/* Daybreak modal fields: light-blue tinted so they sit comfortably on the
+   sky backdrop instead of the flat near-white they inherit above. */
+:where(.wl-modal-card) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) {
+  background: rgba(240, 249, 255, 0.65);
+  border-color: rgba(125, 211, 252, 0.35);
+}
+:where(html.dark .wl-modal-card) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) {
+  border-color: rgba(167, 139, 250, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+  color: #f5f5f4;
+}
+:where(.wl-modal-card) :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea):focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+}
+:where(html.dark .wl-modal-card) :where(input, select, textarea)::placeholder { color: #78716c; }
+:where(html.dark .wl-modal-card) :where(select) option { background: #17102b; color: #f5f5f4; }
+
+/* ── My Journal galaxy timeline ─────────────────────────────────────────── */
+
+/* Vertical "star trail" — perfect round dots at any height, like the
+   dotted flight path on the travel passport. */
+.wl-timeline-line {
+  width: 3px;
+  background-image: radial-gradient(circle at center, #c4b5fd 1.5px, transparent 1.6px);
+  background-size: 3px 12px;
+  background-repeat: repeat-y;
+  background-position: center top;
+  opacity: 0.75;
+}
+html.dark .wl-timeline-line {
+  background-image: radial-gradient(circle at center, #a78bfa 1.5px, transparent 1.6px);
+  filter: drop-shadow(0 0 3px rgba(167, 139, 250, 0.55));
+  opacity: 0.9;
+}
+
+/* Amber variant for the dream-next continuation */
+.wl-timeline-line-dream {
+  width: 3px;
+  background-image: radial-gradient(circle at center, #fbbf24 1.5px, transparent 1.6px);
+  background-size: 3px 12px;
+  background-repeat: repeat-y;
+  background-position: center top;
+  opacity: 0.7;
+}
+html.dark .wl-timeline-line-dream {
+  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.5));
+  opacity: 0.85;
+}
+
+/* Scroll-reveal — cards drift in from their side, one at a time */
+.wl-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.65s ease,
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+@media (min-width: 640px) {
+  .wl-reveal.wl-reveal-left { transform: translate(-28px, 14px); }
+  .wl-reveal.wl-reveal-right { transform: translate(28px, 14px); }
+}
+.wl-reveal.wl-visible { opacity: 1; transform: none; }
+
+/* Slow pulse for the "current" node on the timeline */
+@keyframes wl-node-pulse {
+  0% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35), 0 0 10px rgba(16, 185, 129, 0.6); }
+  70% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0), 0 0 14px rgba(16, 185, 129, 0.25); }
+  100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35), 0 0 10px rgba(16, 185, 129, 0.6); }
+}
+.wl-node-current { animation: wl-node-pulse 2.4s ease-in-out infinite; }
+
+/* Gentle float for decorative icons */
+@keyframes wl-float {
+  0%, 100% { transform: translateY(0) rotate(var(--wl-rot, 0deg)); }
+  50% { transform: translateY(-6px) rotate(var(--wl-rot, 0deg)); }
+}
+.wl-float { animation: wl-float 4.5s ease-in-out infinite; }
+
+
+/* ── Passport book page flip ────────────────────────────────────────────── */
+/* preserve-3d keeps the turning page and the still page in ONE shared 3-D
+   space, so the swing stays perfectly registered over the spine — without
+   it the two pages composite on slightly different planes and the turn
+   looks misaligned. */
+/* The 3D perspective context lives ONLY on the page-stack wrapper, never on
+   .wl-book itself: keeping the controls row (a sibling of the stack) out of a
+   preserve-3d context stops iOS Safari from leaving a composited ghost of the
+   flipped page painted over the Previous / Next buttons after a turn. */
+.wl-book-stack { perspective: 2200px; perspective-origin: 50% 50%; transform-style: preserve-3d; }
+/* Book-style turning: the page you ARE on moves — swinging away over the
+   LEFT spine like a real page turn — while the page underneath stays still.
+   Hinged on the left. */
+.wl-book-page { transform-origin: left center; backface-visibility: hidden; }
+/* Forward: the CURRENT page lifts and swings away over the left spine —
+   like turning a page — while the next page sits still underneath. The page
+   stays fully opaque until it is nearly edge-on, so no content flicker. */
+@keyframes wlFlipAwayNext {
+  0% { transform: rotateY(0deg); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: rotateY(-86deg); opacity: 0; }
+}
+.wl-flip-away-next {
+  animation: wlFlipAwayNext 0.52s cubic-bezier(0.45, 0.05, 0.35, 1) forwards;
+  transform-origin: left center;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+/* Backward turn, book-style: NOT a mirrored swing-away — in a real book the
+   previous page swings back IN over the spine from the left while the page
+   you were on stays put. It lands from rotateY(-86°) to flat, on top. */
+@keyframes wlFlipInPrev {
+  0% { transform: rotateY(-86deg); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: rotateY(0deg); opacity: 1; }
+}
+.wl-flip-in-prev {
+  animation: wlFlipInPrev 0.52s cubic-bezier(0.45, 0.05, 0.35, 1) forwards;
+  transform-origin: left center;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* ── Trip-day celebration: plane flyover with dotted trail + firework pops ── */
+@keyframes wl-plane-fly {
+  0% { left: -8%; opacity: 0; transform: translateY(6px) rotate(0deg); }
+  8% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: 96%; opacity: 0; transform: translateY(-16px) rotate(-8deg); }
+}
+.wl-plane-fly { animation: wl-plane-fly 3.6s ease-in-out forwards; }
+@keyframes wl-trail {
+  0% { width: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { width: 100%; opacity: 0.9; }
+  100% { width: 100%; opacity: 0; }
+}
+.wl-trail { animation: wl-trail 3.6s ease-out forwards; }
+@keyframes wl-burst {
+  0% { transform: scale(0.2) rotate(-20deg); opacity: 0; }
+  25% { transform: scale(1.2) rotate(8deg); opacity: 1; }
+  60% { transform: scale(1) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1.35) rotate(12deg); opacity: 0; }
+}
+.wl-burst { animation: wl-burst 1.7s ease-out forwards; }

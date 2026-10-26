@@ -1,0 +1,54 @@
+<!doctype html>
+<!-- v76 build stamp: bright default + sky buttons + visa KB fallback + microstate colours + day redesign. -->
+<!-- Static bright defaults: Daybreak is the default look, so even if EVERY
+     script is blocked or fails the page opens in the refreshing sky-blue
+     theme. App remount logic flips to dark for Galaxy users. -->
+<html lang="en" style="background-color:#dbeafe">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#bfdbfe" />
+    <title>WanderLust - Solo Group Travel Planner</title>
+    <meta name="description" content="Connect with solo travellers around the world and be part of your journey. Coordinate shared activities, split transport and tour costs, and explore safely with interest-based matching." />
+    <meta property="og:title" content="WanderLust - Solo Group Travel Planner" />
+    <meta property="og:description" content="Connect with solo travellers around the world and be part of your journey. Coordinate shared activities, split transport and tour costs, and explore safely with interest-based matching." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- Fonts are intentionally NOT loaded from Google here: in some preview
+         environments the fonts.gstatic fetch stalls and the browser blocks on
+         it, leaving the page white. We rely on system-font fallbacks instead. -->
+    <!-- Apply the chosen theme BEFORE the app bundle loads, so there is no
+         flash while JS/CSS download. Daybreak (bright blue) is the default. -->
+    <script>
+      (function () {
+        try {
+          var s = localStorage.getItem('wanderlust_app_settings');
+          var theme = s ? (JSON.parse(s).theme || 'light') : 'light';
+          var dark = theme === 'dark' ||
+            (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+          document.documentElement.style.backgroundColor = dark ? '#06030f' : '#dbeafe';
+          document.addEventListener('DOMContentLoaded', function () {
+            document.body.style.backgroundColor = dark ? '#06030f' : '#dbeafe';
+          });
+        } catch (e) {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.style.backgroundColor = '#06030f';
+        }
+      })();
+    </script>
+  </head>
+  <body style="background-color:#06030f">
+    <div id="root"></div>
+    <noscript>
+      <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#06030f;color:#e9d5ff;font-family:system-ui,sans-serif;text-align:center;padding:24px;">
+        <div>
+          <p style="font-size:18px;font-weight:700;margin:0 0 8px;">WanderLust needs JavaScript</p>
+          <p style="font-size:13px;opacity:.75;margin:0;">Please enable JavaScript, then reload.</p>
+        </div>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
