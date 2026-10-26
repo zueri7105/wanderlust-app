@@ -70,7 +70,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               </div>
               <span className="text-slate-300" aria-hidden="true">·</span>
               <div>
-                <span className="font-mono tabular-nums font-bold text-slate-900 text-sm">98.4%</span> Safe Meetup Rating
+                <span className="font-mono tabular-nums font-bold text-slate-900 text-sm">190+</span> Countries with Active Travelers
               </div>
               <span className="text-slate-300" aria-hidden="true">·</span>
               <div>

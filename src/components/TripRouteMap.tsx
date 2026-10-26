@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { X } from 'lucide-react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { ItineraryDay, TravelItinerary } from '../types/travel';
 import {
   dayRouteColor,
@@ -307,6 +307,10 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
     onActiveDayChange?.(d);
   };
   const [pickedLeg, setPickedLeg] = useState<PickedLeg | null>(null);
+  // Full-screen mode — same escape-the-card pattern as the journal map:
+  // the map container turns into a fixed viewport overlay and the day
+  // tabs / stop legend become floating panels on top of it.
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Re-render whenever a queued online geocode lands, and queue lookups for
   // every stop the local table doesn't know (anchored to this trip's
@@ -425,13 +429,26 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   };
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-emerald-100 dark:border-emerald-900/60 bg-white dark:bg-slate-900 shadow-xs">
-      <div className="relative">
+    <div
+      className={
+        isFullscreen
+          ? 'contents'
+          : 'rounded-2xl overflow-hidden border border-emerald-100 dark:border-emerald-900/60 bg-white dark:bg-slate-900 shadow-xs'
+      }
+    >
+      <div
+        className={
+          isFullscreen
+            ? 'fixed inset-0 z-[90] w-screen h-screen bg-white dark:bg-slate-950'
+            : 'relative'
+        }
+      >
         <MapContainer
+          key={isFullscreen ? 'route-map-fs' : 'route-map-inline'}
           center={center}
           zoom={baseZoom}
           scrollWheelZoom
-          className="h-72 sm:h-80 w-full z-0"
+          className={isFullscreen ? 'w-full h-full z-0' : 'h-72 sm:h-80 w-full z-0'}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -507,6 +524,17 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           })}
         </MapContainer>
 
+        {/* Full-screen toggle — matches the journal map's expand control */}
+        <button
+          type="button"
+          onClick={() => setIsFullscreen((v) => !v)}
+          className="absolute top-3 right-3 z-[1000] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 backdrop-blur border border-slate-200 dark:border-slate-700 shadow-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          title={isFullscreen ? 'Exit full screen' : 'View map full screen'}
+        >
+          {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          <span>{isFullscreen ? 'Exit' : 'Full screen'}</span>
+        </button>
+
         {/* Empty-trip hint floats over the map instead of replacing it */}
         {totalStops === 0 && (
           <div className="absolute left-1/2 top-3 -translate-x-1/2 z-[1000] max-w-[90%] rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-emerald-200 dark:border-emerald-800 shadow-md px-3.5 py-2 text-center">
@@ -571,7 +599,13 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           Overview paints the whole trip at once; a Day shows just that day's routes.
           Tabs hidden when the parent (journey board) owns day selection. */}
       {!hideDayTabs && (
-      <div className="px-3.5 pt-2.5 pb-1 flex items-center gap-1.5 overflow-x-auto bg-white dark:bg-slate-900 border-t border-emerald-100 dark:border-emerald-900/60">
+      <div
+        className={
+          isFullscreen
+            ? 'fixed bottom-3 inset-x-3 sm:inset-x-auto sm:right-3 sm:left-auto sm:w-auto sm:max-w-[calc(100vw-2rem)] z-[600] flex items-center gap-1.5 overflow-x-auto px-3 py-2 rounded-2xl bg-white/92 dark:bg-slate-900/92 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-xl'
+            : 'px-3.5 pt-2.5 pb-1 flex items-center gap-1.5 overflow-x-auto bg-white dark:bg-slate-900 border-t border-emerald-100 dark:border-emerald-900/60'
+        }
+      >
         <button
           type="button"
           onClick={() => setActiveDay(0)}
@@ -608,7 +642,13 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
         })}
       </div>
       )}
-      <div className="px-3.5 pb-2.5 pt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900">
+      <div
+        className={
+          isFullscreen
+            ? 'fixed bottom-16 sm:bottom-[4.5rem] inset-x-3 sm:inset-x-auto sm:right-3 sm:left-auto sm:max-w-[calc(100vw-2rem)] z-[600] flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[11px] text-slate-600 dark:text-slate-300 rounded-2xl bg-white/92 dark:bg-slate-900/92 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-xl max-h-[24vh] overflow-y-auto'
+            : 'px-3.5 pb-2.5 pt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900'
+        }
+      >
         {visible.flatMap(({ day, stops }) =>
           stops.map((s) => (
             <span key={`${day.dayNumber}_${s.order}_lbl`} className="inline-flex items-center gap-1 min-w-0">

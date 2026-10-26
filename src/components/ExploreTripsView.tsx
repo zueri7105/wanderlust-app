@@ -789,11 +789,22 @@ export const ExploreTripsView: React.FC<ExploreTripsViewProps> = ({
                       </div>
 
                       <div className="mt-3 space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-bold text-slate-900 dark:text-slate-100">{trip.destination}</span>
-                          <span className="font-mono text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded font-semibold">
-                            {trip.tripScope}
-                          </span>
+                        {/* Distinctive destination header — bold banner chip with
+                            the country, plus a colour-coded trip scope badge */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 dark:bg-rose-400 text-white dark:text-slate-950 shadow-xs max-w-full">
+                              <MapPin className="w-3.5 h-3.5 text-rose-400 dark:text-slate-950 shrink-0" />
+                              <span className="font-display font-extrabold text-[13px] tracking-tight truncate">
+                                {trip.destination}
+                              </span>
+                            </div>
+                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800">
+                                {trip.tripScope}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 text-[11px]">
                           <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { TravelActivity, SoloTraveler } from '../types/travel';
-import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, ShieldAlert, Sparkles, Check, DollarSign, Trash2, EyeOff, Eye, CalendarDays, ArrowRight, X } from 'lucide-react';
-import { generateSafeMeetingGuide } from '../services/geminiService';
+import { TravelActivity, SoloTraveler, ChatMessage } from '../types/travel';
+import { Users, Clock, MapPin, Plus, MessageSquare, CheckCircle, Sparkles, Check, XCircle, Lock, Send, Trash2, EyeOff, Eye, CalendarDays, ArrowRight, X, Globe2, ChevronRight } from 'lucide-react';
 import { getTranslation } from '../utils/i18n';
 import { WORLD_CURRENCIES } from '../data/currencies';
 
@@ -15,7 +14,38 @@ interface SharedActivitiesViewProps {
   onOpenActivityChat: (activityId: string) => void;
   onCreateNewActivity: (newAct: Omit<TravelActivity, 'id' | 'participantIds' | 'status'>) => void;
   onDeleteActivity?: (activityId: string) => void;
+  /** Pending join requests per activity (traveler ids awaiting host approval) */
+  requests?: Record<string, string[]>;
+  onRequestJoin?: (activityId: string) => void;
+  onCancelRequest?: (activityId: string) => void;
+  onApproveJoiner?: (activityId: string, travelerId: string) => void;
+  onDeclineRequest?: (activityId: string, travelerId: string) => void;
+  /** Chat threads keyed by activity id — feeds the post detail discussion */
+  messagesByThread?: Record<string, ChatMessage[]>;
+  onSendMessage?: (threadId: string, text: string) => void;
 }
+
+/** Distinct look per activity type so posts are scannable at a glance. */
+const CATEGORY_STYLE: Record<string, { chip: string; dot: string }> = {
+  'Adventure': { chip: 'bg-orange-100 dark:bg-orange-950/50 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800', dot: 'bg-orange-500' },
+  'Transport & Roadtrip': { chip: 'bg-sky-100 dark:bg-sky-950/50 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-800', dot: 'bg-sky-500' },
+  'Culture & Sights': { chip: 'bg-violet-100 dark:bg-violet-950/50 text-violet-800 dark:text-violet-300 border-violet-300 dark:border-violet-800', dot: 'bg-violet-500' },
+  'Food & Drink': { chip: 'bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-800', dot: 'bg-rose-500' },
+  'Nightlife': { chip: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800', dot: 'bg-indigo-500' },
+  'Street Food Crawl': { chip: 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800', dot: 'bg-amber-500' },
+  'Sunrise & Sunset Spots': { chip: 'bg-pink-100 dark:bg-pink-950/50 text-pink-800 dark:text-pink-300 border-pink-300 dark:border-pink-800', dot: 'bg-pink-500' },
+  'Photography Walk': { chip: 'bg-cyan-100 dark:bg-cyan-950/50 text-cyan-800 dark:text-cyan-300 border-cyan-300 dark:border-cyan-800', dot: 'bg-cyan-500' },
+  'Hiking & Trail Safety': { chip: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800', dot: 'bg-emerald-500' },
+  'Museums & Art': { chip: 'bg-fuchsia-100 dark:bg-fuchsia-950/50 text-fuchsia-800 dark:text-fuchsia-300 border-fuchsia-300 dark:border-fuchsia-800', dot: 'bg-fuchsia-500' },
+  'Boat & Water Sports': { chip: 'bg-teal-100 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 border-teal-300 dark:border-teal-800', dot: 'bg-teal-500' },
+  'Night Markets & Shopping': { chip: 'bg-yellow-100 dark:bg-yellow-950/50 text-yellow-800 dark:text-yellow-300 border-yellow-300 dark:border-yellow-800', dot: 'bg-yellow-500' },
+  'Coffee & Co-working': { chip: 'bg-stone-200 dark:bg-stone-800 text-stone-800 dark:text-stone-300 border-stone-400 dark:border-stone-600', dot: 'bg-stone-500' },
+  'Language & Cultural Exchange': { chip: 'bg-lime-100 dark:bg-lime-950/50 text-lime-800 dark:text-lime-300 border-lime-300 dark:border-lime-800', dot: 'bg-lime-500' },
+  'Cooking Class & Workshops': { chip: 'bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-300 border-red-300 dark:border-red-800', dot: 'bg-red-500' },
+  'Wellness & Yoga': { chip: 'bg-green-100 dark:bg-green-950/50 text-green-800 dark:text-green-300 border-green-300 dark:border-green-800', dot: 'bg-green-500' }
+};
+const categoryStyle = (cat: string) =>
+  CATEGORY_STYLE[cat] ?? { chip: 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-300 dark:border-stone-600', dot: 'bg-stone-400' };
 
 const ACTIVITY_CATEGORY_OPTIONS = [
   'Adventure',
@@ -47,7 +77,14 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
   onLeaveActivity,
   onOpenActivityChat,
   onCreateNewActivity,
-  onDeleteActivity
+  onDeleteActivity,
+  requests = {},
+  onRequestJoin,
+  onCancelRequest,
+  onApproveJoiner,
+  onDeclineRequest,
+  messagesByThread = {},
+  onSendMessage
 }) => {
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [freeOnlyFilter, setFreeOnlyFilter] = useState(false);
@@ -74,13 +111,18 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
     localStorage.setItem('wanderlust_hidden_activities', JSON.stringify(updated));
   };
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [safetyModalData, setSafetyModalData] = useState<{
-    activity: TravelActivity;
-    safePublicSpot: string;
-    transitTip: string;
-    soloTravelerPledge: string;
-    loading: boolean;
-  } | null>(null);
+  // Post detail page — the "second page" of a post: full details plus the
+  // discussion section, which stays locked until the host accepts you.
+  const [detailActivityId, setDetailActivityId] = useState<string | null>(null);
+  const detailActivity = detailActivityId
+    ? activities.find((a) => a.id === detailActivityId) ?? null
+    : null;
+  const detailJoined = detailActivity
+    ? detailActivity.participantIds.includes(currentUser.id)
+    : false;
+  const detailIsHost = detailActivity ? detailActivity.hostId === currentUser.id : false;
+  const detailUnlocked = detailJoined || detailIsHost;
+  const [detailDraft, setDetailDraft] = useState('');
 
   // Form state
   const [formDest, setFormDest] = useState(selectedDestination !== 'All Destinations' ? selectedDestination : 'Kyoto, Japan');
@@ -105,6 +147,8 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
   const MINUTE_OPTIONS = ['00', '15', '30', '45'];
 
   const getTraveler = (id: string) => travelers.find((t) => t.id === id) || travelers[0];
+  const hasRequested = (activityId: string) =>
+    (requests[activityId] ?? []).includes(currentUser.id);
 
   const filteredActivities = activities.filter((act) => {
     // Hidden posts live under the dedicated "Hidden" category tab
@@ -129,22 +173,6 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
     return true;
   });
 
-  const handleOpenSafetyGuide = async (act: TravelActivity) => {
-    setSafetyModalData({
-      activity: act,
-      safePublicSpot: '',
-      transitTip: '',
-      soloTravelerPledge: '',
-      loading: true
-    });
-
-    const guide = await generateSafeMeetingGuide(act.destination, act.title);
-    setSafetyModalData({
-      activity: act,
-      ...guide,
-      loading: false
-    });
-  };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,22 +331,31 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                 className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl p-5 hover:border-stone-300 dark:hover:border-stone-700 transition-all flex flex-col justify-between shadow-xs"
               >
                 <div>
-                  {/* Top unboxed metadata line */}
-                  <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400 mb-2">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-semibold text-stone-900 dark:text-stone-100">{act.destination}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{act.category}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 font-mono tabular-nums">
-                      {act.estimatedCostTotal === 0 && (
-                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                          FREE
+                  {/* Distinctive post header — country banner above the title,
+                      colour-coded activity type chip, capacity on the right */}
+                  <div className="flex items-start justify-between gap-3 -mt-1 mb-3">
+                    <div className="min-w-0">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-950 dark:bg-violet-400 text-white dark:text-stone-950 shadow-xs">
+                        <Globe2 className="w-3.5 h-3.5 shrink-0" />
+                        <span className="font-display font-extrabold text-[13px] tracking-tight truncate">
+                          {act.destination}
                         </span>
-                      )}
-                      <span className="text-stone-700 dark:text-stone-300">{act.participantIds.length}/{act.maxCapacity} spots</span>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${categoryStyle(act.category).chip}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${categoryStyle(act.category).dot}`} />
+                          {act.category}
+                        </span>
+                        {act.estimatedCostTotal === 0 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                            FREE
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <span className="shrink-0 font-mono tabular-nums text-[11px] font-bold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded-lg">
+                      {act.participantIds.length}/{act.maxCapacity}
+                    </span>
                   </div>
 
                   {/* Title & Description */}
@@ -387,12 +424,6 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                         <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Free to join / Individual self-pay for food</span>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleOpenSafetyGuide(act)}
-                      className="text-[11px] text-stone-600 dark:text-stone-400 hover:text-stone-950 dark:hover:text-stone-200 underline cursor-pointer"
-                    >
-                      Safe Meetup Guide
-                    </button>
                   </div>
 
                   {/* Joined Members Avatars & Host */}
@@ -461,15 +492,74 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                   </div>
                 </div>
 
+                {/* Host approval queue — the host sees join requests with
+                    approve / decline; accepted travellers join the pod */}
+                {act.hostId === currentUser.id && (requests[act.id]?.length ?? 0) > 0 && (
+                  <div className="mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 space-y-2">
+                    <div className="text-[11px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                      Join Requests ({requests[act.id]!.length})
+                    </div>
+                    {requests[act.id]!.map((travelerId) => {
+                      const requester = getTraveler(travelerId);
+                      return (
+                        <div key={travelerId} className="flex items-center gap-2">
+                          <img
+                            src={requester.avatar}
+                            alt={requester.name}
+                            referrerPolicy="no-referrer"
+                            className="w-6 h-6 rounded-full object-cover border border-amber-200 dark:border-amber-800"
+                          />
+                          <span className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex-1 truncate">
+                            {requester.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => onApproveJoiner?.(act.id, travelerId)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-white bg-emerald-600 rounded-md hover:bg-emerald-700 cursor-pointer"
+                          >
+                            <Check className="w-3 h-3" />
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeclineRequest?.(act.id, travelerId)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-stone-600 bg-stone-100 dark:bg-stone-800 rounded-md hover:bg-stone-200 dark:hover:bg-stone-700 cursor-pointer"
+                          >
+                            <XCircle className="w-3 h-3" />
+                            Decline
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Action Row */}
                 <div className="mt-5 pt-3 border-t border-stone-100 flex items-center justify-between gap-3">
-                  <button
-                    onClick={() => onOpenActivityChat(act.id)}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-700 hover:text-stone-950 cursor-pointer"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 text-stone-500" />
-                    <span>Activity Discussion</span>
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setDetailActivityId(act.id)}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-stone-700 dark:text-stone-300 hover:text-stone-950 dark:hover:text-stone-50 cursor-pointer"
+                    >
+                      <span>Details</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+
+                    {isJoined ? (
+                      <button
+                        onClick={() => onOpenActivityChat(act.id)}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300 hover:underline cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Discussion</span>
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs text-stone-400 dark:text-stone-500" title="Discussion unlocks once the host accepts you">
+                        <Lock className="w-3 h-3" />
+                        Discussion locked
+                      </span>
+                    )}
+                  </div>
 
                   <div>
                     {isJoined ? (
@@ -479,9 +569,18 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                       >
                         Leave Activity
                       </button>
+                    ) : hasRequested(act.id) ? (
+                      <button
+                        onClick={() => onCancelRequest?.(act.id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 dark:hover:bg-amber-900/40 transition-colors cursor-pointer"
+                        title="Tap to withdraw your request"
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        Awaiting Approval
+                      </button>
                     ) : (
                       <button
-                        onClick={() => onJoinActivity(act.id)}
+                        onClick={() => onRequestJoin?.(act.id)}
                         disabled={isFull}
                         className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
                           isFull
@@ -489,7 +588,7 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
                             : 'bg-stone-900 text-white hover:brightness-105'
                         }`}
                       >
-                        {isFull ? 'Activity Full' : 'Join Activity'}
+                        {isFull ? 'Activity Full' : 'Request to Join'}
                       </button>
                     )}
                   </div>
@@ -500,63 +599,198 @@ export const SharedActivitiesView: React.FC<SharedActivitiesViewProps> = ({
         </div>
       )}
 
-      {/* Safety Meetup Guide Modal */}
-      {safetyModalData && (
-        <div className="wl-modal-overlay">
-          <div className="wl-modal-card max-w-md p-6 relative">
-            <button
-              type="button"
-              onClick={() => setSafetyModalData(null)}
-              className="wl-modal-close absolute top-4 right-4"
-              aria-label="Close"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-center gap-2 mb-2 text-stone-900">
-              <ShieldAlert className="w-5 h-5 text-emerald-600" />
-              <h3 className="font-display font-bold text-base">
-                Safe Public Rendezvous Protocol
-              </h3>
-            </div>
-            <p className="text-xs text-stone-600">
-              For solo travelers meeting for "{safetyModalData.activity.title}" in {safetyModalData.activity.destination}:
-            </p>
-
-            {safetyModalData.loading ? (
-              <div className="my-6 p-4 bg-stone-50 border border-stone-200 rounded text-xs text-stone-500 animate-pulse">
-                Loading verified public rendezvous points and safety guidelines...
+      {/* ── Post detail page — the "second page" of a post: everything about
+             the activity, plus the discussion, which stays locked until the
+             host accepts the traveller into the group ── */}
+      {detailActivity && (() => {
+        const act = detailActivity;
+        const host = getTraveler(act.hostId);
+        const thread = messagesByThread[act.id] || [];
+        const style = categoryStyle(act.category);
+        return (
+          <div className="fixed inset-0 z-50 bg-stone-950/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center">
+            <div className="bg-white dark:bg-stone-900 w-full sm:max-w-2xl sm:rounded-2xl sm:border sm:border-stone-200 dark:sm:border-stone-800 h-full sm:h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+              {/* Header — country banner + type chip + title */}
+              <div className="p-4 sm:p-5 border-b border-stone-200 dark:border-stone-800 shrink-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-950 dark:bg-violet-400 text-white dark:text-stone-950 shadow-xs self-start">
+                    <Globe2 className="w-3.5 h-3.5 shrink-0" />
+                    <span className="font-display font-extrabold text-[13px] tracking-tight">{act.destination}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDetailActivityId(null)}
+                    className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg transition-colors cursor-pointer"
+                    aria-label="Close"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                  <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${style.chip}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                    {act.category}
+                  </span>
+                  {act.estimatedCostTotal === 0 && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                      FREE
+                    </span>
+                  )}
+                  <span className="font-mono tabular-nums text-[11px] font-bold text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-full">
+                    {act.participantIds.length}/{act.maxCapacity} going
+                  </span>
+                </div>
+                <h3 className="font-display font-bold text-lg sm:text-xl text-stone-950 dark:text-stone-50 mt-2 leading-snug">
+                  {act.title}
+                </h3>
               </div>
-            ) : (
-              <div className="mt-4 space-y-3 text-xs">
-                <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg">
-                  <div className="font-semibold text-stone-900">Recommended Public Point:</div>
-                  <div className="text-stone-700 mt-0.5">{safetyModalData.safePublicSpot}</div>
+
+              {/* Body — details on top, discussion below */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-4 sm:p-5 space-y-4">
+                  <p className="text-sm text-stone-700 dark:text-stone-300 leading-relaxed">{act.description}</p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="p-3 bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700 rounded-xl space-y-1.5">
+                      <div className="flex items-center gap-2 text-stone-700 dark:text-stone-300">
+                        <Clock className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                        <span className="font-mono tabular-nums">{act.date}{act.endDate && act.endDate !== act.date ? ` → ${act.endDate}` : ''} at {act.time}</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-stone-700 dark:text-stone-300">
+                        <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-medium text-stone-900 dark:text-stone-100">{act.locationName}</div>
+                          <div className="text-[11px] text-stone-500 dark:text-stone-400">Public Meeting Spot: {act.meetPointPublic}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-stone-50 dark:bg-stone-800/60 border border-stone-100 dark:border-stone-700 rounded-xl space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <img src={host.avatar} alt={host.name} referrerPolicy="no-referrer" className="w-6 h-6 rounded-full object-cover border border-stone-200 dark:border-stone-700" />
+                        <span className="font-semibold text-stone-900 dark:text-stone-100">{host.name}</span>
+                        <span className="text-[10px] font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/40 px-1.5 py-0.5 rounded border border-violet-200 dark:border-violet-800">HOST</span>
+                      </div>
+                      <div className="text-stone-600 dark:text-stone-400">
+                        {act.estimatedCostTotal > 0 ? (
+                          <span>Total <strong className="font-mono text-stone-900 dark:text-stone-100">{act.currency} {act.estimatedCostTotal}</strong> · split between participants</span>
+                        ) : (
+                          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Free to join / self-pay for food</span>
+                        )}
+                      </div>
+                      {act.costSplitNote && <div className="text-[11px] text-stone-500 dark:text-stone-400">{act.costSplitNote}</div>}
+                    </div>
+                  </div>
+
+                  {/* Members */}
+                  <div>
+                    <div className="text-[11px] font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">Members ({act.participantIds.length})</div>
+                    <div className="flex flex-wrap gap-2">
+                      {act.participantIds.map((pid) => {
+                        const member = getTraveler(pid);
+                        return (
+                          <div key={pid} className="flex items-center gap-1.5 p-1 pr-2.5 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-full">
+                            <img src={member.avatar} alt={member.name} referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover" />
+                            <span className="text-[11px] font-semibold text-stone-900 dark:text-stone-100">{member.name.split(' ')[0]}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg">
-                  <div className="font-semibold text-stone-900">Transit & Arrival Tip:</div>
-                  <div className="text-stone-700 mt-0.5">{safetyModalData.transitTip}</div>
-                </div>
+                {/* Discussion — locked until accepted */}
+                <div className="border-t border-stone-200 dark:border-stone-800">
+                  <div className="px-4 sm:px-5 pt-4 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                    <h4 className="font-display font-bold text-sm text-stone-950 dark:text-stone-50">Group Discussion</h4>
+                    {!detailUnlocked && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-stone-500 bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-full">
+                        <Lock className="w-3 h-3" /> Members only
+                      </span>
+                    )}
+                  </div>
 
-                <div className="p-3 bg-stone-50 border border-stone-200 rounded-lg">
-                  <div className="font-semibold text-stone-900">Solo Explorer Safety Rule:</div>
-                  <div className="text-stone-700 mt-0.5">{safetyModalData.soloTravelerPledge}</div>
+                  {detailUnlocked ? (
+                    <div className="px-4 sm:px-5 pb-5 pt-3 space-y-3">
+                      {thread.length === 0 && (
+                        <div className="p-3 bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 rounded-xl text-center text-xs text-stone-500">
+                          No messages yet — say hi and coordinate the meetup.
+                        </div>
+                      )}
+                      {thread.map((msg) => {
+                        const sender = getTraveler(msg.senderId);
+                        const isMe = msg.senderId === currentUser.id;
+                        return (
+                          <div key={msg.id} className={`flex gap-2.5 text-xs ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                            <img src={sender.avatar} alt={sender.name} referrerPolicy="no-referrer" className="w-7 h-7 rounded-full object-cover border border-stone-200 dark:border-stone-700 shrink-0 self-end" />
+                            <div className={`max-w-[78%] rounded-xl p-2.5 ${isMe ? 'bg-stone-950 text-white rounded-br-xs' : 'bg-stone-100 dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-bl-xs'}`}>
+                              <div className="flex items-center justify-between gap-2 mb-0.5 text-[10px] opacity-70">
+                                <span className="font-semibold">{sender.name}</span>
+                                <span className="font-mono tabular-nums">{msg.timestamp}</span>
+                              </div>
+                              <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const text = detailDraft.trim();
+                          if (!text || !onSendMessage) return;
+                          onSendMessage(act.id, text);
+                          setDetailDraft('');
+                        }}
+                        className="flex items-center gap-2 pt-1"
+                      >
+                        <input
+                          type="text"
+                          value={detailDraft}
+                          onChange={(e) => setDetailDraft(e.target.value)}
+                          placeholder="Message the group…"
+                          className="flex-1 px-3 py-2 text-xs border border-stone-300 dark:border-stone-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-950 dark:focus:ring-violet-400 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!detailDraft.trim()}
+                          className="p-2 bg-stone-950 dark:bg-violet-400 text-white dark:text-stone-950 rounded-lg hover:brightness-110 disabled:opacity-40 transition-all cursor-pointer"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <div className="px-4 sm:px-5 pb-5 pt-3">
+                      <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-dashed border-stone-300 dark:border-stone-700 text-center space-y-2">
+                        <Lock className="w-5 h-5 text-stone-400 mx-auto" />
+                        <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+                          Discussion is only visible once the host accepts you into the group.
+                        </p>
+                        {hasRequested(act.id) ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                            <Clock className="w-3.5 h-3.5" />
+                            Request pending — awaiting host approval
+                          </span>
+                        ) : !detailJoined && act.hostId !== currentUser.id && (
+                          <button
+                            type="button"
+                            onClick={() => onRequestJoin?.(act.id)}
+                            disabled={act.participantIds.length >= act.maxCapacity}
+                            className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-stone-950 text-white hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                          >
+                            Request to Join
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-
-            <div className="mt-5 pt-3 border-t border-stone-200 flex justify-end">
-              <button
-                onClick={() => setSafetyModalData(null)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-stone-900 rounded-md hover:brightness-105 cursor-pointer"
-              >
-                Understood
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Propose Activity Modal */}
       {isCreateModalOpen && (

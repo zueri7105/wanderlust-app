@@ -133,6 +133,8 @@ export default function App() {
   // Modals
   const [isCreateTripOpen, setIsCreateTripOpen] = useState(false);
   const [activeChatActivityId, setActiveChatActivityId] = useState<string | null>(null);
+  // Join requests awaiting host approval (traveler ids per activity)
+  const [activityRequests, setActivityRequests] = useState<Record<string, string[]>>({});
 
   // Sync to local storage
   useEffect(() => {
@@ -369,30 +371,72 @@ export default function App() {
     );
   };
 
-  const handleJoinActivity = (activityId: string) => {
+  const handleJoinActivity = (activityId: string, travelerId?: string) => {
+    const joinerId = travelerId ?? currentUser.id;
     setActivities((prev) =>
       prev.map((act) => {
-        if (act.id === activityId && !act.participantIds.includes(currentUser.id)) {
+        if (act.id === activityId && !act.participantIds.includes(joinerId)) {
           return {
             ...act,
-            participantIds: [...act.participantIds, currentUser.id]
+            participantIds: [...act.participantIds, joinerId]
           };
         }
         return act;
       })
     );
 
+    const joiner = travelers.find((t) => t.id === joinerId);
     const newMsg: ChatMessage = {
       id: `sys_${Date.now()}`,
       threadId: activityId,
-      senderId: currentUser.id,
-      text: `${currentUser.name} joined this activity!`,
+      senderId: joinerId,
+      text: `${joiner?.name ?? 'A traveler'} joined this activity!`,
       timestamp: 'Just now',
       isSystem: true
     };
     setChats((prev) => ({
       ...prev,
       [activityId]: [...(prev[activityId] || []), newMsg]
+    }));
+  };
+
+  // Apply-to-join: the traveller requests, the host approves or declines.
+  const handleRequestJoin = (activityId: string) => {
+    setActivityRequests((prev) => ({
+      ...prev,
+      [activityId]: [...new Set([...(prev[activityId] || []), currentUser.id])]
+    }));
+    // Demo stand-in for the host's decision — a real deployment would notify
+    // the host and wait for their tap on Approve/Decline.
+    window.setTimeout(() => {
+      setActivityRequests((prev) => {
+        const pending = prev[activityId] || [];
+        if (!pending.includes(currentUser.id)) return prev; // withdrawn meanwhile
+        handleJoinActivity(activityId, currentUser.id);
+        return { ...prev, [activityId]: pending.filter((id) => id !== currentUser.id) };
+      });
+    }, 6000);
+  };
+
+  const handleCancelRequest = (activityId: string) => {
+    setActivityRequests((prev) => ({
+      ...prev,
+      [activityId]: (prev[activityId] || []).filter((id) => id !== currentUser.id)
+    }));
+  };
+
+  const handleApproveJoiner = (activityId: string, travelerId: string) => {
+    handleJoinActivity(activityId, travelerId);
+    setActivityRequests((prev) => ({
+      ...prev,
+      [activityId]: (prev[activityId] || []).filter((id) => id !== travelerId)
+    }));
+  };
+
+  const handleDeclineRequest = (activityId: string, travelerId: string) => {
+    setActivityRequests((prev) => ({
+      ...prev,
+      [activityId]: (prev[activityId] || []).filter((id) => id !== travelerId)
     }));
   };
 
@@ -704,6 +748,13 @@ export default function App() {
             onOpenActivityChat={setActiveChatActivityId}
             onCreateNewActivity={handleCreateNewActivity}
             onDeleteActivity={(id) => setActivities((prev) => prev.filter((a) => a.id !== id))}
+            activityRequests={activityRequests}
+            onRequestJoin={handleRequestJoin}
+            onCancelRequest={handleCancelRequest}
+            onApproveJoiner={handleApproveJoiner}
+            onDeclineRequest={handleDeclineRequest}
+            activityMessages={chats}
+            onSendActivityMessage={handleSendActivityMessage}
             onGoToDestination={(dest) => {
               setSelectedDestination(dest);
               setActiveTab('itinerary');

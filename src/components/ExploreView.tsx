@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Users, BookOpen } from 'lucide-react';
-import { TravelActivity, SoloTraveler } from '../types/travel';
+import { TravelActivity, SoloTraveler, ChatMessage } from '../types/travel';
 import { getTranslation } from '../utils/i18n';
 import { SharedActivitiesView } from './SharedActivitiesView';
 import { TravelStoriesHubView } from './TravelStoriesHubView';
@@ -16,6 +16,15 @@ interface ExploreViewProps {
   onCreateNewActivity: (newAct: Omit<TravelActivity, 'id' | 'participantIds' | 'status'>) => void;
   onDeleteActivity?: (activityId: string) => void;
   onGoToDestination?: (dest: string) => void;
+  /** Pending join requests per activity (traveler ids awaiting host approval) */
+  activityRequests?: Record<string, string[]>;
+  onRequestJoin?: (activityId: string) => void;
+  onCancelRequest?: (activityId: string) => void;
+  onApproveJoiner?: (activityId: string, travelerId: string) => void;
+  onDeclineRequest?: (activityId: string, travelerId: string) => void;
+  /** Chat threads keyed by activity id — feeds the post detail discussion */
+  activityMessages?: Record<string, ChatMessage[]>;
+  onSendActivityMessage?: (threadId: string, text: string) => void;
 }
 
 export const ExploreView: React.FC<ExploreViewProps> = (props) => {
@@ -69,6 +78,13 @@ export const ExploreView: React.FC<ExploreViewProps> = (props) => {
           onOpenActivityChat={props.onOpenActivityChat}
           onCreateNewActivity={props.onCreateNewActivity}
           onDeleteActivity={props.onDeleteActivity}
+          requests={props.activityRequests}
+          onRequestJoin={props.onRequestJoin}
+          onCancelRequest={props.onCancelRequest}
+          onApproveJoiner={props.onApproveJoiner}
+          onDeclineRequest={props.onDeclineRequest}
+          messagesByThread={props.activityMessages}
+          onSendMessage={props.onSendActivityMessage}
         />
       ) : (
         <TravelStoriesHubView currentUser={currentUser} onGoToDestination={onGoToDestination} hideHero />
