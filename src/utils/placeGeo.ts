@@ -432,15 +432,9 @@ export const TRAVEL_MODE_SPEED: Record<TravelMode, { kmh: number; overheadMin: n
   drive: { kmh: 42, overheadMin: 12 },
   taxi: { kmh: 38, overheadMin: 6 },
   train: { kmh: 90, overheadMin: 18 },
-  bus: { kmh: 24, overheadMin: 8 },
+  bus: { kmh: 74, overheadMin: 6 },
   ferry: { kmh: 28, overheadMin: 25 },
   flight: { kmh: 700, overheadMin: 120 }
-};
-
-/** Minutes for a leg with a traveller-chosen mode. */
-export const estimateLegForMode = (km: number, mode: TravelMode): number => {
-  const { kmh, overheadMin } = TRAVEL_MODE_SPEED[mode];
-  return Math.max(2, Math.round((km / kmh) * 60) + overheadMin);
 };
 
 export interface LegEstimate {
@@ -455,11 +449,109 @@ const AIRPORT_LEG_RE = /\b(airport|intl airport|international airport|aeroport|f
 export const isAirportLeg = (fromLabel: string, toLabel: string): boolean =>
   AIRPORT_LEG_RE.test(fromLabel) && AIRPORT_LEG_RE.test(toLabel);
 
-/** Rough solo-traveller leg estimate from straight-line distance. */
+/**
+ * Rough solo-traveller leg estimate from straight-line distance.
+ * Longer urban hops now default to the bus (real city transfers — like
+ * Madrid→Toledo — are overwhelmingly intercity coach, not car).
+ */
 export const estimateLeg = (km: number): LegEstimate => {
   if (km <= 1.5) return { km, minutes: Math.max(3, Math.round(km * 12)), mode: 'walk' };
   if (km <= 12) return { km, minutes: Math.round(km * 2.6) + 6, mode: 'transit' };
-  return { km, minutes: Math.round(km * 1.4) + 12, mode: 'drive' };
+  if (km <= 130) return { km, minutes: Math.round(km * 0.85) + 12, mode: 'bus' };
+  if (km <= 500) return { km, minutes: Math.round(km * 1.4) + 12, mode: 'drive' };
+  return { km, minutes: Math.round(km * 0.45) + 25, mode: 'train' };
+};
+
+/** Per-leg route facts measured on the road network (OSRM), not straight lines. */
+export interface LegRoute {
+  /** Road-network distance in km — what Google Maps quotes. */
+  km: number;
+  /** Free-flow driving minutes on that road path. */
+  driveMin: number;
+  /** True when the measurement came back from the routing engine. */
+  measured: boolean;
+}
+
+const routeCache = new Map<string, LegRoute | null>();
+const routePending = new Set<string>();
+
+const routeKeyFor = (a: [number, number], b: [number, number]) =>
+  `${a[0].toFixed(4)},${a[1].toFixed(4)}>${b[0].toFixed(4)},${b[1].toFixed(4)}`;
+
+/** Consumer hook data version — bumped when a measured route lands. */
+let routeVer = 0;
+const routeListeners = new Set<() => void>();
+export const onRouteResolved = (fn: () => void): (() => void) => {
+  routeListeners.add(fn);
+  return () => routeListeners.delete(fn);
+};
+export const routeDataVersion = () => routeVer;
+
+export const getLegRoute = (a: [number, number], b: [number, number]): LegRoute | null =>
+  routeCache.get(routeKeyFor(a, b)) ?? null;
+
+/**
+ * Ask the OSRM demo router for the road distance & drive time between two
+ * stops. Caches per leg; failures keep the Haversine fallback so the map
+ * never breaks offline.
+ */
+export const fetchLegRoute = (a: [number, number], b: [number, number]): void => {
+  const key = routeKeyFor(a, b);
+  if (routeCache.has(key) || routePending.has(key)) return;
+  routePending.add(key);
+  void (async () => {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=false`;
+      const res = await fetch(url);
+      const json = await res.json();
+      const leg = json?.routes?.[0];
+      if (json?.code === 'Ok' && leg && typeof leg.distance === 'number') {
+        routeCache.set(key, {
+          km: leg.distance / 1000,
+          driveMin: (leg.duration || 0) / 60,
+          measured: true
+        });
+      } else {
+        routeCache.set(key, null);
+      }
+    } catch {
+      routeCache.set(key, null); // offline — straight-line fallback stays
+    } finally {
+      routePending.delete(key);
+      routeVer += 1;
+      routeListeners.forEach((fn) => fn());
+    }
+  })();
+};
+
+/**
+ * Realistic door-to-door minutes for a chosen mode over a MEASURED road
+ * distance. Coach routes use realistic coach speeds (Madrid→Toledo is ~74 km
+ * of motorway → about 55 min with the city exit, which matches Google Maps).
+ */
+export const estimateLegForMode = (km: number, mode: TravelMode, measuredKm?: number | null): number => {
+  const road = measuredKm ?? km;
+  const { kmh, overheadMin } = TRAVEL_MODE_SPEED[mode];
+  return Math.max(2, Math.round((road / kmh) * 60) + overheadMin);
+};
+
+/** Which intercity coach company runs this leg — shown like Google Maps' "ALSA · 55 min". */
+const COACH_PATTERNS: Array<{ re: RegExp; operator: string }> = [
+  { re: /\btoledo\b/i, operator: 'ALSA' },
+  { re: /\b(madrid|barcelona|valencia|sevilla|granada|málaga|malaga|bilbao|zaragoza|salamanca|segovia|ávila|avila|cuenca|albacete|ciudad\s+real|guadalajara)\b/i, operator: 'ALSA' },
+  { re: /\b(lisboa|lisbon|porto|coimbra|faro|braga|aveiro)\b/i, operator: 'Rede Expressos' },
+  { re: /\b(lyon|marseille|nice|toulouse|nantes|rennes|bordeaux|lille|strasbourg|montpellier|clermont|dijon|grenoble|valence|avignon|aix)\b/i, operator: 'FlixBus' },
+  { re: /\b(milano|milan|roma|rome|napoli|naples|firenze|florence|venezia|venice|torino|turin|bologna|pisa|siena|verona|genova|genoa)\b/i, operator: 'FlixBus' },
+  { re: /\b(wien|vienna|münchen|munich|prag|prague|budapest|zürich|zurich|berlin|hamburg|amsterdam|brussels|bruxelles|köln|cologne|frankfurt|stuttgart)\b/i, operator: 'FlixBus' },
+  { re: /\b(london|manchester|leeds|bristol|birmingham|liverpool|edinburgh|glasgow|newcastle|sheffield)\b/i, operator: 'National Express' },
+  { re: /\b(sydney|melbourne|brisbane|canberra|adelaide|perth)\b/i, operator: 'Greyhound' },
+  { re: /\b(tokyo|kyoto|osaka|nagoya|hiroshima|fukuoka|sendai|kanazawa|takayama|matsumoto|nikko|hakone)\b/i, operator: 'JR Highway Bus' }
+];
+
+export const coachOperatorFor = (fromLabel: string, toLabel: string): string | null => {
+  const both = `${fromLabel} ${toLabel}`;
+  for (const p of COACH_PATTERNS) if (p.re.test(both)) return p.operator;
+  return null;
 };
 
 /**

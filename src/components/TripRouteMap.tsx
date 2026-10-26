@@ -10,6 +10,11 @@ import {
   estimateLegForMode,
   isAirportLeg,
   TRAVEL_MODE_LINE,
+  fetchLegRoute,
+  getLegRoute,
+  onRouteResolved,
+  routeDataVersion,
+  coachOperatorFor,
   type TravelMode
 } from '../utils/placeGeo';
 import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, iso2ForCountry } from '../utils/geocode';
@@ -76,18 +81,35 @@ const LEG_MODES: Array<{ mode: TravelMode; glyph: string; labelKey: string }> = 
 
 const glyphFor = (mode: TravelMode) => LEG_MODES.find((m) => m.mode === mode)?.glyph || '🚶';
 
-/** Teardrop map marker in the day's route colour — WanderLust's own pin shape. */
+/** Per-day outlines so light route colours (yellow) stay readable on the map's own roads. */
+const PIN_OUTLINES: Record<string, string> = {
+  '#f43f5e': '#881337',
+  '#f59e0b': '#78350f',
+  '#10b981': '#064e3b',
+  '#3b82f6': '#1e3a8a',
+  '#8b5cf6': '#4c1d95',
+  '#ec4899': '#831843',
+  '#14b8a6': '#134e4a',
+  '#f97316': '#7c2d12'
+};
+const outlineFor = (color: string) => PIN_OUTLINES[color.toLowerCase()] ?? '#1e293b';
+
+/** Teardrop map marker in the day's route colour — WanderLust's own pin shape,
+    with a dark outline keyed to the colour so every day stays distinguishable. */
 const teardropPin = (n: number, color: string, big = false) => {
   const s = big ? 30 : 26;
+  const outline = outlineFor(color);
   return L.divIcon({
     className: '',
     html: `<div style="width:${s}px;height:${s}px;transform:rotate(-45deg);
-      background:${color};border:2.5px solid #fff;border-radius:50% 50% 50% 4px;
+      background:${color};border:2.5px solid #fff;border-radius:50% 50% 50% 4px;position:relative;
       box-shadow:0 3px 9px rgba(15,23,42,.4);display:flex;align-items:center;justify-content:center;">
+      <span style="position:absolute;inset:-5px;transform:rotate(0deg);border:2px solid ${outline};
+        border-radius:50% 50% 50% 6px;pointer-events:none;"></span>
       <span style="transform:rotate(45deg);color:#fff;font-weight:800;
         font-size:${big ? 13 : 11}px;font-family:system-ui,sans-serif;">${n}</span></div>`,
-    iconSize: [s, s],
-    iconAnchor: [s / 2, s - 2]
+    iconSize: [s + 10, s + 10],
+    iconAnchor: [s / 2 + 5, s - 2 + 5]
   });
 };
 
@@ -274,6 +296,10 @@ interface PickedLeg {
   toLabel: string;
   km: number;
   mode: TravelMode;
+  /** Coach / rail operator when known — "ALSA · 55 min" like Google Maps. */
+  operator: string | null;
+  /** Road-network distance when measured — beats straight-line for timing. */
+  measuredKm?: number | null;
 }
 
 interface TripRouteMapProps {
@@ -317,6 +343,9 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   // destination so the pin lands on the exact place).
   const [geoVer, setGeoVer] = useState(0);
   useEffect(() => onGeocodeResolved(() => setGeoVer((v) => v + 1)), []);
+  // Re-render when a measured road route (OSRM) lands so distance/time labels upgrade
+  const [routeVer, setRouteVer] = useState(0);
+  useEffect(() => onRouteResolved(() => setRouteVer((v) => v + 1)), []);
   const geoContext = tripGeoContext(destination, itinerary.country);
   useEffect(() => {
     days.forEach((d) => {
@@ -383,7 +412,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleSignature]);
+  }, [visibleSignature, routeVer]);
 
   const allPoints: Array<[number, number]> = visible.flatMap((x) =>
     x.stops.map((s) => [s.lat, s.lng] as [number, number])
@@ -403,18 +432,45 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination, itinerary.country, geoVer]);
 
+  /** Measured road route for a leg (null until OSRM answers / on failure). */
+  const legRoute = (from: RouteStop, to: RouteStop) =>
+    getLegRoute([from.lat, from.lng], [to.lat, to.lng]);
+
+  /** Ask the router for road distances for every visible leg once coords exist. */
+  const routeSig = JSON.stringify(
+    visible.flatMap(({ stops }) =>
+      stops.map((s) => `${s.lat.toFixed(4)},${s.lng.toFixed(4)}`)
+    )
+  );
+  useEffect(() => {
+    visible.forEach(({ stops }) => {
+      stops.slice(0, -1).forEach((from, i) => {
+        const to = stops[i + 1];
+        fetchLegRoute([from.lat, from.lng], [to.lat, to.lng]);
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeSig, routeVer, geoVer]);
+
   /** Mode for a leg: the traveller's saved choice, else ocean-crossing ferry,
-      else airport⇄airport flies, else a distance-based guess. */
-  const modeForLeg = (day: ItineraryDay, from: RouteStop, to: RouteStop): { mode: TravelMode; km: number } => {
-    const km = haversineKm(from.lat, from.lng, to.lat, to.lng);
+      else airport⇄airport flies, else a distance-based guess. Distance comes
+      from the road network when measured — the number Google Maps would show. */
+  const modeForLeg = (
+    day: ItineraryDay,
+    from: RouteStop,
+    to: RouteStop
+  ): { mode: TravelMode; km: number; measured: boolean } => {
+    const straightKm = haversineKm(from.lat, from.lng, to.lat, to.lng);
+    const route = legRoute(from, to);
+    const km = route?.km ?? straightKm;
     const saved = day.legModes?.[legKey(from, to)] as TravelMode | undefined;
-    if (saved && LEG_MODES.some((m) => m.mode === saved)) return { mode: saved, km };
-    if (isAirportLeg(from.label, to.label)) return { mode: 'flight', km };
+    if (saved && LEG_MODES.some((m) => m.mode === saved)) return { mode: saved, km, measured: !!route };
+    if (isAirportLeg(from.label, to.label)) return { mode: 'flight', km, measured: !!route };
     const guessed = estimateLeg(km).mode;
     if (guessed !== 'flight' && km > 25 && crossesOcean([from.lat, from.lng], [to.lat, to.lng])) {
-      return { mode: 'ferry', km };
+      return { mode: 'ferry', km, measured: !!route };
     }
-    return { mode: guessed, km };
+    return { mode: guessed, km, measured: !!route };
   };
 
   const chooseMode = (leg: PickedLeg, mode: TravelMode) => {
@@ -463,7 +519,8 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                 {/* one segment per leg — solid on land, dotted for ferries, curved dotted for flights */}
                 {stops.slice(0, -1).map((from, i) => {
                   const to = stops[i + 1];
-                  const { mode } = modeForLeg(day, from, to);
+                  const { mode, km, measured } = modeForLeg(day, from, to);
+                  const route = measured ? legRoute(from, to) : null;
                   const lineKind = TRAVEL_MODE_LINE[mode];
                   const a: [number, number] = [from.lat, from.lng];
                   const b: [number, number] = [to.lat, to.lng];
@@ -482,6 +539,20 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                   const key = legKey(from, to);
                   return (
                     <React.Fragment key={`${day.dayNumber}_leg_${i}`}>
+                      {/* White under-stroke — separates the day's colour from the
+                          map's own roads so similar hues (yellow routes on yellow
+                          motorways) never blend together. */}
+                      <Polyline
+                        positions={positions}
+                        smoothFactor={positions.length > 2 ? 0 : 1}
+                        interactive={false}
+                        pathOptions={{
+                          color: '#ffffff',
+                          weight: (focused ? 4.5 : 3.5) + 3.5,
+                          opacity: 0.85,
+                          lineCap: 'round'
+                        }}
+                      />
                       <Polyline
                         positions={positions}
                         // keep every sampled point so flight arcs stay smooth curves
@@ -504,8 +575,15 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                               key,
                               fromLabel: from.label,
                               toLabel: to.label,
-                              km: haversineKm(from.lat, from.lng, to.lat, to.lng),
-                              mode
+                              km,
+                              mode,
+                              operator:
+                                mode === 'bus'
+                                  ? coachOperatorFor(from.label, to.label)
+                                  : mode === 'train'
+                                  ? 'Rail'
+                                  : null,
+                              measuredKm: route?.km ?? null
                             })
                         }}
                       />
@@ -547,16 +625,23 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           </div>
         )}
 
-        {/* Transport picker — tap a leg's symbol to choose how you travel it */}
+        {/* Transport picker — tap a leg's symbol to choose how you travel it.
+            Sits at the TOP in full-screen mode so it never covers the floating
+            stop legend at the bottom. */}
         {pickedLeg && (
-          <div className="absolute inset-x-2 bottom-2 z-[1000] rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-xl p-3 space-y-2">
+          <div
+            className={`absolute inset-x-2 z-[1200] rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-xl p-3 space-y-2 ${
+              isFullscreen ? 'top-12' : 'bottom-2'
+            }`}
+          >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 text-[11px]">
                 <div className="font-bold text-slate-900 dark:text-slate-100 truncate">
                   {pickedLeg.fromLabel} → {pickedLeg.toLabel}
                 </div>
                 <div className="text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-                  {pickedLeg.km < 10 ? pickedLeg.km.toFixed(1) : Math.round(pickedLeg.km)} km · {getTranslation('travelModeTitle')}
+                  {pickedLeg.km < 10 ? pickedLeg.km.toFixed(1) : Math.round(pickedLeg.km)} km
+                  {pickedLeg.operator ? ` · ${pickedLeg.operator}` : ''} · {getTranslation('travelModeTitle')}
                 </div>
               </div>
               <button
@@ -570,7 +655,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
             <div className="flex flex-wrap gap-1.5">
               {LEG_MODES.map(({ mode, glyph, labelKey }) => {
                 const active = pickedLeg.mode === mode;
-                const mins = estimateLegForMode(pickedLeg.km, mode);
+                const mins = estimateLegForMode(pickedLeg.km, mode, pickedLeg.measuredKm);
                 return (
                   <button
                     key={mode}

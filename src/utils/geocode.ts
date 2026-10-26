@@ -614,6 +614,33 @@ const searchAddresses = async (
   }
 };
 
+/** Live place suggestions while typing — used by the day-activity name fields. */
+export const searchPlaceSuggestions = async (
+  query: string,
+  context = '',
+  limit = 6
+): Promise<GeocodeCandidate[]> => {
+  const q = (query || '').trim();
+  if (q.length < 3) return [];
+  const iso = iso2FromContext(context);
+  const ctxGeo = geoForTask(context, '');
+  const bias: [number, number] | null = ctxGeo ? [ctxGeo.lat, ctxGeo.lng] : null;
+  const full = q.includes(',') || !context ? q : `${q}, ${context}`;
+  try {
+    const p = await photonSearch(full, iso, bias);
+    const ranked = rankCandidates(p, false);
+    if (ranked.length > 0) return ranked.slice(0, limit);
+  } catch {
+    /* Photon unreachable — try Nominatim */
+  }
+  try {
+    const n = shapeHits(await nominatimSearch(full, iso));
+    return rankCandidates(n, false).slice(0, limit);
+  } catch {
+    return [];
+  }
+};
+
 /**
  * Resolve a typed address/postcode to its exact building-level coordinate.
  * Returns the best candidate plus alternatives (for a confirmation dropdown).

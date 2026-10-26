@@ -49,7 +49,7 @@ import {
   dayRouteColor,
   TravelMode
 } from '../utils/placeGeo';
-import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, isAddressQuery, geocodeAddress, storeGeocode, GeocodeCandidate } from '../utils/geocode';
+import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, isAddressQuery, geocodeAddress, storeGeocode, searchPlaceSuggestions, GeocodeCandidate } from '../utils/geocode';
 import { haversineKm } from '../utils/units';
 import { activityImageUrl } from '../utils/activityImages';
 import { getTranslation, tv } from '../utils/i18n';
@@ -636,6 +636,64 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     searching: boolean;
   }>({ label: '', q: '', candidates: [], best: null, searching: false });
 
+  /* ── Live place suggestions for the activity NAME fields ─────────────────
+     While the traveller types a store / landmark / address, Photon &
+     Nominatim return matches near the trip; the list sits in a fixed-height
+     scrollable box so it never grows past the viewport. Picking one pins the
+     stop at that exact place (and drops it straight into the pinpoint box). ── */
+  const [nameSuggest, setNameSuggest] = useState<{
+    key: string; // dayNumber:itemIndex
+    q: string;
+    items: GeocodeCandidate[];
+    open: boolean;
+    searching: boolean;
+  }>({ key: '', q: '', items: [], open: false, searching: false });
+  const nameSuggestTimer = useRef<number | null>(null);
+
+  const nameSuggestKey = (dayNumber: number, itemIdx: number) => `${dayNumber}:${itemIdx}`;
+
+  const handleNameSuggest = (dayNumber: number, itemIdx: number, value: string) => {
+    const key = nameSuggestKey(dayNumber, itemIdx);
+    setNameSuggest((s) => ({ ...s, key, q: value, open: true }));
+    if (nameSuggestTimer.current) window.clearTimeout(nameSuggestTimer.current);
+    const v = value.trim();
+    if (v.length < 3) {
+      setNameSuggest((s) => ({ ...s, items: [], searching: false }));
+      return;
+    }
+    setNameSuggest((s) => ({ ...s, searching: true }));
+    nameSuggestTimer.current = window.setTimeout(() => {
+      void searchPlaceSuggestions(v, geoContext, 8).then((items) => {
+        setNameSuggest((s) =>
+          s.key === key && s.q.trim() === v ? { ...s, items, searching: false } : s
+        );
+      });
+    }, 320);
+  };
+
+  /** Pick a suggestion → rename the activity AND pin it at the exact place. */
+  const applyNameSuggestion = (dayNumber: number, itemIdx: number, c: GeocodeCandidate) => {
+    setNameSuggest({ key: '', q: '', items: [], open: false, searching: false });
+    const pin = (c.name || '').trim() || (c.address || '').trim() || `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`;
+    const draft = editDraft;
+    const label = draft && draft.dayNumber === dayNumber ? draft.items[itemIdx]?.name?.trim() : '';
+    setEditDraft((d) =>
+      d && d.dayNumber === dayNumber
+        ? { ...d, items: d.items.map((x, j) => (j === itemIdx ? { ...x, name: pin } : x)) }
+        : d
+    );
+    storeGeocode(c.display, geoContext, c.lat, c.lng);
+    if (label) {
+      storeGeocode(label, geoContext, c.lat, c.lng);
+      const day = itinerary.days.find((x) => x.dayNumber === dayNumber);
+      if (day) {
+        updateDay(dayNumber, {
+          locationOverrides: { ...(day.locationOverrides || {}), [label]: pin }
+        });
+      }
+    }
+  };
+
   /** Non-null when the override already resolves to an exact point. */
   const locOverrideGeo = (d: ItineraryDay, label: string) => {
     const v = (d.locationOverrides?.[label] || '').trim();
@@ -1160,20 +1218,68 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                   >
                                     {itemIdx + 1}
                                   </span>
-                                  <input
-                                    type="text"
-                                    value={it.name}
-                                    onChange={(e) =>
-                                      setEditDraft({
-                                        ...editDraft,
-                                        items: editDraft.items.map((x, j) =>
-                                          j === itemIdx ? { ...x, name: e.target.value } : x
-                                        )
-                                      })
-                                    }
-                                    placeholder={getTranslation('jdNamePh')}
-                                    className="flex-1 min-w-0 py-1 bg-transparent border-b border-transparent focus:border-violet-400 text-xs font-semibold text-stone-900 dark:text-stone-50 placeholder:text-stone-400 focus:outline-none transition-colors"
-                                  />
+                                  <div className="relative flex-1 min-w-0">
+                                    <input
+                                      type="text"
+                                      value={it.name}
+                                      onChange={(e) => {
+                                        setEditDraft({
+                                          ...editDraft,
+                                          items: editDraft.items.map((x, j) =>
+                                            j === itemIdx ? { ...x, name: e.target.value } : x
+                                          )
+                                        });
+                                        handleNameSuggest(editDraft.dayNumber, itemIdx, e.target.value);
+                                      }}
+                                      onBlur={() => {
+                                        // close shortly after blur so a tap on a row still lands
+                                        window.setTimeout(() => setNameSuggest((s) => ({ ...s, open: false })), 180);
+                                      }}
+                                      onFocus={() => {
+                                        if (nameSuggest.items.length > 0) setNameSuggest((s) => ({ ...s, open: true }));
+                                      }}
+                                      placeholder={getTranslation('jdNamePh')}
+                                      className="w-full py-1 bg-transparent border-b border-transparent focus:border-violet-400 text-xs font-semibold text-stone-900 dark:text-stone-50 placeholder:text-stone-400 focus:outline-none transition-colors"
+                                    />
+                                    {/* live place suggestions — fixed-height box, scroll for more */}
+                                    {nameSuggest.key === nameSuggestKey(editDraft.dayNumber, itemIdx) &&
+                                      nameSuggest.open &&
+                                      (nameSuggest.searching || nameSuggest.items.length > 0) && (
+                                        <div className="absolute left-0 right-0 top-full mt-1 z-40 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
+                                          <div className="max-h-44 overflow-y-auto overscroll-contain">
+                                            {nameSuggest.searching && nameSuggest.items.length === 0 && (
+                                              <div className="px-3 py-2.5 text-[10px] text-stone-400 flex items-center gap-2">
+                                                <span className="w-3 h-3 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
+                                                Searching nearby places…
+                                              </div>
+                                            )}
+                                            {nameSuggest.items.map((c, ci) => (
+                                              <button
+                                                key={ci}
+                                                type="button"
+                                                onMouseDown={(e) => {
+                                                  e.preventDefault();
+                                                  applyNameSuggestion(editDraft.dayNumber, itemIdx, c);
+                                                }}
+                                                className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer border-b border-stone-100 dark:border-stone-800 last:border-0"
+                                              >
+                                                <MapPin className="w-3 h-3 text-violet-500 shrink-0 mt-0.5" />
+                                                <span className="flex-1 min-w-0 text-[10px] text-stone-700 dark:text-stone-200 leading-snug">
+                                                  {(c.name || c.address || '').trim() && (
+                                                    <span className="font-bold block truncate">
+                                                      {(c.name || c.address || '').trim()}
+                                                    </span>
+                                                  )}
+                                                  <span className="block text-stone-400 truncate">
+                                                    {c.display}
+                                                  </span>
+                                                </span>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                  </div>
                                   {/* Slot picker — keeps Morning / Afternoon / Evening
                                       headings meaningful after the edit */}
                                   <select
@@ -1495,6 +1601,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                       </div>
                                       {locSuggest.label === stop.label && locSuggest.candidates.length > 0 && (
                                         <div className="absolute left-4 right-0 top-full mt-0.5 z-30 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
+                                          <div className="max-h-44 overflow-y-auto overscroll-contain">
                                           {locSuggest.candidates.map((c, ci) => (
                                             <button
                                               key={ci}
@@ -1509,6 +1616,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                               <span className="flex-1 min-w-0 text-[10px] text-stone-700 dark:text-stone-200 truncate">{c.display}</span>
                                             </button>
                                           ))}
+                                          </div>
                                         </div>
                                       )}
                                     </div>
