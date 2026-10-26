@@ -31,7 +31,6 @@ import {
   Sunrise,
   Sun,
   MoonStar,
-  Pencil,
   Map as MapIcon,
   Wand2,
   Footprints,
@@ -569,9 +568,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   }, [detailTripId]);
 
   // Edit Trip modal state — edit ALL days at once, delete trip lives inside this editor
-  const [editingTripId, setEditingTripId] = useState<string | null>(null);
-  const [editTripDays, setEditTripDays] = useState<ItineraryDay[]>([]);
-  const [editTripNotes, setEditTripNotes] = useState('');
 
   // Pi-Travel-style route map — which trip currently shows its day route map
   const [routeMapOpenFor, setRouteMapOpenFor] = useState<string | null>(null);
@@ -631,67 +627,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     const newMap = { ...notesByItin, [itinId]: notes };
     setNotesByItin(newMap);
     localStorage.setItem('wanderlust_custom_notes', JSON.stringify(newMap));
-  };
-
-  const handleOpenEditTrip = (itin: TravelItinerary) => {
-    setEditingTripId(itin.id);
-    setEditTripDays(itin.days.map((d) => ({ ...d })));
-    setEditTripNotes(itin.notes || '');
-  };
-
-  const handleSaveTripEdit = (itin: TravelItinerary) => {
-    // Drop empty activity boxes, tidy whitespace, and give untitled days a
-    // sensible default so blank editor fields never leak into the timeline.
-    const clean = (text: string) =>
-      (text || '')
-        .split(/[\n\r]+/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .join('\n');
-    const renumbered = editTripDays.map((d, i) => ({
-      ...d,
-      dayNumber: i + 1,
-      title: (d.title || '').trim() || `Day ${i + 1}`,
-      morningActivity: clean(d.morningActivity),
-      afternoonActivity: clean(d.afternoonActivity),
-      eveningActivity: clean(d.eveningActivity),
-      companionGoal: (d.companionGoal || '').trim()
-    }));
-    onUpdateItinerary?.({ ...itin, days: renumbered, notes: editTripNotes });
-    setEditingTripId(null);
-  };
-
-  const handleDeleteTripFromEdit = (itin: TravelItinerary) => {
-    if (!onDeleteItinerary) return;
-    if (window.confirm(`Delete the itinerary for ${itin.destination}? This cannot be undone.`)) {
-      onDeleteItinerary(itin.id);
-      setEditingTripId(null);
-    }
-  };
-
-  const handleUpdateEditDay = (index: number, field: keyof ItineraryDay, val: string) => {
-    setEditTripDays((prev) => prev.map((d, i) => (i === index ? { ...d, [field]: val } : d)));
-  };
-
-  // New days start completely blank — placeholders guide, no pre-filled text.
-  const handleAddEditDay = () => {
-    const nextNum = editTripDays.length + 1;
-    setEditTripDays((prev) => [
-      ...prev,
-      {
-        dayNumber: nextNum,
-        title: '',
-        morningActivity: '',
-        afternoonActivity: '',
-        eveningActivity: '',
-        companionGoal: ''
-      }
-    ]);
-  };
-
-  const handleRemoveEditDay = (index: number) => {
-    if (editTripDays.length <= 1) return;
-    setEditTripDays((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Swipe-left / tap-trash day deletion on the schedule timeline (renumbers days)
@@ -894,7 +829,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     setQuickDays(3);
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
     setRouteMapOpenFor(newItinerary.id); // route map opens already planned
-    handleOpenEditTrip(newItinerary);
   };
 
   return (
@@ -1533,14 +1467,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                             <MapIcon className="w-3.5 h-3.5" />
                             <span>{getTranslation('routeMap')}</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditTrip(itinerary)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:scale-[1.03] cursor-pointer shadow-xs transition-all"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                            <span>{getTranslation('editTrip')}</span>
-                          </button>
                         </div>
                       </div>
 
@@ -1593,170 +1519,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
 
 
-      {/* Edit Trip Modal — edit every day at once; delete trip lives here */}
-      {editingTripId && (() => {
-        const itin = itineraries.find((x) => x.id === editingTripId);
-        if (!itin) return null;
-        return (
-          <div className="wl-modal-overlay" onClick={() => setEditingTripId(null)}>
-            <div
-              className="wl-modal-card max-w-2xl p-6 sm:p-7 relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between gap-4 mb-5">
-                <div>
-                  <div className="wl-modal-eyebrow">WanderLust Studio</div>
-                  <h3 className="wl-modal-title mt-1.5">
-                    {getTranslation('editTrip')} · {itin.destination}
-                  </h3>
-                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-1.5">
-                    {itin.startDate} – {itin.endDate} · {getTranslation('editTripSub')}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditingTripId(null)}
-                  className="wl-modal-close"
-                  aria-label="Close"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="mt-5 space-y-3 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    {getTranslation('daySchedule')} ({tv('daysCount', { n: editTripDays.length })})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleAddEditDay}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{getTranslation('addAnotherDay')}</span>
-                  </button>
-                </div>
-
-                {/* Per day: one heading + one plan box (one activity per line),
-                    linked on the dotted line — the same layout as the trip page. */}
-                <div className="relative">
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-[15px] top-4 bottom-4 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
-                  />
-                  <div className="space-y-3">
-                    {editTripDays.map((d, idx) => {
-                      // Three slot boxes per day — Morning / Afternoon / Evening
-                      // stay separate so the headings survive the edit.
-                      const slotRows: Array<{
-                        key: 'morningActivity' | 'afternoonActivity' | 'eveningActivity';
-                        label: string;
-                      }> = [
-                        { key: 'morningActivity', label: getTranslation('slotMorning') },
-                        { key: 'afternoonActivity', label: getTranslation('slotAfternoon') },
-                        { key: 'eveningActivity', label: getTranslation('slotEvening') }
-                      ];
-                      return (
-                        <div key={idx} className="relative pl-11">
-                          <span
-                            aria-hidden="true"
-                            className="absolute left-0 top-3 w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-sm border-2 border-white dark:border-slate-900"
-                          >
-                            <CalendarDays className="w-4 h-4" />
-                          </span>
-                          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-                            {/* One box per day: the title is the box's header row,
-                                the plan lines sit right under it — no nested boxes */}
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-500 dark:text-rose-400 shrink-0">
-                                {tv('dayN', { n: idx + 1 })}
-                              </span>
-                              <input
-                                type="text"
-                                value={d.title}
-                                onChange={(e) => handleUpdateEditDay(idx, 'title', e.target.value)}
-                                placeholder={getTranslation('dayTitlePh')}
-                                className="flex-1 min-w-0 py-1 bg-transparent border-b border-transparent focus:border-rose-300 dark:focus:border-rose-700 text-slate-900 dark:text-slate-100 font-semibold focus:outline-none transition-colors"
-                              />
-                              {editTripDays.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveEditDay(idx)}
-                                  className="p-1 text-slate-400 hover:text-red-600 cursor-pointer shrink-0"
-                                  title={getTranslation('removeDayTitle')}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                            {slotRows.map(({ key, label }, slotIdx) => (
-                              <div key={key} className={slotIdx === 0 ? 'mt-1.5' : 'mt-1'}>
-                                <div className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
-                                  {label}
-                                </div>
-                                <textarea
-                                  rows={Math.max(1, (d[key] || '').split('\n').length)}
-                                  value={d[key]}
-                                  onChange={(e) => handleUpdateEditDay(idx, key, e.target.value)}
-                                  placeholder={getTranslation('activityPh')}
-                                  className="w-full py-1 bg-transparent border-t border-dashed border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 leading-relaxed focus:outline-none resize-none"
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    {getTranslation('tripNotesLabel')}
-                  </label>
-                  <AutoGrowTextarea
-                    minRows={2}
-                    value={editTripNotes}
-                    onChange={(e) => setEditTripNotes(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                {/* Danger zone: deleting the trip lives inside the editor */}
-                <button
-                  type="button"
-                  onClick={() => handleDeleteTripFromEdit(itin)}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-red-500 to-rose-600 rounded-lg hover:brightness-105 transition-colors shadow-xs cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>{getTranslation('deleteThisTrip')}</span>
-                </button>
-
-                <div className="flex items-center gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setEditingTripId(null)}
-                    className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200 cursor-pointer"
-                  >
-                    {getTranslation('cancelBtn')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSaveTripEdit(itin)}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:brightness-105 transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{getTranslation('saveAllChanges')}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 };
