@@ -644,7 +644,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     setQuickEnd('');
     setQuickDays(3);
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
-    handleOpenEditTrip(newItinerary);
+    // Straight to the trip page — no template popup after create.
+    onOpenTripDetail?.(newItinerary);
   };
 
   return (
