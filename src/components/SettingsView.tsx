@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getTranslation } from '../utils/i18n';
 import {
   Sun,
@@ -91,10 +91,12 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
     window.dispatchEvent(new Event('wanderlust-settings-changed'));
   }, [settings]);
 
+  const savedNoticeTimer = useRef<number | null>(null);
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
     setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 2000);
+    if (savedNoticeTimer.current) window.clearTimeout(savedNoticeTimer.current);
+    savedNoticeTimer.current = window.setTimeout(() => setSavedNotice(false), 2500);
   };
 
   const handleResetData = () => {
@@ -131,13 +133,17 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
           </p>
         </div>
 
-        {savedNotice && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-semibold animate-in fade-in">
-            <Check className="w-3.5 h-3.5 text-emerald-600" />
+      </div>
+
+      {/* Floating "preferences saved" toast — fixed overlay, never shifts layout */}
+      {savedNotice && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 dark:bg-emerald-500 text-white rounded-full text-xs font-semibold shadow-lg animate-in fade-in">
+            <Check className="w-3.5 h-3.5" />
             <span>{getTranslation('setSaved')}</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 1. Theme & Appearance (Bright / Dark Mode) */}

@@ -802,8 +802,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [quickStart, setQuickStart] = useState('');
   const [quickEnd, setQuickEnd] = useState('');
   const [quickDays, setQuickDays] = useState(3);
-  // Free-typing draft for the duration number (null = show the committed value)
-  const [daysDraft, setDaysDraft] = useState<string | null>(null);
   const createBoxRef = useRef<HTMLDivElement | null>(null);
 
   const isoOf = (d: Date) => d.toISOString().slice(0, 10);
@@ -829,13 +827,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     setQuickEnd(v);
     const start = quickStart || defaultStartIso();
     if (v && new Date(v) >= new Date(start)) setQuickDays(diffDays(start, v));
-  };
-  const changeDays = (n: number) => {
-    // Long trips welcome — the only floor is 1 day (no artificial maximum).
-    const days = Math.max(1, Math.min(365, n));
-    setQuickDays(days);
-    const start = quickStart || defaultStartIso();
-    setQuickEnd(addDaysIso(start, days - 1));
   };
   const focusCreateBox = () => {
     createBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -981,80 +972,33 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           </div>
 
           {/* When: twin date boxes — identical markup so both render the same
-              format. Each cell clips its own input (overflow-hidden + min-w-0)
-              so the boxes can never spill over each other on any phone
-              browser, whatever intrinsic width its date control has. */}
+              format. min-w-0 keeps the grid cells from spilling into each
+              other; no overflow-hidden anywhere so the rounded borders paint
+              fully to the edge on every phone browser. Trip length is simply
+              the number of days between FROM and TO. */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5 min-w-0 overflow-hidden">
+            <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 {getTranslation('fromDate')}
               </label>
-              <div className="overflow-hidden rounded-2xl">
-                <input
-                  type="date"
-                  value={quickStart}
-                  onChange={(e) => changeStart(e.target.value)}
-                  className="block w-full max-w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
-                />
-              </div>
+              <input
+                type="date"
+                value={quickStart}
+                onChange={(e) => changeStart(e.target.value)}
+                className="block w-full max-w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
+              />
             </div>
-            <div className="space-y-1.5 min-w-0 overflow-hidden">
+            <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 {getTranslation('toDate')}
               </label>
-              <div className="overflow-hidden rounded-2xl">
-                <input
-                  type="date"
-                  value={quickEnd}
-                  min={quickStart || undefined}
-                  onChange={(e) => changeEnd(e.target.value)}
-                  className="block w-full max-w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Duration: stepper with a directly tappable number */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
-              {getTranslation('howLongLabel')}
-            </label>
-            <div className="flex items-stretch gap-2">
-              <button
-                type="button"
-                onClick={() => changeDays(quickDays - 1)}
-                className="w-12 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-lg font-bold hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer shrink-0"
-                aria-label="fewer days"
-              >
-                −
-              </button>
-              <div className="flex-1 min-w-0 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 flex items-center justify-center gap-1.5 px-2">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={365}
-                  aria-label={getTranslation('howLongLabel')}
-                  value={daysDraft ?? String(quickDays)}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setDaysDraft(v);
-                    const n = parseInt(v, 10);
-                    if (!Number.isNaN(n)) changeDays(n);
-                  }}
-                  onBlur={() => setDaysDraft(null)}
-                  className="w-14 min-w-0 bg-transparent text-center text-base font-bold text-stone-900 dark:text-stone-100 tabular-nums focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-                <span className="text-xs text-stone-400 shrink-0">{getTranslation('daysWord')}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => changeDays(quickDays + 1)}
-                className="w-12 h-11 rounded-2xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-lg font-bold hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer shrink-0"
-                aria-label="more days"
-              >
-                +
-              </button>
+              <input
+                type="date"
+                value={quickEnd}
+                min={quickStart || undefined}
+                onChange={(e) => changeEnd(e.target.value)}
+                className="block w-full max-w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
+              />
             </div>
           </div>
 
