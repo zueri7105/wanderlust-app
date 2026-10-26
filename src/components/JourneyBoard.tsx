@@ -47,9 +47,12 @@ import {
   estimateLegForMode,
   isAirportLeg,
   dayRouteColor,
+  getLegRoute,
+  onRouteResolved,
+  legOperatorFor,
   TravelMode
 } from '../utils/placeGeo';
-import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, isAddressQuery, geocodeAddress, storeGeocode, GeocodeCandidate } from '../utils/geocode';
+import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, isAddressQuery, geocodeAddress, storeGeocode, searchPlaceSuggestions, GeocodeCandidate } from '../utils/geocode';
 import { haversineKm } from '../utils/units';
 import { activityImageUrl } from '../utils/activityImages';
 import { getTranslation, tv } from '../utils/i18n';
@@ -100,20 +103,25 @@ const stopsOf = (day: ItineraryDay, context = ''): StopItem[] => {
 };
 
 /** Legs between consecutive geocoded stops of a day (distance + travel mode). */
-const legsOf = (day: ItineraryDay, context = '') => {
+const legsOf = (day: ItineraryDay, context = '', routeVer = 0) => {
   const stops = stopsOf(day, context);
   return stops.slice(1).map((to, i) => {
     const from = stops[i];
     if (from.lat == null || to.lat == null || from.lng == null || to.lng == null) return null;
     const km = haversineKm(from.lat, from.lng, to.lat, to.lng);
+    // Road-network distance once OSRM has measured it — same figure as the map.
+    const measuredKm =
+      from.lat != null && from.lng != null && to.lat != null && to.lng != null
+        ? getLegRoute([from.lat, from.lng], [to.lat, to.lng])?.km ?? null
+        : null;
     const chosen = day.legModes?.[`${from.label}→${to.label}`] as TravelMode | undefined;
     // Airport ⇄ airport defaults to flying — nobody drives between airports.
     const est = chosen
-      ? { km, minutes: estimateLegForMode(km, chosen), mode: chosen }
+      ? { km: measuredKm ?? km, minutes: estimateLegForMode(km, chosen, measuredKm ?? undefined), mode: chosen }
       : isAirportLeg(from.label, to.label)
-      ? { km, minutes: estimateLegForMode(km, 'flight'), mode: 'flight' as TravelMode }
-      : estimateLeg(km);
-    return { from: from.label, to: to.label, ...est };
+      ? { km: measuredKm ?? km, minutes: estimateLegForMode(km, 'flight', measuredKm ?? undefined), mode: 'flight' as TravelMode }
+      : estimateLeg(km, measuredKm);
+    return { from: from.label, to: to.label, measuredKm, ...est };
   });
 };
 
@@ -409,6 +417,9 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   const geoContext = tripGeoContext(itinerary.destination, itinerary.country);
   const [geoVer, setGeoVer] = useState(0);
   useEffect(() => onGeocodeResolved(() => setGeoVer((v) => v + 1)), []);
+  // Re-render when a road-network (OSRM) measurement lands — leg chips then
+  // show the real driven km/minutes instead of the straight-line guess.
+  useEffect(() => onRouteResolved(() => setGeoVer((v) => v + 1)), []);
   useEffect(() => {
     itinerary.days.forEach((d) => {
       SLOT_KEYS.forEach(({ key }) => {
@@ -488,6 +499,84 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     });
     setEditingDay(null);
     setEditDraft(null);
+  };
+
+  /* ── Live place suggestions for the activity NAME and PINPOINT fields ────
+     While the traveller types a store / landmark / address, Photon &
+     Nominatim return matches near the trip; the list sits in a fixed-height
+     scrollable box so it never grows past the viewport. Picking one pins the
+     stop at that exact place (and drops it straight into the pinpoint box). ── */
+  const [nameSuggest, setNameSuggest] = useState<{
+    key: string;
+    q: string;
+    items: GeocodeCandidate[];
+    open: boolean;
+    searching: boolean;
+  }>({ key: '', q: '', items: [], open: false, searching: false });
+  const nameSuggestTimer = useRef<number | null>(null);
+  const pinSuggestTimer = useRef<number | null>(null);
+  const nameSuggestKey = (dayNumber: number, itemIdx: number) => `${dayNumber}:${itemIdx}`;
+
+  const handleNameSuggest = (dayNumber: number, itemIdx: number, value: string) => {
+    const key = nameSuggestKey(dayNumber, itemIdx);
+    setNameSuggest((st) => ({ ...st, key, q: value, open: true }));
+    if (nameSuggestTimer.current) window.clearTimeout(nameSuggestTimer.current);
+    const v = value.trim();
+    if (v.length < 3) {
+      setNameSuggest((st) => ({ ...st, items: [], searching: false }));
+      return;
+    }
+    setNameSuggest((st) => ({ ...st, searching: true }));
+    nameSuggestTimer.current = window.setTimeout(() => {
+      void searchPlaceSuggestions(v, geoContext, 8).then((items) => {
+        setNameSuggest((st) =>
+          st.key === key && st.q.trim() === v ? { ...st, items, searching: false } : st
+        );
+      });
+    }, 320);
+  };
+
+  const applyNameSuggestion = (dayNumber: number, itemIdx: number, c: GeocodeCandidate) => {
+    setNameSuggest((st) => ({ ...st, open: false }));
+    if (!editDraft || editDraft.dayNumber !== dayNumber) return;
+    const pin = pinLabelFor(c);
+    // Rename the activity to the picked place and pin it exactly.
+    setEditDraft({
+      ...editDraft,
+      items: editDraft.items.map((x, j) => (j === itemIdx ? { ...x, name: pin } : x))
+    });
+    storeGeocode(c.display, geoContext, c.lat, c.lng);
+    storeGeocode(pin, geoContext, c.lat, c.lng);
+    updateDay(dayNumber, {
+      locationOverrides: { ...locationOverridesFor(dayNumber), [pin]: pin }
+    });
+  };
+
+  /** Live suggestions for the PINPOINT box too — as the traveller types an
+      address / station / store, matches appear in a fixed scrollable box. */
+  const handlePinSuggest = (label: string, value: string) => {
+    if (pinSuggestTimer.current) window.clearTimeout(pinSuggestTimer.current);
+    const v = value.trim();
+    if (v.length < 3) {
+      setLocSuggest((st) => ({ ...st, label, q: v, candidates: [], best: null, searching: false, open: false }));
+      return;
+    }
+    setLocSuggest((st) => ({ ...st, label, q: v, searching: true }));
+    pinSuggestTimer.current = window.setTimeout(() => {
+      void searchPlaceSuggestions(v, geoContext, 6).then((items) => {
+        setLocSuggest((st) =>
+          st.label === label && st.q.trim() === v
+            ? { ...st, candidates: items, best: items[0] ?? null, searching: false, open: true }
+            : st
+        );
+      });
+    }, 320);
+  };
+
+  /** Current locationOverrides for a day (helper for suggestion applies). */
+  const locationOverridesFor = (dayNumber: number) => {
+    const d = itinerary.days.find((x) => x.dayNumber === dayNumber);
+    return d?.locationOverrides || {};
   };
 
   // Trip cover picker (rendered on the trip card back on the Trips list)
@@ -634,7 +723,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     candidates: GeocodeCandidate[];
     best: GeocodeCandidate | null;
     searching: boolean;
-  }>({ label: '', q: '', candidates: [], best: null, searching: false });
+    open: boolean;
+  }>({ label: '', q: '', candidates: [], best: null, searching: false, open: false });
 
   /** Non-null when the override already resolves to an exact point. */
   const locOverrideGeo = (d: ItineraryDay, label: string) => {
@@ -660,7 +750,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     storeGeocode(label, geoContext, c.lat, c.lng);
     storeGeocode(pin, geoContext, c.lat, c.lng);
     updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: pin } });
-    setLocSuggest((s) => ({ ...s, candidates: [], best: null, searching: false }));
+    setLocSuggest((s) => ({ ...s, candidates: [], best: null, searching: false, open: false }));
   };
 
   const resolvePin = (d: ItineraryDay, label: string) => {
@@ -672,19 +762,19 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
       storeGeocode(label, geoContext, g.lat, g.lng);
       return;
     }
-    setLocSuggest((s) => ({ ...s, label, q: v, searching: true, candidates: [], best: null }));
+    setLocSuggest((s) => ({ ...s, label, q: v, searching: true, candidates: [], best: null, open: false }));
     void (async () => {
       const res = await geocodeAddress(v, geoContext);
       setLocSuggest((s) => {
-        if (s.label !== label || s.q !== v) return { ...s, searching: false };
+        if (s.label !== label || s.q !== v) return { ...s, searching: false, open: false };
         if (res && res !== 'miss' && res.best) {
           // Pin immediately at the best match — exact for addresses.
           applyPinQuiet(label, res.best);
-          return { ...s, searching: false, best: res.best, candidates: res.candidates.slice(1) };
+          return { ...s, searching: false, best: res.best, candidates: res.candidates.slice(1), open: false };
         }
         // No building-level hit — fall back to the queued geocoder (city).
         requestGeocode(v, geoContext, isAddressQuery(v));
-        return { ...s, searching: false, candidates: [], best: null };
+        return { ...s, searching: false, candidates: [], best: null, open: false };
       });
     })();
   };
@@ -1085,7 +1175,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
               {itinerary.days.filter((d) => d.dayNumber === activeDay).map((d, dayIdx) => {
                 const dayColor = dayRouteColor(d.dayNumber);
                 const stops = stopsOf(d, geoContext);
-                const legs = legsOf(d, geoContext);
+                const legs = legsOf(d, geoContext, geoVer);
                 const editing = editingDay === d.dayNumber;
                 return (
                   <div
@@ -1160,20 +1250,66 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                   >
                                     {itemIdx + 1}
                                   </span>
-                                  <input
-                                    type="text"
-                                    value={it.name}
-                                    onChange={(e) =>
-                                      setEditDraft({
-                                        ...editDraft,
-                                        items: editDraft.items.map((x, j) =>
-                                          j === itemIdx ? { ...x, name: e.target.value } : x
-                                        )
-                                      })
-                                    }
-                                    placeholder={getTranslation('jdNamePh')}
-                                    className="flex-1 min-w-0 py-1 bg-transparent border-b border-transparent focus:border-violet-400 text-xs font-semibold text-stone-900 dark:text-stone-50 placeholder:text-stone-400 focus:outline-none transition-colors"
-                                  />
+                                  <div className="relative flex-1 min-w-0">
+                                    <input
+                                      type="text"
+                                      value={it.name}
+                                      onChange={(e) => {
+                                        setEditDraft({
+                                          ...editDraft,
+                                          items: editDraft.items.map((x, j) =>
+                                            j === itemIdx ? { ...x, name: e.target.value } : x
+                                          )
+                                        });
+                                        handleNameSuggest(editDraft.dayNumber, itemIdx, e.target.value);
+                                      }}
+                                      onBlur={() => {
+                                        // close shortly after blur so a tap on a row still lands
+                                        window.setTimeout(() => setNameSuggest((st) => ({ ...st, open: false })), 180);
+                                      }}
+                                      onFocus={() => {
+                                        if (nameSuggest.items.length > 0) setNameSuggest((st) => ({ ...st, open: true }));
+                                      }}
+                                      placeholder={getTranslation('jdNamePh')}
+                                      className="w-full py-1 bg-transparent border-b border-transparent focus:border-violet-400 text-xs font-semibold text-stone-900 dark:text-stone-50 placeholder:text-stone-400 focus:outline-none transition-colors"
+                                    />
+                                    {/* live place suggestions — fixed-height box, scroll for more */}
+                                    {nameSuggest.key === nameSuggestKey(editDraft.dayNumber, itemIdx) &&
+                                      nameSuggest.open &&
+                                      (nameSuggest.searching || nameSuggest.items.length > 0) && (
+                                        <div className="absolute left-0 right-0 top-full mt-1 z-40 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
+                                          <div className="max-h-44 overflow-y-auto overscroll-contain">
+                                            {nameSuggest.searching && nameSuggest.items.length === 0 && (
+                                              <div className="px-3 py-2.5 text-[10px] text-stone-400 flex items-center gap-2">
+                                                <span className="w-3 h-3 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
+                                                Searching nearby places…
+                                              </div>
+                                            )}
+                                            {nameSuggest.items.map((c, ci) => (
+                                              <button
+                                                key={ci}
+                                                type="button"
+                                                onMouseDown={(e) => {
+                                                  e.preventDefault();
+                                                  applyNameSuggestion(editDraft.dayNumber, itemIdx, c);
+                                                }}
+                                                className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors cursor-pointer border-b border-stone-100 dark:border-stone-800 last:border-0"
+                                              >
+                                                <MapPin className="w-3 h-3 text-violet-500 shrink-0 mt-0.5" />
+                                                <span className="flex-1 min-w-0 text-[10px] text-stone-700 dark:text-stone-200 leading-snug">
+                                                  {(c.name || c.address || '').trim() && (
+                                                    <span className="font-bold block truncate">
+                                                      {(c.name || c.address || '').trim()}
+                                                    </span>
+                                                  )}
+                                                  <span className="block text-stone-400 truncate">{c.display}</span>
+                                                </span>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                  </div>
                                   {/* Slot picker — keeps Morning / Afternoon / Evening
                                       headings meaningful after the edit */}
                                   <select
@@ -1349,7 +1485,13 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                         title={getTranslation('travelModeTitle')}
                                       >
                                         <LegIcon className="w-3 h-3" />
-                                        {tv('jdLeg', { km: leg.km.toFixed(1), min: leg.minutes })}
+                                        <span className="font-bold text-violet-600 dark:text-violet-300">
+                                          {legOperatorFor(leg.mode, itinerary.country, leg.from, leg.to) ??
+                                            getTranslation(LEG_MODE_CHOICES.find((c) => c.mode === leg.mode)?.labelKey || '')}
+                                        </span>
+                                        <span className="font-mono tabular-nums">
+                                          {tv('jdLeg', { km: leg.km.toFixed(1), min: leg.minutes })}
+                                        </span>
                                       </button>
                                     )}
                                   </div>
@@ -1360,7 +1502,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                       {LEG_MODE_CHOICES.map(({ mode, labelKey }) => {
                                         const MIcon = modeIcon(mode);
                                         const active = leg.mode === mode;
-                                        const mins = estimateLegForMode(leg.km, mode);
+                                        const mins = estimateLegForMode(leg.km, mode, leg.measuredKm ?? undefined);
+                                        const operator = legOperatorFor(mode, itinerary.country, leg.from, leg.to);
                                         return (
                                           <button
                                             key={mode}
@@ -1373,7 +1516,10 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                             }`}
                                           >
                                             <MIcon className="w-3 h-3" />
-                                            <span>{getTranslation(labelKey)}</span>
+                                            <span>
+                                              {getTranslation(labelKey)}
+                                              {operator ? ` · ${operator}` : ''}
+                                            </span>
                                             <span className={`font-mono tabular-nums text-[9px] ${active ? 'opacity-70' : 'text-stone-400'}`}>
                                               ~{mins}m
                                             </span>
@@ -1464,10 +1610,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                           value={d.locationOverrides?.[stop.label] ?? ''}
                                           onChange={(e) => {
                                             setStopLocation(d, stop.label, e.target.value);
-                                            const v = e.target.value.trim();
-                                            if (locSuggest.label !== stop.label || locSuggest.q !== v) {
-                                              setLocSuggest((s) => ({ ...s, label: stop.label, q: v, candidates: [], best: null, searching: false }));
-                                            }
+                                            handlePinSuggest(stop.label, e.target.value);
                                           }}
                                           onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
@@ -1480,7 +1623,11 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                               }
                                             }
                                           }}
-                                          onBlur={() => resolvePin(d, stop.label)}
+                                          onBlur={() => {
+                                            // close shortly after blur so a tap on a row still lands
+                                            window.setTimeout(() => setLocSuggest((st) => ({ ...st, open: false })), 180);
+                                            resolvePin(d, stop.label);
+                                          }}
                                           placeholder={getTranslation('jdLocationPh')}
                                           className="flex-1 min-w-0 py-0.5 bg-transparent text-[10px] text-stone-600 dark:text-stone-300 placeholder:text-stone-400/70 dark:placeholder:text-stone-500 focus:outline-none border-b border-transparent focus:border-violet-400 transition-colors"
                                         />
@@ -1493,7 +1640,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                           </span>
                                         )}
                                       </div>
-                                      {locSuggest.label === stop.label && locSuggest.candidates.length > 0 && (
+                                      {locSuggest.label === stop.label && locSuggest.open && locSuggest.candidates.length > 0 && (
                                         <div className="absolute left-4 right-0 top-full mt-0.5 z-30 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
                                           {locSuggest.candidates.map((c, ci) => (
                                             <button
