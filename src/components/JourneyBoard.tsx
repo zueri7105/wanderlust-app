@@ -47,6 +47,9 @@ import {
   estimateLegForMode,
   isAirportLeg,
   dayRouteColor,
+  getLegRoute,
+  onRouteResolved,
+  legOperatorFor,
   TravelMode
 } from '../utils/placeGeo';
 import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, isAddressQuery, geocodeAddress, storeGeocode, searchPlaceSuggestions, GeocodeCandidate } from '../utils/geocode';
@@ -100,20 +103,22 @@ const stopsOf = (day: ItineraryDay, context = ''): StopItem[] => {
 };
 
 /** Legs between consecutive geocoded stops of a day (distance + travel mode). */
-const legsOf = (day: ItineraryDay, context = '') => {
+const legsOf = (day: ItineraryDay, context = '', routeVer = 0) => {
   const stops = stopsOf(day, context);
   return stops.slice(1).map((to, i) => {
     const from = stops[i];
     if (from.lat == null || to.lat == null || from.lng == null || to.lng == null) return null;
     const km = haversineKm(from.lat, from.lng, to.lat, to.lng);
+    // Road-network distance once OSRM has measured it — same figure as the map.
+    const measured = getLegRoute([from.lat, from.lng], [to.lat, to.lng])?.km ?? null;
     const chosen = day.legModes?.[`${from.label}→${to.label}`] as TravelMode | undefined;
     // Airport ⇄ airport defaults to flying — nobody drives between airports.
     const est = chosen
-      ? { km, minutes: estimateLegForMode(km, chosen), mode: chosen }
+      ? { km, minutes: estimateLegForMode(km, chosen, measured ?? undefined), mode: chosen }
       : isAirportLeg(from.label, to.label)
-      ? { km, minutes: estimateLegForMode(km, 'flight'), mode: 'flight' as TravelMode }
-      : estimateLeg(km);
-    return { from: from.label, to: to.label, ...est };
+      ? { km, minutes: estimateLegForMode(km, 'flight', measured ?? undefined), mode: 'flight' as TravelMode }
+      : estimateLeg(km, measured ?? undefined);
+    return { from: from.label, to: to.label, measuredKm: measured, ...est };
   });
 };
 
@@ -409,6 +414,9 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
   const geoContext = tripGeoContext(itinerary.destination, itinerary.country);
   const [geoVer, setGeoVer] = useState(0);
   useEffect(() => onGeocodeResolved(() => setGeoVer((v) => v + 1)), []);
+  // Re-render when a road-network (OSRM) measurement lands — leg chips then
+  // show the real driven km/minutes instead of the straight-line guess.
+  useEffect(() => onRouteResolved(() => setGeoVer((v) => v + 1)), []);
   useEffect(() => {
     itinerary.days.forEach((d) => {
       SLOT_KEYS.forEach(({ key }) => {
@@ -1167,7 +1175,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
               {itinerary.days.filter((d) => d.dayNumber === activeDay).map((d, dayIdx) => {
                 const dayColor = dayRouteColor(d.dayNumber);
                 const stops = stopsOf(d, geoContext);
-                const legs = legsOf(d, geoContext);
+                const legs = legsOf(d, geoContext, geoVer);
                 const editing = editingDay === d.dayNumber;
                 return (
                   <div
@@ -1479,7 +1487,13 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                         title={getTranslation('travelModeTitle')}
                                       >
                                         <LegIcon className="w-3 h-3" />
-                                        {tv('jdLeg', { km: leg.km.toFixed(1), min: leg.minutes })}
+                                        <span className="font-bold text-violet-600 dark:text-violet-300">
+                                          {legOperatorFor(leg.mode, itinerary.country, leg.from, leg.to) ??
+                                            getTranslation(LEG_MODE_CHOICES.find((c) => c.mode === leg.mode)?.labelKey || '')}
+                                        </span>
+                                        <span className="font-mono tabular-nums">
+                                          {tv('jdLeg', { km: leg.km.toFixed(1), min: leg.minutes })}
+                                        </span>
                                       </button>
                                     )}
                                   </div>
@@ -1490,7 +1504,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                       {LEG_MODE_CHOICES.map(({ mode, labelKey }) => {
                                         const MIcon = modeIcon(mode);
                                         const active = leg.mode === mode;
-                                        const mins = estimateLegForMode(leg.km, mode);
+                                        const mins = estimateLegForMode(leg.km, mode, leg.measuredKm ?? undefined);
+                                        const operator = legOperatorFor(mode, itinerary.country, leg.from, leg.to);
                                         return (
                                           <button
                                             key={mode}
@@ -1503,7 +1518,10 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                             }`}
                                           >
                                             <MIcon className="w-3 h-3" />
-                                            <span>{getTranslation(labelKey)}</span>
+                                            <span>
+                                              {getTranslation(labelKey)}
+                                              {operator ? ` · ${operator}` : ''}
+                                            </span>
                                             <span className={`font-mono tabular-nums text-[9px] ${active ? 'opacity-70' : 'text-stone-400'}`}>
                                               ~{mins}m
                                             </span>

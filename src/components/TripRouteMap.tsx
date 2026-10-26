@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { X, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Maximize2, Minimize2, Eye, EyeOff } from 'lucide-react';
 import { ItineraryDay, TravelItinerary } from '../types/travel';
 import {
   dayRouteColor,
@@ -340,6 +340,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   // the map container turns into a fixed viewport overlay and the day
   // tabs / stop legend become floating panels on top of it.
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [legendHidden, setLegendHidden] = useState(false);
 
   // Re-render whenever a queued online geocode lands, and queue lookups for
   // every stop the local table doesn't know (anchored to this trip's
@@ -545,7 +546,9 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                       {/* Dark casing — the visible "box outline" that separates
                           the route from the map's own roads, then a white halo,
                           then the day's colour. Yellow legs can never blend
-                          into yellow motorways again. */}
+                          into yellow motorways again. Ferry/flight legs share
+                          the colour line's dash pattern, so each individual
+                          dot gets its own ring instead of a solid outline. */}
                       <Polyline
                         positions={positions}
                         smoothFactor={positions.length > 2 ? 0 : 1}
@@ -554,7 +557,8 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                           color: '#0f172a',
                           weight: (focused ? 4.5 : 3.5) + 9,
                           opacity: 0.9,
-                          lineCap: 'round'
+                          lineCap: 'round',
+                          dashArray: dotted ? '1 9' : undefined
                         }}
                       />
                       <Polyline
@@ -565,7 +569,8 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                           color: '#ffffff',
                           weight: (focused ? 4.5 : 3.5) + 4,
                           opacity: 0.95,
-                          lineCap: 'round'
+                          lineCap: 'round',
+                          dashArray: dotted ? '1 9' : undefined
                         }}
                       />
                       <Polyline
@@ -751,6 +756,23 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
         })}
       </div>
       )}
+      {/* Stop legend — hideable so it never covers the map when you want the
+          whole screen for the route itself */}
+      {legendHidden ? (
+        <button
+          type="button"
+          onClick={() => setLegendHidden(false)}
+          title="Show stops"
+          className={
+            isFullscreen
+              ? 'fixed bottom-16 sm:bottom-[4.5rem] right-3 z-[600] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/92 dark:bg-slate-900/92 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-xl text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-300 transition-colors cursor-pointer'
+              : 'mx-3.5 mb-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-100 dark:bg-slate-800 text-[10px] font-bold text-stone-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-300 transition-colors cursor-pointer self-start'
+          }
+        >
+          <Eye className="w-3.5 h-3.5" />
+          Stops
+        </button>
+      ) : (
       <div
         className={
           isFullscreen
@@ -758,6 +780,14 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
             : 'px-3.5 pb-2.5 pt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900'
         }
       >
+        <button
+          type="button"
+          onClick={() => setLegendHidden(true)}
+          title="Hide stops"
+          className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-stone-100 dark:bg-slate-800 text-stone-400 hover:text-violet-600 dark:hover:text-violet-300 transition-colors cursor-pointer shrink-0"
+        >
+          <EyeOff className="w-3 h-3" />
+        </button>
         {visible.flatMap(({ day, stops }) =>
           stops.map((s) => (
             <span key={`${day.dayNumber}_${s.order}_lbl`} className="inline-flex items-center gap-1 min-w-0">
@@ -772,6 +802,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           ))
         )}
       </div>
+      )}
     </div>
   );
 };

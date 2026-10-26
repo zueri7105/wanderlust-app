@@ -454,12 +454,13 @@ export const isAirportLeg = (fromLabel: string, toLabel: string): boolean =>
  * Longer urban hops now default to the bus (real city transfers — like
  * Madrid→Toledo — are overwhelmingly intercity coach, not car).
  */
-export const estimateLeg = (km: number): LegEstimate => {
-  if (km <= 1.5) return { km, minutes: Math.max(3, Math.round(km * 12)), mode: 'walk' };
-  if (km <= 12) return { km, minutes: Math.round(km * 2.6) + 6, mode: 'transit' };
-  if (km <= 130) return { km, minutes: Math.round(km * 0.85) + 12, mode: 'bus' };
-  if (km <= 500) return { km, minutes: Math.round(km * 1.4) + 12, mode: 'drive' };
-  return { km, minutes: Math.round(km * 0.45) + 25, mode: 'train' };
+export const estimateLeg = (km: number, measuredKm?: number | null): LegEstimate => {
+  const road = measuredKm ?? km;
+  if (road <= 1.5) return { km: road, minutes: Math.max(3, Math.round(road * 12)), mode: 'walk' };
+  if (road <= 12) return { km: road, minutes: Math.round(road * 2.6) + 6, mode: 'transit' };
+  if (road <= 130) return { km: road, minutes: Math.round(road * 0.85) + 12, mode: 'bus' };
+  if (road <= 500) return { km: road, minutes: Math.round(road * 1.4) + 12, mode: 'drive' };
+  return { km: road, minutes: Math.round(road * 0.45) + 25, mode: 'train' };
 };
 
 /** Per-leg route facts measured on the road network (OSRM), not straight lines. */
