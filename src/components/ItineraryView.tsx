@@ -32,8 +32,6 @@ import {
   Sun,
   MoonStar,
   Pencil,
-  Map as MapIcon,
-  Wand2,
   Footprints,
   Bus,
   Car,
@@ -57,7 +55,6 @@ import { emergencyNumbersFor } from '../data/emergencyNumbers';
 import { getTranslation, tv } from '../utils/i18n';
 import AutoGrowTextarea from './AutoGrowTextarea';
 import { PlaceTypeahead } from './PlaceTypeahead';
-import { TripRouteMap } from './TripRouteMap';
 import { JourneyBoard } from './JourneyBoard';
 import { findPlaceGeo, estimateLeg, optimizeStopOrder, suggestPlacesFor, type TravelMode } from '../utils/placeGeo';
 import { getTripCover } from '../utils/tripCovers';
@@ -163,212 +160,6 @@ const DayLegConnector: React.FC<{ from: string; to: string }> = ({ from, to }) =
           · {getTranslation(labelKey)}
         </span>
       </span>
-    </div>
-  );
-};
-
-interface SwipeableDayCardProps {
-  day: ItineraryDay;
-  isLast: boolean;
-  canDelete: boolean;
-  onDelete: () => void;
-  destination?: string;
-  /** One-tap route optimiser (magic wand) for this day's stops */
-  onOptimize?: () => void;
-  optimized?: boolean;
-  /** Persist edits to this day (e.g. optional per-activity clock times) */
-  onUpdateDay?: (day: ItineraryDay) => void;
-}
-
-
-/** Auto-split typed digits into HH:MM — "9" → "9", "930" → "9:30", "0945" → "09:45". */
-const formatTimeInput = (raw: string): string => {
-  const digits = raw.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, -2)}:${digits.slice(-2)}`;
-};
-
-// Timeline day card with swipe-left-to-delete (pointer-driven, works on touch + mouse)
-const SwipeableDayCard: React.FC<SwipeableDayCardProps> = ({ day, canDelete, onDelete, destination = '', onOptimize, optimized, onUpdateDay }) => {
-  const [offset, setOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const drag = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!canDelete) return;
-    drag.current = { startX: e.clientX, startOffset: offset, moved: false };
-  };
-
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return;
-    const dx = e.clientX - drag.current.startX;
-    if (!drag.current.moved && Math.abs(dx) < 6) return;
-    drag.current.moved = true;
-    setDragging(true);
-    setOffset(Math.min(0, Math.max(-SWIPE_DELETE_WIDTH, drag.current.startOffset + dx)));
-  };
-
-  const endDrag = () => {
-    if (!drag.current) return;
-    drag.current = null;
-    setDragging(false);
-    setOffset((cur) => (cur < -SWIPE_DELETE_WIDTH / 2 ? -SWIPE_DELETE_WIDTH : 0));
-  };
-
-  // Ordered slot → tasks lists so leg connectors can span slot boundaries
-  // (last activity of one slot → first activity of the next).
-  const slotsWithTasks = DAY_TIME_ROWS.map((row) => ({ ...row, tasks: splitTasks(day[row.key]) }));
-  const nonEmptySlots = slotsWithTasks.filter((s) => s.tasks.length > 0);
-  const nextTaskAfter = (slotIdx: number, taskIdx: number): string | null => {
-    const slot = nonEmptySlots[slotIdx];
-    if (taskIdx < slot.tasks.length - 1) return slot.tasks[taskIdx + 1];
-    const nextSlot = nonEmptySlots[slotIdx + 1];
-    return nextSlot ? nextSlot.tasks[0] : null;
-  };
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden group/day">
-      {/* Red delete zone revealed behind the card when swiping left */}
-      {canDelete && (
-        <button
-          type="button"
-          onClick={onDelete}
-          className="absolute inset-y-0 right-0 w-[88px] bg-gradient-to-br from-red-500 to-rose-600 flex flex-col items-center justify-center gap-1 text-white cursor-pointer"
-          title="Delete this day"
-        >
-          <Trash2 className="w-4.5 h-4.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Delete</span>
-        </button>
-      )}
-
-      {/* Sliding card content */}
-      <div
-        style={{ transform: `translateX(${offset}px)` }}
-        className={`relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 touch-pan-y select-none ${dragging ? '' : 'transition-all'}`}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onPointerLeave={endDrag}
-      >
-        <div className="p-4 sm:p-5 flex gap-4">
-          {/* Timeline rail — a full-height gradient line under every day circle,
-              fading as it descends. Every day gets one, including the last. */}
-          <div className="relative flex flex-col items-center shrink-0 w-10 self-stretch">
-            <div className="relative z-10 w-10 h-10 rounded-full bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 flex items-center justify-center font-display font-extrabold text-sm shadow-md shrink-0">
-              {day.dayNumber}
-            </div>
-            <div
-              className="flex-1 w-[3px] rounded-full mt-1"
-              style={{
-                background:
-                  'linear-gradient(to bottom, rgba(28,25,23,0.85), rgba(120,113,108,0.4), rgba(214,211,209,0.12))'
-              }}
-            />
-          </div>
-
-          {/* Day body */}
-          <div className="flex-1 min-w-0 space-y-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h4 className="font-display font-bold text-sm sm:text-base text-slate-950 dark:text-slate-50 leading-snug truncate">
-                  {day.title}
-                </h4>
-                {day.date && (
-                  <span className="font-mono text-[11px] text-slate-400 tabular-nums">{day.date}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {onOptimize && (
-                  <button
-                    type="button"
-                    onClick={onOptimize}
-                    className={`inline-flex items-center gap-1 p-1.5 rounded-lg transition-all cursor-pointer ${
-                      optimized
-                        ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50'
-                        : 'sm:opacity-0 sm:group-hover/day:opacity-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
-                    }`}
-                    title={getTranslation('optimizeRouteTitle')}
-                  >
-                    {optimized ? <Check className="w-3.5 h-3.5" /> : <Wand2 className="w-3.5 h-3.5" />}
-                    {optimized && (
-                      <span className="text-[10px] font-bold">{getTranslation('routeOptimized')}</span>
-                    )}
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={onDelete}
-                    className="sm:opacity-0 sm:group-hover/day:opacity-100 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-all cursor-pointer"
-                    title="Delete this day (or swipe left)"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-3.5">
-              {nonEmptySlots.map(({ key, labelKey, Icon, chip, dot, tasks }, slotIdx) => {
-                return (
-                  <div key={key}>
-                    {/* Slot label on its own row; activities stack below it so the
-                        photo and text get the full card width */}
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${chip}`}>
-                      <Icon className="w-3 h-3" />
-                      <span>{getTranslation(labelKey)}</span>
-                    </span>
-                    {/* Dotted task list with km·min leg connectors between stops */}
-                    <div className="mt-1.5">
-                      {tasks.map((task, taskIdx) => {
-                        const nextTask = nextTaskAfter(slotIdx, taskIdx);
-                        return (
-                          <React.Fragment key={taskIdx}>
-                            <div className="relative pl-4 pb-2.5 flex items-start">
-                              {(taskIdx < tasks.length - 1 || nextTask) && (
-                                <span
-                                  aria-hidden="true"
-                                  className="absolute left-[2.5px] top-[16px] bottom-0 border-l-2 border-dotted border-slate-300 dark:border-slate-600"
-                                />
-                              )}
-                              <span className={`absolute left-0 top-[7px] w-1.5 h-1.5 rounded-full ${dot} ring-2 ring-white dark:ring-slate-900 z-10`} />
-                              {/* optional clock time for this activity — blank until the traveller writes one */}
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={day.activityTimes?.[`${key}:${taskIdx}`] || ''}
-                                onChange={(e) =>
-                                  onUpdateDay?.({
-                                    ...day,
-                                    activityTimes: {
-                                      ...(day.activityTimes || {}),
-                                      [`${key}:${taskIdx}`]: formatTimeInput(e.target.value)
-                                    }
-                                  })
-                                }
-                                onPointerDown={(e) => e.stopPropagation()}
-                                placeholder={getTranslation('timePh')}
-                                title={getTranslation('activityTimeTitle')}
-                                className="w-13 shrink-0 mt-0.5 mr-1.5 px-1 py-0.5 text-[10px] font-mono tabular-nums text-center text-slate-600 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-600 rounded-md placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:border-solid focus:border-violet-400"
-                              />
-                              {/* key-term photo sits in front of the words, behind the bullet dot — tap for a bigger view + intro */}
-                              <ActivityImage text={task} destination={destination} />
-                              <span className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 pt-0.5">{task}</span>
-                            </div>
-                            {nextTask && <DayLegConnector from={task} to={nextTask} />}
-                          </React.Fragment>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
@@ -574,9 +365,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   const [editTripNotes, setEditTripNotes] = useState('');
 
   // Pi-Travel-style route map — which trip currently shows its day route map
-  const [routeMapOpenFor, setRouteMapOpenFor] = useState<string | null>(null);
   // "Optimized!" confirmation on the magic-wand button, per trip+day
-  const [optimizedDayKey, setOptimizedDayKey] = useState<string | null>(null);
   // Want-to-go pool: draft text of the add-place input, per trip
   const [wishlistDrafts, setWishlistDrafts] = useState<Record<string, string>>({});
 
@@ -695,48 +484,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   };
 
   // Swipe-left / tap-trash day deletion on the schedule timeline (renumbers days)
-  const handleDeleteDayFromSchedule = (itin: TravelItinerary, dayNumber: number) => {
-    if (itin.days.length <= 1) return;
-    const updatedDays = itin.days
-      .filter((d) => d.dayNumber !== dayNumber)
-      .map((d, i) => ({ ...d, dayNumber: i + 1 }));
-    onUpdateItinerary?.({ ...itin, days: updatedDays });
-  };
 
   /* ── Pi-Travel-style route features (圆周旅迹) ─────────────────────────── */
 
   /** Magic wand: reorder each slot's stops by nearest-neighbour to cut backtracking. */
-  const handleOptimizeDayRoute = (itin: TravelItinerary, dayNumber: number) => {
-    const day = itin.days.find((d) => d.dayNumber === dayNumber);
-    if (!day) return;
-    const slotKeys: Array<'morningActivity' | 'afternoonActivity' | 'eveningActivity'> = [
-      'morningActivity',
-      'afternoonActivity',
-      'eveningActivity'
-    ];
-    const optimizedDay = { ...day };
-    let changed = false;
-    slotKeys.forEach((key) => {
-      const tasks = splitTasks(day[key]);
-      if (tasks.length < 3) return; // reordering <3 stops never helps
-      const reordered = optimizeStopOrder(tasks.map((t) => ({ t, geo: findPlaceGeo(t) })));
-      const nextText = reordered.map((x) => x.t).join('\n');
-      if (nextText !== tasks.join('\n')) {
-        optimizedDay[key] = nextText;
-        changed = true;
-      }
-    });
-    if (changed) {
-      onUpdateItinerary?.({
-        ...itin,
-        days: itin.days.map((d) => (d.dayNumber === dayNumber ? optimizedDay : d))
-      });
-    }
-    // Flash the confirmation either way so the tap always feels responsive
-    const key = `${itin.id}_${dayNumber}`;
-    setOptimizedDayKey(key);
-    setTimeout(() => setOptimizedDayKey((cur) => (cur === key ? null : cur)), 2600);
-  };
 
   /** Want-to-go pool: stash a place for later. */
   const handleAddWishlistPlace = (itin: TravelItinerary) => {
@@ -893,7 +644,6 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     setQuickEnd('');
     setQuickDays(3);
     setExpandedIds((prev) => ({ ...prev, [newItinerary.id]: true }));
-    setRouteMapOpenFor(newItinerary.id); // route map opens already planned
     handleOpenEditTrip(newItinerary);
   };
 
