@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { X, Maximize2, Minimize2, Eye, EyeOff } from 'lucide-react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { ItineraryDay, TravelItinerary } from '../types/travel';
 import {
   dayRouteColor,
@@ -10,11 +10,6 @@ import {
   estimateLegForMode,
   isAirportLeg,
   TRAVEL_MODE_LINE,
-  fetchLegRoute,
-  getLegRoute,
-  onRouteResolved,
-  routeDataVersion,
-  legOperatorFor,
   type TravelMode
 } from '../utils/placeGeo';
 import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, iso2ForCountry } from '../utils/geocode';
@@ -81,38 +76,18 @@ const LEG_MODES: Array<{ mode: TravelMode; glyph: string; labelKey: string }> = 
 
 const glyphFor = (mode: TravelMode) => LEG_MODES.find((m) => m.mode === mode)?.glyph || '🚶';
 
-const modeLabelFor = (mode: TravelMode) =>
-  getTranslation(LEG_MODES.find((m) => m.mode === mode)?.labelKey || '');
-
-/** Per-day outlines so light route colours (yellow) stay readable on the map's own roads. */
-const PIN_OUTLINES: Record<string, string> = {
-  '#f43f5e': '#881337',
-  '#f59e0b': '#78350f',
-  '#10b981': '#064e3b',
-  '#3b82f6': '#1e3a8a',
-  '#8b5cf6': '#4c1d95',
-  '#ec4899': '#831843',
-  '#14b8a6': '#134e4a',
-  '#f97316': '#7c2d12'
-};
-const outlineFor = (color: string) => PIN_OUTLINES[color.toLowerCase()] ?? '#1e293b';
-
-/** Teardrop map marker in the day's route colour — WanderLust's own pin shape,
-    with a dark outline keyed to the colour so every day stays distinguishable. */
+/** Teardrop map marker in the day's route colour — WanderLust's own pin shape. */
 const teardropPin = (n: number, color: string, big = false) => {
   const s = big ? 30 : 26;
-  const outline = outlineFor(color);
   return L.divIcon({
     className: '',
     html: `<div style="width:${s}px;height:${s}px;transform:rotate(-45deg);
-      background:${color};border:2.5px solid #fff;border-radius:50% 50% 50% 4px;position:relative;
+      background:${color};border:2.5px solid #fff;border-radius:50% 50% 50% 4px;
       box-shadow:0 3px 9px rgba(15,23,42,.4);display:flex;align-items:center;justify-content:center;">
-      <span style="position:absolute;inset:-5px;transform:rotate(0deg);border:2px solid ${outline};
-        border-radius:50% 50% 50% 6px;pointer-events:none;"></span>
       <span style="transform:rotate(45deg);color:#fff;font-weight:800;
         font-size:${big ? 13 : 11}px;font-family:system-ui,sans-serif;">${n}</span></div>`,
-    iconSize: [s + 10, s + 10],
-    iconAnchor: [s / 2 + 5, s - 2 + 5]
+    iconSize: [s, s],
+    iconAnchor: [s / 2, s - 2]
   });
 };
 
@@ -299,10 +274,6 @@ interface PickedLeg {
   toLabel: string;
   km: number;
   mode: TravelMode;
-  /** Coach / rail operator when known — "ALSA · 55 min" like Google Maps. */
-  operator: string | null;
-  /** Road-network distance when measured — beats straight-line for timing. */
-  measuredKm?: number | null;
 }
 
 interface TripRouteMapProps {
@@ -340,16 +311,12 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   // the map container turns into a fixed viewport overlay and the day
   // tabs / stop legend become floating panels on top of it.
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [legendHidden, setLegendHidden] = useState(false);
 
   // Re-render whenever a queued online geocode lands, and queue lookups for
   // every stop the local table doesn't know (anchored to this trip's
   // destination so the pin lands on the exact place).
   const [geoVer, setGeoVer] = useState(0);
   useEffect(() => onGeocodeResolved(() => setGeoVer((v) => v + 1)), []);
-  // Re-render when a measured road route (OSRM) lands so distance/time labels upgrade
-  const [routeVer, setRouteVer] = useState(0);
-  useEffect(() => onRouteResolved(() => setRouteVer((v) => v + 1)), []);
   const geoContext = tripGeoContext(destination, itinerary.country);
   useEffect(() => {
     days.forEach((d) => {
@@ -416,7 +383,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleSignature, routeVer]);
+  }, [visibleSignature]);
 
   const allPoints: Array<[number, number]> = visible.flatMap((x) =>
     x.stops.map((s) => [s.lat, s.lng] as [number, number])
@@ -436,45 +403,18 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination, itinerary.country, geoVer]);
 
-  /** Measured road route for a leg (null until OSRM answers / on failure). */
-  const legRoute = (from: RouteStop, to: RouteStop) =>
-    getLegRoute([from.lat, from.lng], [to.lat, to.lng]);
-
-  /** Ask the router for road distances for every visible leg once coords exist. */
-  const routeSig = JSON.stringify(
-    visible.flatMap(({ stops }) =>
-      stops.map((s) => `${s.lat.toFixed(4)},${s.lng.toFixed(4)}`)
-    )
-  );
-  useEffect(() => {
-    visible.forEach(({ stops }) => {
-      stops.slice(0, -1).forEach((from, i) => {
-        const to = stops[i + 1];
-        fetchLegRoute([from.lat, from.lng], [to.lat, to.lng]);
-      });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeSig, routeVer, geoVer]);
-
   /** Mode for a leg: the traveller's saved choice, else ocean-crossing ferry,
-      else airport⇄airport flies, else a distance-based guess. Distance comes
-      from the road network when measured — the number Google Maps would show. */
-  const modeForLeg = (
-    day: ItineraryDay,
-    from: RouteStop,
-    to: RouteStop
-  ): { mode: TravelMode; km: number; measured: boolean } => {
-    const straightKm = haversineKm(from.lat, from.lng, to.lat, to.lng);
-    const route = legRoute(from, to);
-    const km = route?.km ?? straightKm;
+      else airport⇄airport flies, else a distance-based guess. */
+  const modeForLeg = (day: ItineraryDay, from: RouteStop, to: RouteStop): { mode: TravelMode; km: number } => {
+    const km = haversineKm(from.lat, from.lng, to.lat, to.lng);
     const saved = day.legModes?.[legKey(from, to)] as TravelMode | undefined;
-    if (saved && LEG_MODES.some((m) => m.mode === saved)) return { mode: saved, km, measured: !!route };
-    if (isAirportLeg(from.label, to.label)) return { mode: 'flight', km, measured: !!route };
+    if (saved && LEG_MODES.some((m) => m.mode === saved)) return { mode: saved, km };
+    if (isAirportLeg(from.label, to.label)) return { mode: 'flight', km };
     const guessed = estimateLeg(km).mode;
     if (guessed !== 'flight' && km > 25 && crossesOcean([from.lat, from.lng], [to.lat, to.lng])) {
-      return { mode: 'ferry', km, measured: !!route };
+      return { mode: 'ferry', km };
     }
-    return { mode: guessed, km, measured: !!route };
+    return { mode: guessed, km };
   };
 
   const chooseMode = (leg: PickedLeg, mode: TravelMode) => {
@@ -523,8 +463,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                 {/* one segment per leg — solid on land, dotted for ferries, curved dotted for flights */}
                 {stops.slice(0, -1).map((from, i) => {
                   const to = stops[i + 1];
-                  const { mode, km, measured } = modeForLeg(day, from, to);
-                  const route = measured ? legRoute(from, to) : null;
+                  const { mode } = modeForLeg(day, from, to);
                   const lineKind = TRAVEL_MODE_LINE[mode];
                   const a: [number, number] = [from.lat, from.lng];
                   const b: [number, number] = [to.lat, to.lng];
@@ -543,36 +482,6 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                   const key = legKey(from, to);
                   return (
                     <React.Fragment key={`${day.dayNumber}_leg_${i}`}>
-                      {/* Dark casing — the visible "box outline" that separates
-                          the route from the map's own roads, then a white halo,
-                          then the day's colour. Yellow legs can never blend
-                          into yellow motorways again. Ferry/flight legs share
-                          the colour line's dash pattern, so each individual
-                          dot gets its own ring instead of a solid outline. */}
-                      <Polyline
-                        positions={positions}
-                        smoothFactor={positions.length > 2 ? 0 : 1}
-                        interactive={false}
-                        pathOptions={{
-                          color: '#0f172a',
-                          weight: (focused ? 4.5 : 3.5) + 9,
-                          opacity: 0.9,
-                          lineCap: 'round',
-                          dashArray: dotted ? '1 9' : undefined
-                        }}
-                      />
-                      <Polyline
-                        positions={positions}
-                        smoothFactor={positions.length > 2 ? 0 : 1}
-                        interactive={false}
-                        pathOptions={{
-                          color: '#ffffff',
-                          weight: (focused ? 4.5 : 3.5) + 4,
-                          opacity: 0.95,
-                          lineCap: 'round',
-                          dashArray: dotted ? '1 9' : undefined
-                        }}
-                      />
                       <Polyline
                         positions={positions}
                         // keep every sampled point so flight arcs stay smooth curves
@@ -595,27 +504,11 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                               key,
                               fromLabel: from.label,
                               toLabel: to.label,
-                              km,
-                              mode,
-                              operator: legOperatorFor(mode, itinerary.country, from.label, to.label),
-                              measuredKm: route?.km ?? null
+                              km: haversineKm(from.lat, from.lng, to.lat, to.lng),
+                              mode
                             })
                         }}
-                      >
-                        {/* WHO runs this leg — always on the map, no tap needed.
-                            Real brand per country (ALSA, Greyhound, JR…) when
-                            known; falls back to the plain mode word. */}
-                        <Tooltip
-                          permanent
-                          direction="top"
-                          offset={[0, -16]}
-                          className="wl-leg-tip"
-                        >
-                          <span>
-                            {Math.round(km)} km · {legOperatorFor(mode, itinerary.country, from.label, to.label) ?? modeLabelFor(mode)}
-                          </span>
-                        </Tooltip>
-                      </Marker>
+                      />
                     </React.Fragment>
                   );
                 })}
@@ -654,23 +547,16 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           </div>
         )}
 
-        {/* Transport picker — tap a leg's symbol to choose how you travel it.
-            Sits at the TOP in full-screen mode so it never covers the floating
-            stop legend at the bottom. */}
+        {/* Transport picker — tap a leg's symbol to choose how you travel it */}
         {pickedLeg && (
-          <div
-            className={`absolute inset-x-2 z-[1200] rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-xl p-3 space-y-2 ${
-              isFullscreen ? 'top-12' : 'bottom-2'
-            }`}
-          >
+          <div className="absolute inset-x-2 bottom-2 z-[1000] rounded-xl border border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-xl p-3 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 text-[11px]">
                 <div className="font-bold text-slate-900 dark:text-slate-100 truncate">
                   {pickedLeg.fromLabel} → {pickedLeg.toLabel}
                 </div>
                 <div className="text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-                  {pickedLeg.km < 10 ? pickedLeg.km.toFixed(1) : Math.round(pickedLeg.km)} km
-                  {pickedLeg.operator ? ` · ${pickedLeg.operator}` : ''} · {getTranslation('travelModeTitle')}
+                  {pickedLeg.km < 10 ? pickedLeg.km.toFixed(1) : Math.round(pickedLeg.km)} km · {getTranslation('travelModeTitle')}
                 </div>
               </div>
               <button
@@ -684,7 +570,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
             <div className="flex flex-wrap gap-1.5">
               {LEG_MODES.map(({ mode, glyph, labelKey }) => {
                 const active = pickedLeg.mode === mode;
-                const mins = estimateLegForMode(pickedLeg.km, mode, pickedLeg.measuredKm);
+                const mins = estimateLegForMode(pickedLeg.km, mode);
                 return (
                   <button
                     key={mode}
@@ -756,23 +642,6 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
         })}
       </div>
       )}
-      {/* Stop legend — hideable so it never covers the map when you want the
-          whole screen for the route itself */}
-      {legendHidden ? (
-        <button
-          type="button"
-          onClick={() => setLegendHidden(false)}
-          title="Show stops"
-          className={
-            isFullscreen
-              ? 'fixed bottom-16 sm:bottom-[4.5rem] right-3 z-[600] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/92 dark:bg-slate-900/92 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-xl text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-300 transition-colors cursor-pointer'
-              : 'mx-3.5 mb-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-100 dark:bg-slate-800 text-[10px] font-bold text-stone-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-300 transition-colors cursor-pointer self-start'
-          }
-        >
-          <Eye className="w-3.5 h-3.5" />
-          Stops
-        </button>
-      ) : (
       <div
         className={
           isFullscreen
@@ -780,14 +649,6 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
             : 'px-3.5 pb-2.5 pt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900'
         }
       >
-        <button
-          type="button"
-          onClick={() => setLegendHidden(true)}
-          title="Hide stops"
-          className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-stone-100 dark:bg-slate-800 text-stone-400 hover:text-violet-600 dark:hover:text-violet-300 transition-colors cursor-pointer shrink-0"
-        >
-          <EyeOff className="w-3 h-3" />
-        </button>
         {visible.flatMap(({ day, stops }) =>
           stops.map((s) => (
             <span key={`${day.dayNumber}_${s.order}_lbl`} className="inline-flex items-center gap-1 min-w-0">
@@ -802,7 +663,6 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           ))
         )}
       </div>
-      )}
     </div>
   );
 };
