@@ -77,7 +77,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
 
   const [savedNotice, setSavedNotice] = useState(false);
   const [langPickerOpen, setLangPickerOpen] = useState(false);
-  const currentLangMeta = LANGUAGES.find((l) => l.code === settings.language) || LANGUAGES[0];
+  const currentLangMeta = LANGUAGES.find((l) => l.code === settings.language) || LANGUAGES.find((l) => l.code === 'en')!;
 
   useEffect(() => {
     localStorage.setItem('wanderlust_app_settings', JSON.stringify(settings));
@@ -168,7 +168,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               onClick={() => updateSetting('theme', 'light')}
               className={`p-3.5 rounded-xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
                 settings.theme === 'light'
-                  ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 text-slate-950 dark:text-slate-50 font-bold shadow-xs'
+                  ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 text-slate-950 dark:text-slate-50 font-bold shadow-[0_0_0_2px_var(--color-daybreak-500,oklch(0.623_0.214_259.815)),0_0_0_4px_rgba(255,255,255,0.9)]'
                   : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}
             >
@@ -186,7 +186,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               onClick={() => updateSetting('theme', 'dark')}
               className={`p-3.5 rounded-xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
                 settings.theme === 'dark'
-                  ? 'border-slate-950 dark:border-slate-100 bg-slate-900 dark:bg-slate-800 text-white font-bold shadow-xs'
+                  ? 'border-slate-950 dark:border-slate-100 bg-slate-900 dark:bg-slate-800 text-white font-bold shadow-[0_0_0_2px_var(--color-galaxy-400,oklch(0.702_0.183_293.543)),0_0_0_4px_rgba(255,255,255,0.9)]'
                   : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}
             >
@@ -221,7 +221,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
           <button
             type="button"
             onClick={() => setLangPickerOpen(true)}
-            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left shadow-[inset_0_0_0_2px_var(--color-daybreak-500,oklch(0.623_0.214_259.815))]"
           >
             <span className="flex items-center gap-2.5 min-w-0">
               <span className="text-xl shrink-0">{currentLangMeta.flag}</span>
@@ -316,7 +316,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               onClick={() => updateSetting('unitSystem', 'metric')}
               className={`flex-1 p-3 rounded-lg border text-center transition-all cursor-pointer ${
                 settings.unitSystem === 'metric'
-                  ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 text-slate-950 dark:text-slate-50 font-bold'
+                  ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 text-slate-950 dark:text-slate-50 font-bold shadow-[0_0_0_2px_var(--color-daybreak-500,oklch(0.623_0.214_259.815)),0_0_0_4px_rgba(255,255,255,0.9)]'
                   : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}
             >
@@ -327,7 +327,7 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
               onClick={() => updateSetting('unitSystem', 'imperial')}
               className={`flex-1 p-3 rounded-lg border text-center transition-all cursor-pointer ${
                 settings.unitSystem === 'imperial'
-                  ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 text-slate-950 dark:text-slate-50 font-bold'
+                  ? 'border-slate-950 dark:border-slate-100 bg-slate-50 dark:bg-slate-800 text-slate-950 dark:text-slate-50 font-bold shadow-[0_0_0_2px_var(--color-daybreak-500,oklch(0.623_0.214_259.815)),0_0_0_4px_rgba(255,255,255,0.9)]'
                   : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}
             >

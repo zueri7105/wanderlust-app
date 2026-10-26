@@ -971,34 +971,43 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             />
           </div>
 
-          {/* When: twin date boxes — identical markup so both render the same
-              format. min-w-0 keeps the grid cells from spilling into each
-              other; no overflow-hidden anywhere so the rounded borders paint
-              fully to the edge on every phone browser. Trip length is simply
-              the number of days between FROM and TO. */}
+          {/* When: twin date boxes. Each cell is a min-w-0 flexbox that hosts
+              a 0×0 CSS grid — so the inner bordered box sizes to the cell's
+              content box and can never overflow into its neighbour, whatever
+              intrinsic width the phone's date control reports. No
+              overflow-hidden anywhere, so the rounded borders paint fully
+              to the edge. Trip length = days between FROM and TO. */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 {getTranslation('fromDate')}
               </label>
-              <input
-                type="date"
-                value={quickStart}
-                onChange={(e) => changeStart(e.target.value)}
-                className="block w-full max-w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
-              />
+              <div className="flex min-w-0">
+                <div className="flex-1 min-w-0 border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800">
+                  <input
+                    type="date"
+                    value={quickStart}
+                    onChange={(e) => changeStart(e.target.value)}
+                    className="block w-full max-w-full min-w-0 px-3 py-3 text-sm bg-transparent text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 rounded-2xl [color-scheme:light] dark:[color-scheme:dark]"
+                  />
+                </div>
+              </div>
             </div>
             <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
                 {getTranslation('toDate')}
               </label>
-              <input
-                type="date"
-                value={quickEnd}
-                min={quickStart || undefined}
-                onChange={(e) => changeEnd(e.target.value)}
-                className="block w-full max-w-full min-w-0 px-3 py-3 text-sm border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 [color-scheme:light] dark:[color-scheme:dark]"
-              />
+              <div className="flex min-w-0">
+                <div className="flex-1 min-w-0 border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800">
+                  <input
+                    type="date"
+                    value={quickEnd}
+                    min={quickStart || undefined}
+                    onChange={(e) => changeEnd(e.target.value)}
+                    className="block w-full max-w-full min-w-0 px-3 py-3 text-sm bg-transparent text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 rounded-2xl [color-scheme:light] dark:[color-scheme:dark]"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
