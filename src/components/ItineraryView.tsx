@@ -586,10 +586,17 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   };
 
   /** Big create box: destination + name + dates + duration → draft skeleton,
-      auto-planned route, then refine in Edit Trip. */
+      auto-planned route, then refine in Edit Trip. Dates are compulsory —
+      no date, no trip. */
+  const [dateMissing, setDateMissing] = useState(false);
   const handleQuickCreate = async () => {
     const raw = quickText.trim();
     if (!raw || isGeneratingGuide) return;
+    if (!quickStart || !quickEnd) {
+      setDateMissing(true);
+      return;
+    }
+    setDateMissing(false);
     const m = raw.match(/^(.+?)\s*(\d+)\s*(?:天|days?|day)(?:\s*(\d+)\s*(?:晚|nights?))?/i);
     const destination = (m ? m[1] : raw).replace(/^想去\s*/, '').trim() || raw;
     const dayCount = Math.max(1, Math.min(365, quickDays || (m ? Number(m[2]) : 3) || 3));
@@ -731,14 +738,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
-                {getTranslation('fromDate')}
+                {getTranslation('fromDate')} <span className="text-rose-500">*</span>
               </label>
               <div className="flex min-w-0">
-                <div className="flex-1 min-w-0 border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800">
+                <div className={`flex-1 min-w-0 border rounded-2xl bg-stone-50 dark:bg-stone-800 ${dateMissing && !quickStart ? 'border-rose-400 dark:border-rose-500' : 'border-stone-200 dark:border-stone-700'}`}>
                   <input
                     type="date"
+                    required
                     value={quickStart}
-                    onChange={(e) => changeStart(e.target.value)}
+                    onChange={(e) => { changeStart(e.target.value); setDateMissing(false); }}
                     className="block w-full max-w-full min-w-0 px-3 py-3 text-sm bg-transparent text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 rounded-2xl [color-scheme:light] dark:[color-scheme:dark]"
                   />
                 </div>
@@ -746,15 +754,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             </div>
             <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
-                {getTranslation('toDate')}
+                {getTranslation('toDate')} <span className="text-rose-500">*</span>
               </label>
               <div className="flex min-w-0">
-                <div className="flex-1 min-w-0 border border-stone-200 dark:border-stone-700 rounded-2xl bg-stone-50 dark:bg-stone-800">
+                <div className={`flex-1 min-w-0 border rounded-2xl bg-stone-50 dark:bg-stone-800 ${dateMissing && !quickEnd ? 'border-rose-400 dark:border-rose-500' : 'border-stone-200 dark:border-stone-700'}`}>
                   <input
                     type="date"
+                    required
                     value={quickEnd}
                     min={quickStart || undefined}
-                    onChange={(e) => changeEnd(e.target.value)}
+                    onChange={(e) => { changeEnd(e.target.value); setDateMissing(false); }}
                     className="block w-full max-w-full min-w-0 px-3 py-3 text-sm bg-transparent text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 rounded-2xl [color-scheme:light] dark:[color-scheme:dark]"
                   />
                 </div>
@@ -762,10 +771,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             </div>
           </div>
 
+          {dateMissing && (
+            <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 -mt-2">
+              {getTranslation('datesRequired') || 'Please pick both dates to create your trip.'}
+            </p>
+          )}
           <button
             type="button"
             onClick={handleQuickCreate}
-            disabled={!quickText.trim() || isGeneratingGuide}
+            disabled={!quickText.trim() || !quickStart || !quickEnd || isGeneratingGuide}
             className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 text-sm font-bold transition-all hover:brightness-110 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer shadow-md"
           >
             <ArrowRight className="w-4 h-4" />
@@ -906,31 +920,32 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     </>
                   )}
 
-                  <div className="relative flex items-start gap-4">
-                    {/* Countdown clock — big number + unit until departure */}
-                    <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl shrink-0 shadow-xs ${
+                  <div className="relative flex items-start gap-3">
+                    {/* Countdown clock — compact number + unit until departure,
+                        kept small so the trip details keep their breathing room */}
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 shadow-xs ${
                       cover
                         ? 'bg-white/15 backdrop-blur-sm text-white border border-white/20'
                         : 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'
                     }`}>
                       {cd.kind === 'today' || cd.kind === 'now' ? (
-                        <Sparkles className="w-5 h-5" />
+                        <Sparkles className="w-3.5 h-3.5" />
                       ) : cd.kind === 'past' ? (
-                        <CheckCircle2 className="w-5 h-5 opacity-90" />
+                        <CheckCircle2 className="w-3.5 h-3.5 opacity-90" />
                       ) : (
-                        <Clock className="w-5 h-5 opacity-90" />
+                        <Clock className="w-3.5 h-3.5 opacity-90" />
                       )}
                       {cdUnit ? (
                         <span className="leading-none">
-                          <span className="block font-display text-2xl font-extrabold tabular-nums leading-none">
+                          <span className="block font-display text-base font-extrabold tabular-nums leading-none">
                             {cdUnit.n}
                           </span>
-                          <span className="block text-[9px] font-bold uppercase tracking-[0.18em] opacity-80 mt-1">
+                          <span className="block text-[8px] font-bold uppercase tracking-[0.14em] opacity-80 mt-0.5">
                             {cdUnit.unit}
                           </span>
                         </span>
                       ) : (
-                        <span className="text-[11px] font-black uppercase tracking-wider leading-tight max-w-[88px]">
+                        <span className="text-[10px] font-black uppercase tracking-wider leading-tight max-w-[76px]">
                           {countdownLabel(cd)}
                         </span>
                       )}
