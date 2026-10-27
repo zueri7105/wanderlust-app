@@ -44,7 +44,7 @@ interface StampEntry {
   cities: string[]; // every city visited in that country — drives the unique stamp art
 }
 
-const STAMPS_PER_PAGE = 4;
+const STAMPS_PER_PAGE = 5;
 
 /** Deterministic PRNG (Park–Miller) so each page gets a stable but organic scatter. */
 const scatterRnd = (seed: number) => {
@@ -56,36 +56,32 @@ const scatterRnd = (seed: number) => {
   };
 };
 
-/** Scatter four stamps like real passport ink — freely misaligned, never a
-    tidy 2×2 grid, guaranteed non-overlapping at any phone viewport. Stamps
-    are circles, so rotation can't make them collide; two stamps only overlap
-    if they are closer than one stamp diameter on BOTH axes. Each page picks
-    a column-ish or row-ish layout at random: stamps sit on two far-apart
-    tracks (≥42% apart — more than one stamp width even on the smallest
-    phone), with one stamp in the upper band and one in the lower band per
-    track (≥35% apart vertically — more than one stamp height). Within those
-    tracks every position is free random, so pages look organically different
-    yet stay stable between renders. */
+/** Scatter five stamps like real passport ink — five stamps need the 2×3
+    grid (one cell randomly left empty per page, seeded, so every page looks
+    different), jittered within safe slots and rotated ±9°. Stamps are
+    circles, so rotation can't make them collide; two stamps only overlap if
+    they are closer than one stamp diameter on BOTH axes. The slots keep
+    columns ≥48% and row bands ≥29% apart — verified non-overlapping at any
+    viewport — and stamps may kiss the page edge like real ink. */
 const stampScatter = (pageIdx: number): { left: string; top: string }[] => {
   const rnd = scatterRnd(pageIdx + 1);
-  // Enlarged stamps (w-28/w-36) need ≥46% horizontal and ≥48% vertical
-  // clearance between origins — circles never collide past one diameter.
-  const trackA = rnd() * 10;        // 0%..10%
-  const trackB = 56 + rnd() * 14;   // 56%..70% — ≥46% apart
-  const inHigh = () => 4 + rnd() * 8;   // 4%..12% — each stamp drawn independently
-  const inLow = () => 60 + rnd() * 10;  // 60%..70% — ≥48% apart vertically
-  const vertical = rnd() < 0.5;   // columns one page, rows the next
-  const slots = [
-    { a: trackA, b: inHigh() },
-    { a: trackB, b: inHigh() },
-    { a: trackA, b: inLow() },
-    { a: trackB, b: inLow() }
+  const colA = 2 + rnd() * 4;    // 2%..6%
+  const colB = 54 + rnd() * 4;   // 54%..58% — ≥48% apart = more than one stamp width
+  const r1 = 12 + rnd() * 2;     // 12%..14%
+  const r2 = 42 + rnd() * 2;     // 42%..44%
+  const r3 = 72 + rnd() * 2;     // 72%..74% — ≥28% apart = one stamp height + margin
+  const cells = [
+    { left: colA, top: r1 },
+    { left: colB, top: r1 },
+    { left: colA, top: r2 },
+    { left: colB, top: r2 },
+    { left: colA, top: r3 },
+    { left: colB, top: r3 }
   ];
-  return slots.map(({ a, b }) => {
-    const left = vertical ? a : b;
-    const top = vertical ? b : a;
-    return { left: `${left.toFixed(1)}%`, top: `${top.toFixed(1)}%` };
-  });
+  const drop = Math.floor(rnd() * 6); // one cell stays empty — organic asymmetry
+  return cells
+    .filter((_, i) => i !== drop)
+    .map((c) => ({ left: `${c.left.toFixed(1)}%`, top: `${c.top.toFixed(1)}%` }));
 };
 
 export const PassportView: React.FC<PassportViewProps> = ({
@@ -255,7 +251,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
   const websiteLabel = websiteUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '');
 
   const pageShellCls = (p: number) =>
-    `wl-book-page relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[30rem] touch-pan-y select-none ${
+    `wl-book-page relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[35rem] touch-pan-y select-none ${
       p === 0
         ? 'wl-passport-cover bg-[#0c0a09] text-stone-100 shadow-xl'
         : 'bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(139,92,246,0.14),transparent_70%)] bg-white dark:bg-[#0e0820] border border-stone-200 dark:border-violet-900/40 shadow-xl'
@@ -478,14 +474,14 @@ export const PassportView: React.FC<PassportViewProps> = ({
                     {getTranslation('passportEmpty')}
                   </div>
                 ) : (
-                  <div className="relative" style={{ minHeight: '21rem' }}>
+                  <div className="relative sm:min-h-[27rem]" style={{ minHeight: '26rem' }}>
                     {stampPages[p - 1].map((st, i) => {
                       const rot = ((i * 47 + p * 13) % 19) - 9;
                       const pos = stampScatter(p)[i] ?? { left: '12%', top: '16%' };
                       return (
                         <div
                           key={`${st.country}-${st.year}`}
-                          className={`absolute w-28 h-28 sm:w-36 sm:h-36 rounded-full select-none ${STAMP_INKS[(i + p) % STAMP_INKS.length]}`}
+                          className={`absolute w-28 h-28 rounded-full select-none ${STAMP_INKS[(i + p) % STAMP_INKS.length]}`}
                           style={{ left: pos.left, top: pos.top, transform: `rotate(${rot}deg)` }}
                           title={`${st.cities.length ? `${st.cities.join(', ')}, ` : ''}${st.country} · ${st.year}`}
                         >
