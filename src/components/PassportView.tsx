@@ -66,16 +66,21 @@ const scatterRnd = (seed: number) => {
     different yet stay stable between renders. */
 const stampScatter = (pageIdx: number): { left: string; top: string }[] => {
   const rnd = scatterRnd(pageIdx + 1);
-  const trackA = rnd() * 4;        // 0%..4%
-  const trackB = 54 + rnd() * 4;   // 54%..58% — ≥50% apart = more than one stamp width
-  const inHigh = () => 3 + rnd() * 4;  // 3%..7%
-  const inLow = () => 55 + rnd() * 6;  // 55%..61% — ≥48% apart = more than one stamp height
+  // Enlarged stamps: w-36 (144px) on phones, w-44 (176px) on desktop.
+  // Circles collide only if origins are within one diameter on BOTH axes.
+  // Worst-case phone viewport: area 270×360px → diameter = 48% (horiz) / 40% (vert).
+  // Guarantees: tracks ≥53% apart horizontally, bands ≥47.5% apart vertically,
+  // so two stamps are always separated by ≥1 diameter on at least one axis.
+  const trackA = rnd() * 2;        // 0%..2%
+  const trackB = 55 + rnd() * 2;   // 55%..57% — ≥53% apart
+  const high = 2 + rnd() * 2;      // 2%..4%
+  const low = high + 54 + rnd() * 2;  // 56%..60% — ≥54% from high
   const vertical = rnd() < 0.5;    // columns one page, rows the next
   const slots = [
-    { a: trackA, b: inHigh() },
-    { a: trackB, b: inHigh() },
-    { a: trackA, b: inLow() },
-    { a: trackB, b: inLow() }
+    { a: trackA, b: high },
+    { a: trackB, b: high },
+    { a: trackA, b: low },
+    { a: trackB, b: low }
   ];
   return slots.map(({ a, b }) => {
     const left = vertical ? a : b;
@@ -251,7 +256,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
   const websiteLabel = websiteUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '');
 
   const pageShellCls = (p: number) =>
-    `wl-book-page relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[30rem] touch-pan-y select-none ${
+    `wl-book-page relative ml-2 overflow-hidden rounded-r-[2rem] rounded-l-md min-h-[31rem] touch-pan-y select-none ${
       p === 0
         ? 'wl-passport-cover bg-[#0c0a09] text-stone-100 shadow-xl'
         : 'bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(139,92,246,0.14),transparent_70%)] bg-white dark:bg-[#0e0820] border border-stone-200 dark:border-violet-900/40 shadow-xl'
@@ -474,14 +479,14 @@ export const PassportView: React.FC<PassportViewProps> = ({
                     {getTranslation('passportEmpty')}
                   </div>
                 ) : (
-                  <div className="relative sm:min-h-[26rem]" style={{ minHeight: '21rem' }}>
+                  <div className="relative sm:min-h-[28rem]" style={{ minHeight: '22.5rem' }}>
                     {stampPages[p - 1].map((st, i) => {
                       const rot = ((i * 47 + p * 13) % 19) - 9;
                       const pos = stampScatter(p)[i] ?? { left: '12%', top: '16%' };
                       return (
                         <div
                           key={`${st.country}-${st.year}`}
-                          className={`absolute w-32 h-32 sm:w-40 sm:h-40 rounded-full select-none ${STAMP_INKS[(i + p) % STAMP_INKS.length]}`}
+                          className={`absolute w-36 h-36 sm:w-44 sm:h-44 rounded-full select-none ${STAMP_INKS[(i + p) % STAMP_INKS.length]}`}
                           style={{ left: pos.left, top: pos.top, transform: `rotate(${rot}deg)` }}
                           title={`${st.cities.length ? `${st.cities.join(', ')}, ` : ''}${st.country} · ${st.year}`}
                         >

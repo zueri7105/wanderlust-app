@@ -100,7 +100,14 @@ html:not(.dark) .wl-passport-cover [stroke="rgba(196,181,253,0.4)"] { stroke: rg
    8px left margin for the binding, so the spine sits inset the same amount
    and follows the page's rounded corners. (Lives inside the page-stack
    wrapper so it tracks the page, not the controls row.) */
-.wl-book .wl-spine { left: 8px; border-radius: 1.4rem 0 0 1.4rem !important; }
+.wl-book .wl-spine {
+  left: 8px;
+  border-radius: 1.4rem 0 0 1.4rem !important;
+  /* Match the page shell's vertical rounding so the spine's top/bottom
+     corners curve with the page instead of sticking out as straight caps. */
+  top: 1.35rem;
+  bottom: 1.35rem;
+}
 
 .leaflet-container { background: #dbeafe; }
 
