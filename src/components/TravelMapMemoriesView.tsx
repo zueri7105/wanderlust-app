@@ -666,7 +666,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               photos: [],
               memoryNote: newNote || `Wonderful moments captured traveling solo in ${city}, ${newCountry}!`,
               companionsTagged: companions,
-              status: newStatus
+              status: newStatus,
+              cityNamed: true
             };
           })
         : [];
@@ -685,7 +686,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 photos,
                 memoryNote: newNote || m.memoryNote,
                 companionsTagged: companions,
-                status: newStatus
+                status: newStatus,
+                cityNamed: true
               }
             : m
         )
@@ -700,7 +702,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         photos,
         memoryNote: newNote || `Wonderful moments captured traveling solo in ${newCity}, ${newCountry}!`,
         companionsTagged: companions,
-        status: newStatus
+        status: newStatus,
+        cityNamed: true
       };
       // One save: siblings first, then the main memory, then the rest
       saveMemories([...siblings, newMem, ...memories]);
@@ -902,8 +905,11 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     return centroid ? { ...centroid, approx: true } : null;
   };
 
-  // Which of MY memory pins render depends on the layer toggles
+  // Which of MY memory pins render: pins drop only for memories that name a
+  // CITY (pinned memories or trip cards with a city) — a country-only mention
+  // colours the country but gets no pin. Layer toggles still apply.
   const visibleMemoryDots = memories
+    .filter((m) => m.cityNamed !== false)
     .map((m) => ({ mem: m, pin: pinFor(m) }))
     .filter((p): p is { mem: TravelMemory; pin: { lat: number; lng: number; approx: boolean } } => p.pin !== null)
     .filter(({ mem }) => {

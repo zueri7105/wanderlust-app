@@ -331,7 +331,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   // One-off celebration on the departure day: plane flyover + fireworks over
   // the trip card. Fires once per trip per day (sessionStorage flag).
   const todayStamp = new Date().toISOString().slice(0, 10);
-  const [celebrating, setCelebrating] = useState<Record<string, boolean>>(() => {
+  const [celebrating, setCelebrating] = useState<Record<string, boolean>>({});
+  useEffect(() => {
     const out: Record<string, boolean> = {};
     sortedItineraries.forEach((it) => {
       const cd = countdownFor(it.startDate, it.endDate);
@@ -341,14 +342,15 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         out[it.id] = true;
       }
     });
-    return out;
-  });
-  useEffect(() => {
-    if (!Object.keys(celebrating).length) return;
-    const t = setTimeout(() => setCelebrating({}), 5200);
-    return () => clearTimeout(t);
+    if (Object.keys(out).length) {
+      setCelebrating((prev) => ({ ...prev, ...out }));
+      const t = setTimeout(() => setCelebrating({}), 5200);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      return () => clearTimeout(t);
+    }
+    return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sortedItineraries.length]);
 
   // Do not automatically expand any trip box on open; only expand when tapped as
   // requested — except in trip detail mode, where the one trip is always expanded
@@ -921,33 +923,35 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   )}
 
                   <div className="relative">
-                    {/* Row 1: the countdown box sits alone */}
-                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 shadow-xs ${
+                    {/* Row 1: the countdown box sits alone — bigger, single row */}
+                    <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl shrink-0 shadow-xs ${
                       cover
                         ? 'bg-white/15 backdrop-blur-sm text-white border border-white/20'
                         : 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'
                     }`}>
                       {cd.kind === 'today' || cd.kind === 'now' ? (
-                        <Sparkles className="w-3.5 h-3.5" />
+                        <Sparkles className="w-5 h-5" />
                       ) : cd.kind === 'past' ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 opacity-90" />
+                        <CheckCircle2 className="w-5 h-5 opacity-90" />
                       ) : (
-                        <Clock className="w-3.5 h-3.5 opacity-90" />
+                        <Clock className="w-5 h-5 opacity-90" />
                       )}
-                      {cdUnit ? (
-                        <span className="leading-none">
-                          <span className="block font-display text-base font-extrabold tabular-nums leading-none">
-                            {cdUnit.n}
+                      <span className="whitespace-nowrap leading-none">
+                        {cdUnit ? (
+                          <>
+                            <span className="font-display text-xl font-extrabold tabular-nums leading-none">
+                              {cdUnit.n}
+                            </span>{' '}
+                            <span className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-80">
+                              {cdUnit.unit}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs font-black uppercase tracking-wider leading-none">
+                            {countdownLabel(cd)}
                           </span>
-                          <span className="block text-[8px] font-bold uppercase tracking-[0.14em] opacity-80 mt-0.5">
-                            {cdUnit.unit}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-black uppercase tracking-wider leading-tight max-w-[76px]">
-                          {countdownLabel(cd)}
-                        </span>
-                      )}
+                        )}
+                      </span>
                     </div>
 
                     {/* Rows below: title + visa, date, location, notes, multi-city — each its own line */}

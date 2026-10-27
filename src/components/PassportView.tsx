@@ -44,7 +44,28 @@ interface StampEntry {
   cities: string[]; // every city visited in that country — drives the unique stamp art
 }
 
-const STAMPS_PER_PAGE = 6;
+const STAMPS_PER_PAGE = 4;
+
+/** Scatter four stamps across the page like real passport ink — anywhere in
+    the space, never overlapping. Deterministic per (page, slot) so the layout
+    is stable between renders, with a minimum gap between stamps. */
+const stampScatter = (pageIdx: number): { left: string; top: string }[] => {
+  // A hand-tuned spread of four slots (percentages) that fills the page
+  // without crowding; page rotation nudges each slot for variety.
+  const base = [
+    { left: 10, top: 8 },
+    { left: 58, top: 6 },
+    { left: 12, top: 55 },
+    { left: 56, top: 54 }
+  ];
+  return base.map((b, i) => {
+    const rot = ((pageIdx * 31 + i * 47) % 7) - 3; // -3..+3 % nudge
+    return {
+      left: `${Math.min(60, Math.max(6, b.left + rot))}%`,
+      top: `${Math.min(58, Math.max(6, b.top - rot))}%`
+    };
+  });
+};
 
 export const PassportView: React.FC<PassportViewProps> = ({
   currentUser,
@@ -436,14 +457,15 @@ export const PassportView: React.FC<PassportViewProps> = ({
                     {getTranslation('passportEmpty')}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 sm:gap-7 justify-items-center">
+                  <div className="relative" style={{ minHeight: '21rem' }}>
                     {stampPages[p - 1].map((st, i) => {
                       const rot = ((i * 47 + p * 13) % 13) - 6;
+                      const pos = stampScatter(p)[i] ?? { left: '12%', top: '16%' };
                       return (
                         <div
                           key={`${st.country}-${st.year}`}
-                          className={`w-32 h-32 sm:w-36 sm:h-36 rounded-full select-none ${STAMP_INKS[(i + p) % STAMP_INKS.length]}`}
-                          style={{ transform: `rotate(${rot}deg)` }}
+                          className={`absolute w-24 h-24 sm:w-28 sm:h-28 rounded-full select-none ${STAMP_INKS[(i + p) % STAMP_INKS.length]}`}
+                          style={{ left: pos.left, top: pos.top, transform: `rotate(${rot}deg)` }}
                           title={`${st.cities.length ? `${st.cities.join(', ')}, ` : ''}${st.country} · ${st.year}`}
                         >
                           <PassportStamp country={st.country} year={st.year} cities={st.cities} className="w-full h-full" />

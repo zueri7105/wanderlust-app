@@ -256,6 +256,9 @@ export interface TravelMemory {
   memoryNote: string;
   companionsTagged: string[];
   status: 'Visited' | 'Current Location' | 'Dream Next';
+  /** True when the memory names a specific city (drives map pins; country-only
+      mentions colour the country without dropping a pin). */
+  cityNamed?: boolean;
 }
 
 export type KnowledgeArticleCategory =
