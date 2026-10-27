@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { X, Maximize2, Minimize2, Eye, EyeOff } from 'lucide-react';
+import { X, Maximize2, Minimize2, Eye, EyeOff, Languages } from 'lucide-react';
 import { ItineraryDay, TravelItinerary } from '../types/travel';
 import {
   dayRouteColor,
@@ -318,6 +318,8 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   // tabs / stop legend become floating panels on top of it.
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [legendHidden, setLegendHidden] = useState(false);
+  const [labelsHidden, setLabelsHidden] = useState(false);
+  const [localLabels, setLocalLabels] = useState(false);
 
   // Re-render whenever a queued online geocode lands, and queue lookups for
   // every stop the local table doesn't know (anchored to this trip's
@@ -475,10 +477,22 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           scrollWheelZoom
           className={isFullscreen ? 'w-full h-full z-0' : 'h-72 sm:h-80 w-full z-0'}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          {/* Map translation: the local-language map (Wikimedia OSM — labels in
+              the local script: 日本語, 中文, 한국어, кириллица…) so non-Latin
+              destinations stay navigable. Toggle beside Full screen. */}
+          {localLabels ? (
+            <TileLayer
+              key="map-local"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://wikimediafoundation.org">Wikimedia</a>'
+              url="https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png"
+            />
+          ) : (
+            <TileLayer
+              key="map-standard"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+          )}
           {allPoints.length > 0 && <FitBounds points={allPoints} />}
           {visible.map(({ day, stops }) => {
             const color = dayRouteColor(day.dayNumber);
@@ -487,6 +501,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
               <React.Fragment key={day.dayNumber}>
                 {/* one segment per leg — solid on land, dotted for ferries, curved dotted for flights */}
                 {stops.slice(0, -1).map((from, i) => {
+                  const legIdx = i;
                   const to = stops[i + 1];
                   const { mode, km: legKm, measured } = modeForLeg(day, from, to);
                   const lineKind = TRAVEL_MODE_LINE[mode];
@@ -567,13 +582,20 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
                         {/* WHO runs this leg — always on the map, no tap needed.
                             Real brand per country (ALSA, JR, Greyhound…) when
                             known; falls back to the plain mode word. */}
-                        <Tooltip permanent direction="top" offset={[0, -16]} className="wl-leg-tip">
-                          <span>
-                            {legKm < 10 ? legKm.toFixed(1) : Math.round(legKm)} km ·{' '}
-                            {legOperatorFor(mode, itinerary.country, from.label, to.label) ??
-                              getTranslation(LEG_MODES.find((m) => m.mode === mode)?.labelKey || '')}
-                          </span>
-                        </Tooltip>
+                        {!labelsHidden && (
+                          <Tooltip
+                            permanent
+                            direction="top"
+                            offset={[0, -16 - (legIdx % 3) * 15]}
+                            className="wl-leg-tip"
+                          >
+                            <span>
+                              {legKm < 10 ? legKm.toFixed(1) : Math.round(legKm)} km ·{' '}
+                              {legOperatorFor(mode, itinerary.country, from.label, to.label) ??
+                                getTranslation(LEG_MODES.find((m) => m.mode === mode)?.labelKey || '')}
+                            </span>
+                          </Tooltip>
+                        )}
                       </Marker>
                     </React.Fragment>
                   );
@@ -599,6 +621,21 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
         >
           {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           <span>{isFullscreen ? 'Exit' : 'Full screen'}</span>
+        </button>
+
+        {/* Local-language map toggle — swaps labels to the local script */}
+        <button
+          type="button"
+          onClick={() => setLocalLabels((v) => !v)}
+          title={localLabels ? 'Show standard map' : 'Show map in local language'}
+          className={`absolute top-3 z-[1000] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur border shadow-lg text-[11px] font-bold transition-colors cursor-pointer ${
+            localLabels
+              ? 'left-3 bg-emerald-600 text-white border-emerald-500'
+              : 'left-3 bg-white/95 dark:bg-slate-900/95 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800'
+          }`}
+        >
+          <Languages className="w-3.5 h-3.5" />
+          <span>{localLabels ? 'Local map' : 'Translate map'}</span>
         </button>
 
         {/* Empty-trip hint floats over the map instead of replacing it */}
@@ -740,6 +777,19 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-stone-100 dark:bg-slate-800 text-stone-400 hover:text-violet-600 dark:hover:text-violet-300 transition-colors cursor-pointer shrink-0"
         >
           <EyeOff className="w-3 h-3" />
+        </button>
+        {/* Labels toggle — hide the black leg signs for an unobstructed map */}
+        <button
+          type="button"
+          onClick={() => setLabelsHidden((v) => !v)}
+          title={labelsHidden ? 'Show leg labels' : 'Hide leg labels'}
+          className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${
+            labelsHidden
+              ? 'bg-stone-300 dark:bg-slate-600 text-stone-500 dark:text-slate-300'
+              : 'bg-stone-950 dark:bg-slate-200 text-white dark:text-slate-900'
+          }`}
+        >
+          {labelsHidden ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
         </button>
         {visible.flatMap(({ day, stops }) =>
           stops.map((s) => (
