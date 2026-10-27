@@ -438,6 +438,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [newNote, setNewNote] = useState('');
   const [newTaggedCompanion, setNewTaggedCompanion] = useState('');
   const [newStatus, setNewStatus] = useState<'Visited' | 'Current Location' | 'Dream Next'>('Visited');
+  // Multi-city: extra stops beyond the first city — each gets its own pin
+  const [extraStops, setExtraStops] = useState<string[]>([]);
+  // Hidden file input ref for photo picking from the device
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedItineraryId, setSelectedItineraryId] = useState('');
   // When set, the modal edits this existing memory instead of creating a new one
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
@@ -593,6 +597,45 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     }
   };
 
+  /** Read photos the traveller picked from their device (Files or Photo
+      Library). Small images become data URLs so they persist offline in
+      localStorage; oversized shots are downsized first to stay within quota. */
+  const handlePhotoFiles = (files: FileList | null) => {
+    if (!files) return;
+    const room = Math.max(0, 9 - newPhotos.filter((p) => p.trim()).length);
+    Array.from(files).slice(0, room).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result || '');
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1600;
+          let { width, height } = img;
+          if (Math.max(width, height) > MAX) {
+            const k = MAX / Math.max(width, height);
+            width = Math.round(width * k);
+            height = Math.round(height * k);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+          const small = canvas.toDataURL('image/jpeg', 0.82);
+          setNewPhotos((prev) => {
+            const idx = prev.findIndex((p) => !p.trim());
+            if (idx >= 0) return prev.map((p, j) => (j === idx ? small : p));
+            return prev.length < 9 ? [...prev, small] : prev;
+          });
+        };
+        img.onerror = () => {};
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    });
+    // Let the same file be picked again later
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleCreateMemory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCity || !newCountry) return;
@@ -606,6 +649,27 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     const companions = newTaggedCompanion
       ? newTaggedCompanion.split(',').map((s) => s.trim()).filter(Boolean)
       : [];
+
+    // Extra stops the traveller added → sibling pins in the same country
+    const stops = extraStops.map((s) => s.trim()).filter(Boolean);
+    const siblings: TravelMemory[] =
+      stops.length > 0 && !editingMemoryId
+        ? stops.map((city, i) => {
+            const geo = geoFor(city) || geoFor(newCountry);
+            const sc = geo ? { x: 0, y: 0, lat: geo.lat, lng: geo.lng } : { x: 0, y: 0 };
+            return {
+              id: `mem_${Date.now()}_${i + 1}`,
+              destination: city,
+              country: newCountry,
+              coordinates: sc,
+              date: newDate,
+              photos: [],
+              memoryNote: newNote || `Wonderful moments captured traveling solo in ${city}, ${newCountry}!`,
+              companionsTagged: companions,
+              status: newStatus
+            };
+          })
+        : [];
 
     if (editingMemoryId) {
       // Save edits to the existing memory post (companions, photos, note, status...)
@@ -638,7 +702,8 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
         companionsTagged: companions,
         status: newStatus
       };
-      saveMemories([newMem, ...memories]);
+      // One save: siblings first, then the main memory, then the rest
+      saveMemories([...siblings, newMem, ...memories]);
     }
 
     setIsAddMemoryModalOpen(false);
@@ -648,6 +713,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     setNewNote('');
     setNewTaggedCompanion('');
     setNewPhotos(['']);
+    setExtraStops([]);
     setSelectedItineraryId('');
   };
 
@@ -1227,6 +1293,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               setNewNote('');
               setNewTaggedCompanion('');
               setNewPhotos(['']);
+              setExtraStops([]);
               setSelectedItineraryId('');
               setIsAddMemoryModalOpen(true);
             }}
@@ -1583,12 +1650,11 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                    City / Destination
+                    City (first stop)
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Kyoto or Dubrovnik"
                     value={newCity}
                     onChange={(e) => setNewCity(e.target.value)}
                     className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
@@ -1602,13 +1668,51 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Japan or Croatia"
                     value={newCountry}
                     onChange={(e) => setNewCountry(e.target.value)}
                     className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                   />
                 </div>
               </div>
+
+              {/* More cities in the same country → one extra pin per city */}
+              {!editingMemoryId && (
+                <div>
+                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                    More cities on this trip <span className="font-normal text-stone-400">(optional — one pin per city)</span>
+                  </label>
+                  <div className="space-y-2">
+                    {extraStops.map((stop, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={stop}
+                          onChange={(e) =>
+                            setExtraStops((prev) => prev.map((s, j) => (j === i ? e.target.value : s)))
+                          }
+                          className="flex-1 px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setExtraStops((prev) => prev.filter((_, j) => j !== i))}
+                          className="p-2 text-stone-400 hover:text-red-600 cursor-pointer shrink-0"
+                          title="Remove city"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setExtraStops((prev) => [...prev, ''])}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add another city
+                  </button>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1642,7 +1746,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
               <div>
                 <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                  Companion(s) Tagged (optional)
+                  Buddy(s) Tagged (optional)
                 </label>
                 {/* Removable chips for already-tagged companions */}
                 {newTaggedCompanion.split(',').map((s) => s.trim()).filter(Boolean).length > 0 && (
@@ -1667,18 +1771,25 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 )}
                 <input
                   type="text"
-                  placeholder="e.g. Kenji Sato, Sofia Morales — or leave blank if you traveled solo"
                   value={newTaggedCompanion}
                   onChange={(e) => setNewTaggedCompanion(e.target.value)}
                   className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
                 />
               </div>
 
-              {/* Multi-photo inputs (up to 9) */}
+              {/* Photos — pick from device files / photo library (up to 9) */}
               <div>
                 <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                  Photos (add up to 9)
+                  Photos (up to 9)
                 </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handlePhotoFiles(e.target.files)}
+                />
                 <div className="space-y-2">
                   {newPhotos.map((url, i) => (
                     <div key={i} className="flex items-center gap-2">
@@ -1693,9 +1804,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                         )}
                       </div>
                       <input
-                        type="url"
-                        placeholder="https://images.unsplash.com/..."
-                        value={url}
+                        type="text"
+                        placeholder="Photo from your device"
+                        value={url.startsWith('data:') ? '' : url}
+                        readOnly={url.startsWith('data:')}
                         onChange={(e) =>
                           setNewPhotos((prev) => prev.map((p, j) => (j === i ? e.target.value : p)))
                         }
@@ -1716,11 +1828,11 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 {newPhotos.length < 9 && (
                   <button
                     type="button"
-                    onClick={() => setNewPhotos((prev) => [...prev, ''])}
+                    onClick={() => fileInputRef.current?.click()}
                     className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer"
                   >
                     <ImagePlus className="w-3.5 h-3.5" />
-                    Add another photo ({newPhotos.length}/9)
+                    Add photos from your device ({newPhotos.filter((p) => p.trim()).length}/9)
                   </button>
                 )}
               </div>

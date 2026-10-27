@@ -475,7 +475,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           center={center}
           zoom={baseZoom}
           scrollWheelZoom
-          maxZoom={19}
+          maxZoom={18}
           className={isFullscreen ? 'w-full h-full z-0' : 'h-72 sm:h-80 w-full z-0'}
         >
           {/* Map translation: default OSM shows labels in the local script
@@ -487,11 +487,12 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
               key="map-english"
               attribution='&copy; <a href="https://www.esri.com/">Esri</a> · <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-              // Esri's cache only goes to z17 in many areas — past that it 404s
-              // ("map unavailable"). maxNativeZoom makes Leaflet upscale the
-              // z17 tiles instead of requesting non-existent deeper ones.
-              maxNativeZoom={17}
-              maxZoom={19}
+              // The translated layer only renders detailed tiles up to z16 —
+              // past that coverage thins out ("map unavailable" grey squares).
+              // maxNativeZoom makes Leaflet upscale the z16 tiles instead of
+              // requesting non-existent deeper ones.
+              maxNativeZoom={16}
+              maxZoom={18}
             />
           ) : (
             <TileLayer
