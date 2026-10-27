@@ -107,6 +107,16 @@ html:not(.dark) .wl-passport-cover [stroke="rgba(196,181,253,0.4)"] { stroke: rg
      corners curve with the page instead of sticking out as straight caps. */
   top: 1.35rem;
   bottom: 1.35rem;
+  /* Feathered right edge so the spine melts into the page instead of
+     showing a hard vertical seam where the two surfaces meet. The spine
+     keeps its violet tint (page.tsx layers a violet gradient on top of
+     this dark base); the violet shell gets the same feathering so the
+     blend stays smooth in both themes. */
+  overflow: hidden;
+  background: linear-gradient(to right, #0c0a09 0%, #0c0a09 45%, rgba(12, 10, 9, 0.55) 72%, transparent 100%) !important;
+}
+.wl-book .wl-spine > div {
+  background: linear-gradient(to right, rgba(139, 92, 246, 0.55) 0%, rgba(139, 92, 246, 0.28) 60%, transparent 100%) !important;
 }
 
 .leaflet-container { background: #dbeafe; }
