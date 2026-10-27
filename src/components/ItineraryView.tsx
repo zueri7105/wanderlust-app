@@ -921,38 +921,38 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                   )}
 
                   <div className="relative">
-                    {/* Row 1: countdown chip + title + visa chip side by side */}
-                    <div className="flex items-center gap-3">
-                      {/* Countdown clock — compact number + unit until departure,
-                          kept small so the trip details keep their breathing room */}
-                      <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 shadow-xs ${
-                        cover
-                          ? 'bg-white/15 backdrop-blur-sm text-white border border-white/20'
-                          : 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'
-                      }`}>
-                        {cd.kind === 'today' || cd.kind === 'now' ? (
-                          <Sparkles className="w-3.5 h-3.5" />
-                        ) : cd.kind === 'past' ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 opacity-90" />
-                        ) : (
-                          <Clock className="w-3.5 h-3.5 opacity-90" />
-                        )}
-                        {cdUnit ? (
-                          <span className="leading-none">
-                            <span className="block font-display text-base font-extrabold tabular-nums leading-none">
-                              {cdUnit.n}
-                            </span>
-                            <span className="block text-[8px] font-bold uppercase tracking-[0.14em] opacity-80 mt-0.5">
-                              {cdUnit.unit}
-                            </span>
+                    {/* Row 1: the countdown box sits alone */}
+                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 shadow-xs ${
+                      cover
+                        ? 'bg-white/15 backdrop-blur-sm text-white border border-white/20'
+                        : 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'
+                    }`}>
+                      {cd.kind === 'today' || cd.kind === 'now' ? (
+                        <Sparkles className="w-3.5 h-3.5" />
+                      ) : cd.kind === 'past' ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 opacity-90" />
+                      ) : (
+                        <Clock className="w-3.5 h-3.5 opacity-90" />
+                      )}
+                      {cdUnit ? (
+                        <span className="leading-none">
+                          <span className="block font-display text-base font-extrabold tabular-nums leading-none">
+                            {cdUnit.n}
                           </span>
-                        ) : (
-                          <span className="text-[10px] font-black uppercase tracking-wider leading-tight max-w-[76px]">
-                            {countdownLabel(cd)}
+                          <span className="block text-[8px] font-bold uppercase tracking-[0.14em] opacity-80 mt-0.5">
+                            {cdUnit.unit}
                           </span>
-                        )}
-                      </div>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-black uppercase tracking-wider leading-tight max-w-[76px]">
+                          {countdownLabel(cd)}
+                        </span>
+                      )}
+                    </div>
 
+                    {/* Rows below: title + visa, date, location, notes, multi-city — each its own line */}
+                    <div className="mt-2 space-y-1.5">
+                      {/* Trip name + visa chip row */}
                       <div className="flex flex-wrap items-center gap-2 min-w-0">
                         <h3 className={`font-display font-bold text-lg ${cover ? 'text-white' : 'text-slate-950 dark:text-slate-50'}`}>
                           {cardName}
@@ -999,10 +999,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                           );
                         })()}
                       </div>
-                    </div>
 
-                    {/* Rows below: date row, location row, notes, multi-city — each its own line */}
-                    <div className="mt-2 space-y-1.5">
                       {/* Date row — calendar symbol + days/nights worked out from the dates */}
                       <div className={`flex items-center gap-1.5 text-xs font-semibold ${cover ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>
                         <CalendarDays className="w-3.5 h-3.5 shrink-0" />

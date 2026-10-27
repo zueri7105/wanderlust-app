@@ -594,8 +594,8 @@ export const PassportView: React.FC<PassportViewProps> = ({
           </span>
         </div>
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700 text-center">
-            <Globe className="w-4 h-4 text-violet-500 dark:text-violet-300 mx-auto mb-2" />
+          <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700 flex flex-col items-center justify-center text-center">
+            <Globe className="w-4 h-4 text-violet-500 dark:text-violet-300 mb-2" />
             <div className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 tabular-nums">
               {stamps.length}
             </div>
@@ -603,17 +603,17 @@ export const PassportView: React.FC<PassportViewProps> = ({
               {getTranslation('statCountries')}
             </div>
           </div>
-          <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700 text-center">
-            <Route className="w-4 h-4 text-emerald-500 dark:text-emerald-300 mx-auto mb-2" />
+          <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700 flex flex-col items-center justify-center text-center">
+            <Route className="w-4 h-4 text-emerald-500 dark:text-emerald-300 mb-2" />
             <div className="font-display text-xl sm:text-2xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 tabular-nums">
               {totalDistanceKm > 0 ? totalDistanceKm.toLocaleString() : '—'}
             </div>
-            <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.08em] text-stone-400 mt-1 break-words leading-tight">
+            <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.08em] text-stone-400 mt-1 leading-tight">
               {getTranslation('statTotalKm')}
             </div>
           </div>
-          <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700 text-center">
-            <StampIcon className="w-4 h-4 text-amber-500 dark:text-amber-300 mx-auto mb-2" />
+          <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700 flex flex-col items-center justify-center text-center">
+            <StampIcon className="w-4 h-4 text-amber-500 dark:text-amber-300 mb-2" />
             <div className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-950 dark:text-stone-50 tabular-nums">
               {stamps.length}
             </div>

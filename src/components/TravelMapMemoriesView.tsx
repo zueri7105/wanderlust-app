@@ -1640,25 +1640,59 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                       </option>
                     ))}
                   </select>
-                  <p className="text-[10px] text-rose-600/80 dark:text-rose-300/70 mt-1">
-                    Auto-fills city, country, date &amp; status, writes the journal passage from your itinerary days, and tags
-                    confirmed travel buddies — everything stays editable below.
-                  </p>
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                    City (first stop)
+                    City
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={newCity}
-                    onChange={(e) => setNewCity(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={newCity}
+                      onChange={(e) => setNewCity(e.target.value)}
+                      className="flex-1 min-w-0 px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                    />
+                    {/* Extra city rows live beside the City box — each adds a pin */}
+                    {!editingMemoryId && (
+                      <button
+                        type="button"
+                        onClick={() => setExtraStops((prev) => [...prev, ''])}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                        title="Add another city — one pin per city"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add another city
+                      </button>
+                    )}
+                  </div>
+                  {extraStops.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {extraStops.map((stop, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={stop}
+                            onChange={(e) =>
+                              setExtraStops((prev) => prev.map((s, j) => (j === i ? e.target.value : s)))
+                            }
+                            className="flex-1 min-w-0 px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setExtraStops((prev) => prev.filter((_, j) => j !== i))}
+                            className="p-2 text-stone-400 hover:text-red-600 cursor-pointer shrink-0"
+                            title="Remove city"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1674,45 +1708,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   />
                 </div>
               </div>
-
-              {/* More cities in the same country → one extra pin per city */}
-              {!editingMemoryId && (
-                <div>
-                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                    More cities on this trip <span className="font-normal text-stone-400">(optional — one pin per city)</span>
-                  </label>
-                  <div className="space-y-2">
-                    {extraStops.map((stop, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={stop}
-                          onChange={(e) =>
-                            setExtraStops((prev) => prev.map((s, j) => (j === i ? e.target.value : s)))
-                          }
-                          className="flex-1 px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setExtraStops((prev) => prev.filter((_, j) => j !== i))}
-                          className="p-2 text-stone-400 hover:text-red-600 cursor-pointer shrink-0"
-                          title="Remove city"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setExtraStops((prev) => [...prev, ''])}
-                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add another city
-                  </button>
-                </div>
-              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1746,7 +1741,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
 
               <div>
                 <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                  Buddy(s) Tagged (optional)
+                  Buddies Tagged (optional)
                 </label>
                 {/* Removable chips for already-tagged companions */}
                 {newTaggedCompanion.split(',').map((s) => s.trim()).filter(Boolean).length > 0 && (
@@ -1829,10 +1824,10 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-lg hover:bg-orange-100 transition-colors cursor-pointer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer"
                   >
-                    <ImagePlus className="w-3.5 h-3.5" />
-                    Add photos from your device ({newPhotos.filter((p) => p.trim()).length}/9)
+                    <ImagePlus className="w-4 h-4" />
+                    Add photo ({newPhotos.filter((p) => p.trim()).length}/9)
                   </button>
                 )}
               </div>
