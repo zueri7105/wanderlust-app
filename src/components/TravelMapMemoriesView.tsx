@@ -1582,23 +1582,16 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             <form onSubmit={handleCreateMemory} className="mt-4 space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                    City
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      required
-                      value={newCity}
-                      onChange={(e) => setNewCity(e.target.value)}
-                      className="flex-1 min-w-0 px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                    />
-                    {/* Extra city rows live beside the City box — each adds a pin */}
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <label className="font-semibold text-stone-700 dark:text-stone-300">
+                      City
+                    </label>
+                    {/* Extra city rows stack below the City box — each adds a pin */}
                     {!editingMemoryId && (
                       <button
                         type="button"
                         onClick={() => setExtraStops((prev) => [...prev, ''])}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer shrink-0 whitespace-nowrap -mt-0.5"
                         title="Add another city — one pin per city"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -1606,6 +1599,13 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                       </button>
                     )}
                   </div>
+                  <input
+                    type="text"
+                    required
+                    value={newCity}
+                    onChange={(e) => setNewCity(e.target.value)}
+                    className="w-full px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
+                  />
                   {extraStops.length > 0 && (
                     <div className="mt-2 space-y-2">
                       {extraStops.map((stop, i) => (
@@ -1722,51 +1722,46 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                   className="hidden"
                   onChange={(e) => handlePhotoFiles(e.target.files)}
                 />
-                <div className="space-y-2">
-                  {newPhotos.map((url, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-800 shrink-0 border border-stone-200 dark:border-stone-700">
-                        {url.trim() && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* First photo box — an empty placeholder until a photo is picked */}
+                  {newPhotos.filter((p) => p.trim()).length === 0 ? (
+                    <div className="w-12 h-12 rounded-lg bg-stone-100 dark:bg-stone-800 border border-dashed border-stone-300 dark:border-stone-600 shrink-0" />
+                  ) : (
+                    newPhotos.map((url, i) =>
+                      url.trim() ? (
+                        <div
+                          key={i}
+                          className="relative w-12 h-12 rounded-lg overflow-hidden bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shrink-0 group"
+                        >
                           <img
                             src={url}
                             alt=""
                             onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
                             className="w-full h-full object-cover"
                           />
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Photo from your device"
-                        value={url.startsWith('data:') ? '' : url}
-                        readOnly={url.startsWith('data:')}
-                        onChange={(e) =>
-                          setNewPhotos((prev) => prev.map((p, j) => (j === i ? e.target.value : p)))
-                        }
-                        className="flex-1 px-3 py-2 border border-stone-300 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                      />
-                      <button
-                        type="button"
-                        disabled={newPhotos.length === 1}
-                        onClick={() => setNewPhotos((prev) => prev.filter((_, j) => j !== i))}
-                        className="p-2 text-stone-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
-                        title="Remove photo"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                          <button
+                            type="button"
+                            onClick={() => setNewPhotos((prev) => prev.filter((_, j) => j !== i))}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-stone-950/80 text-white flex items-center justify-center opacity-80 hover:opacity-100 cursor-pointer"
+                            title="Remove photo"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      ) : null
+                    )
+                  )}
+                  {newPhotos.filter((p) => p.trim()).length < 9 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                      Add photo ({newPhotos.filter((p) => p.trim()).length}/9)
+                    </button>
+                  )}
                 </div>
-                {newPhotos.length < 9 && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer"
-                  >
-                    <ImagePlus className="w-4 h-4" />
-                    Add photo ({newPhotos.filter((p) => p.trim()).length}/9)
-                  </button>
-                )}
               </div>
 
               <div>
@@ -1787,13 +1782,13 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddMemoryModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-lg hover:bg-stone-200"
+                  className="px-4 py-2 text-xs font-semibold text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-white/5 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-200 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 rounded-lg hover:brightness-105 transition-all shadow-md shadow-orange-500/25"
+                  className="px-5 py-2 text-xs font-bold rounded-xl bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 hover:brightness-110 active:scale-95 transition-all shadow-md cursor-pointer"
                 >
                   {editingMemoryId ? 'Save Changes' : 'Save Travel Memory'}
                 </button>

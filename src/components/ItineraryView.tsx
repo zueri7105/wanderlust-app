@@ -740,7 +740,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
-                {getTranslation('fromDate')} <span className="text-rose-500">*</span>
+                {getTranslation('fromDate')}
               </label>
               <div className="flex min-w-0">
                 <div className={`flex-1 min-w-0 border rounded-2xl bg-stone-50 dark:bg-stone-800 ${dateMissing && !quickStart ? 'border-rose-400 dark:border-rose-500' : 'border-stone-200 dark:border-stone-700'}`}>
@@ -756,7 +756,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
             </div>
             <div className="space-y-1.5 min-w-0">
               <label className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
-                {getTranslation('toDate')} <span className="text-rose-500">*</span>
+                {getTranslation('toDate')}
               </label>
               <div className="flex min-w-0">
                 <div className={`flex-1 min-w-0 border rounded-2xl bg-stone-50 dark:bg-stone-800 ${dateMissing && !quickEnd ? 'border-rose-400 dark:border-rose-500' : 'border-stone-200 dark:border-stone-700'}`}>

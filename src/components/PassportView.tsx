@@ -68,10 +68,12 @@ const scatterRnd = (seed: number) => {
     yet stay stable between renders. */
 const stampScatter = (pageIdx: number): { left: string; top: string }[] => {
   const rnd = scatterRnd(pageIdx + 1);
-  const trackA = 0 + rnd() * 14;  // 0%..14% — stamps may kiss the page edge, like real ink
-  const trackB = 54 + rnd() * 14; // 54%..68% — ≥40% apart = more than one stamp width
-  const inHigh = () => 4 + rnd() * 10;   // 4%..14% — each stamp drawn independently
-  const inLow = () => 54 + rnd() * 14;   // 54%..68% — ≥40% apart = more than one stamp diameter on either axis
+  // Enlarged stamps (w-28/w-36) need ≥46% horizontal and ≥48% vertical
+  // clearance between origins — circles never collide past one diameter.
+  const trackA = rnd() * 10;        // 0%..10%
+  const trackB = 56 + rnd() * 14;   // 56%..70% — ≥46% apart
+  const inHigh = () => 4 + rnd() * 8;   // 4%..12% — each stamp drawn independently
+  const inLow = () => 60 + rnd() * 10;  // 60%..70% — ≥48% apart vertically
   const vertical = rnd() < 0.5;   // columns one page, rows the next
   const slots = [
     { a: trackA, b: inHigh() },
@@ -483,7 +485,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
                       return (
                         <div
                           key={`${st.country}-${st.year}`}
-                          className={`absolute w-24 h-24 sm:w-28 sm:h-28 rounded-full select-none ${STAMP_INKS[(i + p) % STAMP_INKS.length]}`}
+                          className={`absolute w-28 h-28 sm:w-36 sm:h-36 rounded-full select-none ${STAMP_INKS[(i + p) % STAMP_INKS.length]}`}
                           style={{ left: pos.left, top: pos.top, transform: `rotate(${rot}deg)` }}
                           title={`${st.cities.length ? `${st.cities.join(', ')}, ` : ''}${st.country} · ${st.year}`}
                         >
