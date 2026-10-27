@@ -318,7 +318,6 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                       <input
                         type="text"
                         required
-                        placeholder="e.g. Markus Rostova"
                         value={contact.name}
                         onChange={(e) => handleUpdateContactDraft(idx, 'name', e.target.value)}
                         className="w-full px-2.5 py-1.5 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
@@ -333,7 +332,6 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                       <input
                         type="text"
                         list={`rel_list_${idx}`}
-                        placeholder="e.g. Brother, Mother — or leave blank"
                         value={contact.relationship}
                         onChange={(e) => handleUpdateContactDraft(idx, 'relationship', e.target.value)}
                         className="w-full px-2.5 py-1.5 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
@@ -354,7 +352,6 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                         type="text"
                         required
                         list={`dial_list_${idx}`}
-                        placeholder="+49 or Germany"
                         value={contact.countryCode}
                         onChange={(e) => {
                           const raw = e.target.value;
@@ -377,7 +374,6 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                       <input
                         type="text"
                         required
-                        placeholder="170 555 4912"
                         value={contact.phone}
                         onChange={(e) => handleUpdateContactDraft(idx, 'phone', e.target.value)}
                         className="w-full px-2.5 py-1.5 border border-stone-300 dark:border-stone-700 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-mono"

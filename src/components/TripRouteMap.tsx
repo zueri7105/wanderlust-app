@@ -319,7 +319,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [legendHidden, setLegendHidden] = useState(false);
   const [labelsHidden, setLabelsHidden] = useState(false);
-  const [localLabels, setLocalLabels] = useState(false);
+  const [englishLabels, setEnglishLabels] = useState(false);
 
   // Re-render whenever a queued online geocode lands, and queue lookups for
   // every stop the local table doesn't know (anchored to this trip's
@@ -477,14 +477,16 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           scrollWheelZoom
           className={isFullscreen ? 'w-full h-full z-0' : 'h-72 sm:h-80 w-full z-0'}
         >
-          {/* Map translation: the local-language map (Wikimedia OSM — labels in
-              the local script: 日本語, 中文, 한국어, кириллица…) so non-Latin
-              destinations stay navigable. Toggle beside Full screen. */}
-          {localLabels ? (
+          {/* Map translation: default OSM shows labels in the local script
+              (日本語, 中文, 한국어…). The toggle swaps to an English-labelled
+              layer (Esri World Street Map — free to use with attribution) so
+              non-Latin destinations stay navigable. */}
+          {englishLabels ? (
             <TileLayer
-              key="map-local"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://wikimediafoundation.org">Wikimedia</a>'
-              url="https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png"
+              key="map-english"
+              attribution='&copy; <a href="https://www.esri.com/">Esri</a> · <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={19}
             />
           ) : (
             <TileLayer
@@ -623,19 +625,20 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
           <span>{isFullscreen ? 'Exit' : 'Full screen'}</span>
         </button>
 
-        {/* Local-language map toggle — swaps labels to the local script */}
+        {/* Translate map toggle — swaps local-script labels to English.
+            Sits right of the zoom control (Leaflet keeps +/- at top-left). */}
         <button
           type="button"
-          onClick={() => setLocalLabels((v) => !v)}
-          title={localLabels ? 'Show standard map' : 'Show map in local language'}
-          className={`absolute top-3 z-[1000] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur border shadow-lg text-[11px] font-bold transition-colors cursor-pointer ${
-            localLabels
-              ? 'left-3 bg-emerald-600 text-white border-emerald-500'
-              : 'left-3 bg-white/95 dark:bg-slate-900/95 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800'
+          onClick={() => setEnglishLabels((v) => !v)}
+          title={englishLabels ? 'Show local-language map' : 'Translate map labels to English'}
+          className={`absolute top-3 left-14 z-[1000] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur border shadow-lg text-[11px] font-bold transition-colors cursor-pointer ${
+            englishLabels
+              ? 'bg-emerald-600 text-white border-emerald-500'
+              : 'bg-white/95 dark:bg-slate-900/95 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800'
           }`}
         >
           <Languages className="w-3.5 h-3.5" />
-          <span>{localLabels ? 'Local map' : 'Translate map'}</span>
+          <span>{englishLabels ? 'Local map' : 'Translate map'}</span>
         </button>
 
         {/* Empty-trip hint floats over the map instead of replacing it */}
