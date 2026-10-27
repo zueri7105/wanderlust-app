@@ -924,7 +924,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
                   <div className="relative">
                     {/* Row 1: the countdown box sits alone — bigger, single row */}
-                    <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl shrink-0 shadow-xs ${
+                    <div className={`flex w-fit items-center gap-2 px-4 py-2.5 rounded-2xl shrink-0 shadow-xs ${
                       cover
                         ? 'bg-white/15 backdrop-blur-sm text-white border border-white/20'
                         : 'bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950'

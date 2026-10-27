@@ -442,7 +442,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
   const [extraStops, setExtraStops] = useState<string[]>([]);
   // Hidden file input ref for photo picking from the device
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [selectedItineraryId, setSelectedItineraryId] = useState('');
   // When set, the modal edits this existing memory instead of creating a new one
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   // Map legend collapsed/expanded
@@ -484,52 +483,7 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     setNewNote(mem.memoryNote);
     setNewTaggedCompanion(mem.companionsTagged.join(', '));
     setNewPhotos(mem.photos.length > 0 ? [...mem.photos] : ['']);
-    setSelectedItineraryId('');
     setIsAddMemoryModalOpen(true);
-  };
-
-  /** Auto-fill the memory from one of my itineraries (journal passage generated from the days). */
-  const generateFromItinerary = (itineraryId: string) => {
-    setSelectedItineraryId(itineraryId);
-    if (!itineraryId) return;
-    const it = itineraries.find((i) => i.id === itineraryId);
-    if (!it) return;
-
-    const city = it.cities?.[0] || it.destination.split(',')[0].trim();
-    const country = it.country || it.destination.split(',').slice(-1)[0].trim();
-    const today = new Date();
-    const start = new Date(it.startDate);
-    const end = new Date(it.endDate);
-    const status: 'Visited' | 'Current Location' | 'Dream Next' =
-      end < today ? 'Visited' : start <= today ? 'Current Location' : 'Dream Next';
-
-    // Confirmed companion buddies headed to the same destination come along automatically
-    const destLow = `${it.destination} ${country} ${city}`.toLowerCase();
-    const buddies = travelers
-      .filter(
-        (t) =>
-          t.isConfirmedBuddy &&
-          t.currentDestination &&
-          destLow.includes(t.currentDestination.split(',')[0].trim().toLowerCase())
-      )
-      .map((t) => t.name);
-
-    const dayLines = it.days.map((d) => {
-      const parts = [d.morningActivity, d.afternoonActivity, d.eveningActivity].filter(Boolean);
-      return `Day ${d.dayNumber}${d.title ? ` — ${d.title}` : ''}: ${parts.join(' · ')}`;
-    });
-
-    setNewCity(city);
-    setNewCountry(country);
-    setNewStatus(status);
-    setNewDate(start.toLocaleString('default', { month: 'long', year: 'numeric' }));
-    setNewNote(
-      `My ${it.days.length}-day ${it.tripScope || 'trip'} in ${it.destination}. ` +
-        (buddies.length > 0 ? `Traveled together with ${buddies.join(' & ')}. ` : 'Traveled solo. ') +
-        (it.notes ? `${it.notes} ` : '') +
-        `\n\n${dayLines.join('\n')}`
-    );
-    setNewTaggedCompanion(buddies.join(', '));
   };
 
   const removeTaggedName = (name: string) => {
@@ -717,7 +671,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
     setNewTaggedCompanion('');
     setNewPhotos(['']);
     setExtraStops([]);
-    setSelectedItineraryId('');
   };
 
   const handleDeleteMemory = (id: string) => {
@@ -1300,7 +1253,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
               setNewTaggedCompanion('');
               setNewPhotos(['']);
               setExtraStops([]);
-              setSelectedItineraryId('');
               setIsAddMemoryModalOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-stone-950 dark:bg-violet-400 text-violet-300 dark:text-stone-950 rounded-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg self-start"
@@ -1628,27 +1580,6 @@ export const TravelMapMemoriesView: React.FC<TravelMapMemoriesViewProps> = ({
             </div>
 
             <form onSubmit={handleCreateMemory} className="mt-4 space-y-3.5 text-xs">
-              {/* Generate journal from one of my itineraries */}
-              {itineraries.length > 0 && !editingMemoryId && (
-                <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/70 dark:border-stone-700">
-                  <label className="block font-semibold text-rose-800 dark:text-rose-300 mb-1.5">
-                    Generate from my itinerary (optional)
-                  </label>
-                  <select
-                    value={selectedItineraryId}
-                    onChange={(e) => generateFromItinerary(e.target.value)}
-                    className="w-full px-3 py-2 border border-rose-200 dark:border-rose-900 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100"
-                  >
-                    <option value="">— Fill in manually instead —</option>
-                    {itineraries.map((it) => (
-                      <option key={it.id} value={it.id}>
-                        {it.destination} · {it.startDate} → {it.endDate} ({it.days.length} days)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">

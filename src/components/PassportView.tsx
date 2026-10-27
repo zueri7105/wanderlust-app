@@ -46,24 +46,43 @@ interface StampEntry {
 
 const STAMPS_PER_PAGE = 4;
 
-/** Scatter four stamps across the page like real passport ink — anywhere in
-    the space, never overlapping. Deterministic per (page, slot) so the layout
-    is stable between renders, with a minimum gap between stamps. */
+/** Deterministic PRNG (Park–Miller) so each page gets a stable but organic scatter. */
+const scatterRnd = (seed: number) => {
+  let s = (seed * 2654435761) % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+};
+
+/** Scatter four stamps like real passport ink — freely misaligned, never a
+    tidy 2×2 grid, guaranteed non-overlapping at any phone viewport. Stamps
+    are circles, so rotation can't make them collide; two stamps only overlap
+    if they are closer than one stamp diameter on BOTH axes. Each page picks
+    a column-ish or row-ish layout at random: stamps sit on two far-apart
+    tracks (≥42% apart — more than one stamp width even on the smallest
+    phone), with one stamp in the upper band and one in the lower band per
+    track (≥35% apart vertically — more than one stamp height). Within those
+    tracks every position is free random, so pages look organically different
+    yet stay stable between renders. */
 const stampScatter = (pageIdx: number): { left: string; top: string }[] => {
-  // A hand-tuned spread of four slots (percentages) that fills the page
-  // without crowding; page rotation nudges each slot for variety.
-  const base = [
-    { left: 10, top: 8 },
-    { left: 58, top: 6 },
-    { left: 12, top: 55 },
-    { left: 56, top: 54 }
+  const rnd = scatterRnd(pageIdx + 1);
+  const trackA = 0 + rnd() * 14;  // 0%..14% — stamps may kiss the page edge, like real ink
+  const trackB = 54 + rnd() * 14; // 54%..68% — ≥40% apart = more than one stamp width
+  const inHigh = () => 4 + rnd() * 10;   // 4%..14% — each stamp drawn independently
+  const inLow = () => 54 + rnd() * 14;   // 54%..68% — ≥40% apart = more than one stamp diameter on either axis
+  const vertical = rnd() < 0.5;   // columns one page, rows the next
+  const slots = [
+    { a: trackA, b: inHigh() },
+    { a: trackB, b: inHigh() },
+    { a: trackA, b: inLow() },
+    { a: trackB, b: inLow() }
   ];
-  return base.map((b, i) => {
-    const rot = ((pageIdx * 31 + i * 47) % 7) - 3; // -3..+3 % nudge
-    return {
-      left: `${Math.min(60, Math.max(6, b.left + rot))}%`,
-      top: `${Math.min(58, Math.max(6, b.top - rot))}%`
-    };
+  return slots.map(({ a, b }) => {
+    const left = vertical ? a : b;
+    const top = vertical ? b : a;
+    return { left: `${left.toFixed(1)}%`, top: `${top.toFixed(1)}%` };
   });
 };
 
@@ -459,7 +478,7 @@ export const PassportView: React.FC<PassportViewProps> = ({
                 ) : (
                   <div className="relative" style={{ minHeight: '21rem' }}>
                     {stampPages[p - 1].map((st, i) => {
-                      const rot = ((i * 47 + p * 13) % 13) - 6;
+                      const rot = ((i * 47 + p * 13) % 19) - 9;
                       const pos = stampScatter(p)[i] ?? { left: '12%', top: '16%' };
                       return (
                         <div
