@@ -15,7 +15,7 @@
 
 import { findPlaceGeo, type PlaceGeo } from './placeGeo';
 
-const CACHE_KEY = 'wl_geocode_cache_v2';
+const CACHE_KEY = 'wl_geocode_cache_v5';
 const NEGATIVE_TTL_MS = 24 * 60 * 60 * 1000; // retry misses after a day
 
 interface CacheEntry {
@@ -344,6 +344,51 @@ export const isAddressQuery = (task: string): boolean => {
   return false;
 };
 
+/** Named facilities must not be resolved through a city/region gazetteer. */
+const FACILITY_RE = /\b(airport|aeropuerto|aeroport|aeroporto|flughafen|aerodrom|airfield|terminal|bus station|bus stop|autobus(?:es)?|autocar(?:es)?|estaci[oó]n|gare|bahnhof|railway station|train station|hotel|hostel|resort|museum|hospital|university|restaurant|cafe|caf[eé]|stadium|theatre|theater|palace|castle|cathedral|church|temple|monastery|port|harbour|harbor|marina)\b/i;
+const isSpecificFacility = (task: string) => FACILITY_RE.test(task);
+const validCoords = (lat: number, lng: number) => Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+const distanceKm = (a: {lat:number; lng:number}, b: {lat:number; lng:number}) => {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat-a.lat)*rad, dLng = (b.lng-a.lng)*rad;
+  const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLng/2)**2;
+  return 12742*Math.asin(Math.min(1,Math.sqrt(h)));
+};
+const words = (s: string) => norm(s).replace(/[^a-z0-9]+/g,' ').split(' ').filter(Boolean);
+const STOP_WORDS = new Set(['the','de','del','la','el','of','in','at','and','a','an']);
+const similarity = (q: string, name: string) => {
+  const a = words(q).filter(w=>!STOP_WORDS.has(w));
+  const b = new Set(words(name).filter(w=>!STOP_WORDS.has(w)));
+  return a.length ? a.filter(w=>b.has(w)).length/a.length : 0;
+};
+const categoryMatches = (q: string, type: string) => {
+  const t = norm(type);
+  if (/airport|aeropuerto|aeroport|aeroporto|flughafen/.test(q)) return /airport|aerodrome|terminal/.test(t);
+  if (/bus station|autobus|autocar/.test(q)) return /bus_station|bus_stop|bus|station|terminal|transportation/.test(t);
+  if (/train station|railway station|bahnhof|gare/.test(q)) return /station|railway|train|halt/.test(t);
+  if (/hotel|hostel|resort/.test(q)) return /hotel|hostel|guest_house|resort|motel/.test(t);
+  return true;
+};
+const rankPlaceHits = (hits: GeocodeCandidate[], query: string, context: string, strict: boolean) => {
+  const q = cleanPlaceQuery(query);
+  const specific = isSpecificFacility(q);
+  const center = context ? findPlaceGeo(context) || lookupWorldGeoSync(context, iso2FromContext(context)) : null;
+  return hits.filter(c => validCoords(c.lat,c.lng))
+    .filter(c => !strict || !(isCoarse(c) || isCoarsePhoton(c)))
+    .filter(c => !specific || (!(isCoarse(c) || isCoarsePhoton(c)) && categoryMatches(q,c.type || '')))
+    .map(c => {
+      const name = c.name || c.display.split(',')[0];
+      const sim = similarity(q,name);
+      const near = center ? distanceKm(center,c) : null;
+      const maxKm = /airport|aeropuerto|aeroport|aeroporto|flughafen/i.test(q) ? 120 : 65;
+      const geoPenalty = near != null && near > maxKm ? 5 : 0;
+      return {c, sim, score: sim*10 + (norm(q)===norm(name)?6:0) - geoPenalty};
+    })
+    .filter(x => !specific || x.sim >= 0.45)
+    .sort((a,b)=>b.score-a.score)
+    .map(x=>x.c);
+};
+
 export const geoForTask = (task: string, context = ''): PlaceGeo | null => {
   const coords = task.match(COORDS_RE);
   if (coords) {
@@ -363,13 +408,13 @@ export const geoForTask = (task: string, context = ''): PlaceGeo | null => {
   if (local) return local;
   // World gazetteer (when loaded): any city/region on Earth, constrained to
   // the trip's country so same-name cities can't cross borders.
-  const world = lookupWorldGeoSync(cleanPlaceQuery(task), iso2FromContext(context));
+  const world = isSpecificFacility(task) ? null : lookupWorldGeoSync(cleanPlaceQuery(task), iso2FromContext(context));
   if (world) return { lat: world.lat, lng: world.lng, name: world.name };
   // Unconstrained worldwide retry: an activity may be anywhere on Earth
   // ("Pemba, Mozambique" on a Comoros trip). Only accept the retry when the
   // task itself names a country/region — a bare same-name city must stay
   // anchored so "Paris" on a France trip never jumps to Texas.
-  const worldWide = lookupWorldGeoSync(task) || lookupWorldGeoSync(cleanPlaceQuery(task));
+  const worldWide = isSpecificFacility(task) ? null : (lookupWorldGeoSync(task) || lookupWorldGeoSync(cleanPlaceQuery(task)));
   if (worldWide && /,/.test(task)) {
     return { lat: worldWide.lat, lng: worldWide.lng, name: worldWide.name };
   }
@@ -407,7 +452,7 @@ const notify = () => listeners.forEach((fn) => fn());
  *  `exact` = street address / postcode query: only building-level matches. */
 const fetchNominatim = async (q: string, iso: string | null, exact: boolean): Promise<CacheEntry | 'miss' | null> => {
   try {
-    let url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q=${encodeURIComponent(q)}`;
+    let url = `https://nominatim.openstreetmap.org/search?format=json&limit=8&addressdetails=1&q=${encodeURIComponent(q)}`;
     if (iso) url += `&countrycodes=${iso.toLowerCase()}`;
     if (exact) {
       // Prefer building / street / amenity level matches over a whole city,
@@ -421,14 +466,13 @@ const fetchNominatim = async (q: string, iso: string | null, exact: boolean): Pr
     const arr = Array.isArray(json) ? json : [];
     // Exact queries reject city/region/country-scale matches — the user
     // asked for a street address, so only building-level hits count.
-    const usable = exact
-      ? arr.find((r) => r?.lat != null && r?.lon != null && !/^city|region|state|country$/.test(r?.type || ''))
-      : arr.find((r) => r?.lat != null && r?.lon != null);
+    const candidates = shapeHits(arr);
+    const usable = rankPlaceHits(candidates, q, '', exact)[0];
     if (!usable) return 'miss';
     return {
-      lat: Number(usable.lat),
-      lng: Number(usable.lon),
-      name: String(usable.display_name || q).split(',')[0],
+      lat: usable.lat,
+      lng: usable.lng,
+      name: usable.name || usable.display.split(',')[0] || q,
       t: Date.now()
     };
   } catch {
@@ -628,14 +672,14 @@ export const searchPlaceSuggestions = async (
   const full = q.includes(',') || !context ? q : `${q}, ${context}`;
   try {
     const p = await photonSearch(full, iso, bias);
-    const ranked = rankCandidates(p, false);
+    const ranked = rankPlaceHits(p, q, context, false);
     if (ranked.length > 0) return ranked.slice(0, limit);
   } catch {
     /* Photon unreachable — try Nominatim */
   }
   try {
     const n = shapeHits(await nominatimSearch(full, iso));
-    return rankCandidates(n, false).slice(0, limit);
+    return rankPlaceHits(n, q, context, false).slice(0, limit);
   } catch {
     return [];
   }
@@ -662,7 +706,9 @@ export const geocodeAddress = async (
   try {
     const candidates = await searchAddresses(full, iso, strict, bias);
     if (candidates.length === 0) return 'miss';
-    return { best: candidates[0], candidates: candidates.slice(0, 5) };
+    const ranked = rankPlaceHits(candidates, q, context, strict);
+    if (!ranked.length) return 'miss';
+    return { best: ranked[0], candidates: ranked.slice(0, 5) };
   } catch {
     return null;
   }

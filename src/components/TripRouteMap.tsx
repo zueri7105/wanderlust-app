@@ -56,7 +56,7 @@ export const stopsForDay = (day: ItineraryDay, context = ''): RouteStop[] => {
       // A typed pinpoint (address / street / postcode / coords) outranks the
       // guessed geocode of the stop's name.
       const override = day.locationOverrides?.[task]?.trim();
-      const geo = (override ? geoForTask(override, context) : null) || geoForTask(task, context);
+      const geo = override ? geoForTask(override, context) : geoForTask(task, context);
       if (geo) {
         order += 1;
         stops.push({ label: task, lat: geo.lat, lng: geo.lng, slot, order });
@@ -335,7 +335,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
         splitTasks(d[key]).forEach((task) => {
           const override = d.locationOverrides?.[task]?.trim();
           if (override) {
-            if (!geoForTask(override, geoContext)) requestGeocode(override, geoContext);
+            if (!geoForTask(override, geoContext)) requestGeocode(override, geoContext, true);
           } else if (!geoForTask(task, geoContext)) requestGeocode(task, geoContext);
         });
       });
