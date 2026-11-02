@@ -16,7 +16,7 @@ import {
   legOperatorFor,
   type TravelMode
 } from '../utils/placeGeo';
-import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, iso2ForCountry } from '../utils/geocode';
+import { geoForTask, geoForPinnedTask, requestGeocode, onGeocodeResolved, tripGeoContext, iso2ForCountry } from '../utils/geocode';
 import { haversineKm } from '../utils/units';
 import { getTranslation, tv } from '../utils/i18n';
 import { COUNTRY_INFO_NAMES } from '../utils/countryInfo';
@@ -24,6 +24,8 @@ import COUNTRIES_GEO from '../data/countriesGeo';
 
 export interface RouteStop {
   label: string;
+  pinnedLocation?: string;
+  pinnedType?: string;
   lat: number;
   lng: number;
   slot: 'morning' | 'afternoon' | 'evening';
@@ -56,10 +58,11 @@ export const stopsForDay = (day: ItineraryDay, context = ''): RouteStop[] => {
       // A typed pinpoint (address / street / postcode / coords) outranks the
       // guessed geocode of the stop's name.
       const override = day.locationOverrides?.[task]?.trim();
-      const geo = override ? geoForTask(override, context) : geoForTask(task, context);
+      const explicitPin = day.locationPins?.[task];
+      const geo = explicitPin && Number.isFinite(explicitPin.lat) && Number.isFinite(explicitPin.lng) ? explicitPin : override ? geoForPinnedTask(override, context) : geoForTask(task, context);
       if (geo) {
         order += 1;
-        stops.push({ label: task, lat: geo.lat, lng: geo.lng, slot, order });
+        stops.push({ label: task, pinnedLocation: override || undefined, pinnedType: explicitPin?.type, lat: geo.lat, lng: geo.lng, slot, order });
       }
     });
   });
@@ -334,8 +337,9 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
       SLOT_KEYS.forEach(({ key }) => {
         splitTasks(d[key]).forEach((task) => {
           const override = d.locationOverrides?.[task]?.trim();
+          if (d.locationPins?.[task]) return; // Persisted exact pin: never re-geocode its label.
           if (override) {
-            if (!geoForTask(override, geoContext)) requestGeocode(override, geoContext, true);
+            if (!geoForPinnedTask(override, geoContext)) requestGeocode(override, geoContext, true);
           } else if (!geoForTask(task, geoContext)) requestGeocode(task, geoContext);
         });
       });
@@ -424,7 +428,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
     const road = measuredKm ?? km;
     const saved = day.legModes?.[legKey(from, to)] as TravelMode | undefined;
     if (saved && LEG_MODES.some((m) => m.mode === saved)) return { mode: saved, km: road, measured: measuredKm != null };
-    if (isAirportLeg(from.label, to.label)) return { mode: 'flight', km: road, measured: measuredKm != null };
+    if ((/airport|aerodrome/i.test(from.pinnedType || '') && /airport|aerodrome/i.test(to.pinnedType || '')) || isAirportLeg(from.pinnedLocation || from.label, to.pinnedLocation || to.label)) return { mode: 'flight', km: road, measured: measuredKm != null };
     const guessed = estimateLeg(km, measuredKm).mode;
     if (guessed !== 'flight' && km > 25 && crossesOcean([from.lat, from.lng], [to.lat, to.lng])) {
       return { mode: 'ferry', km: road, measured: measuredKm != null };

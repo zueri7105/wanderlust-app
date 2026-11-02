@@ -227,16 +227,6 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
           Safety
         </div>
         <div className="flex items-center gap-2">
-          {onOpenAccount && (
-            <button
-              type="button"
-              onClick={onOpenAccount}
-              className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors cursor-pointer"
-              title={getTranslation('acctTitle')}
-            >
-              <UserRound className="w-4 h-4" />
-            </button>
-          )}
           {onOpenSettings && (
             <button
               type="button"
