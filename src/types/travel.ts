@@ -148,6 +148,9 @@ export interface ItineraryDay {
   /** Per-stop pinpoint override: stop label → the address / street / postal
       code / coordinates the traveller typed for a more accurate map pin */
   locationOverrides?: Record<string, string>;
+  /** Exact user-selected places, saved with the itinerary (not browser-local cache). */
+  locationPins?: Record<string, { lat: number; lng: number; name: string; providerId?: string; type?: string }>;
+
 }
 
 export interface CityWeatherOutlook {

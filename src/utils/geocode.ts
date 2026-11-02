@@ -15,7 +15,7 @@
 
 import { findPlaceGeo, type PlaceGeo } from './placeGeo';
 
-const CACHE_KEY = 'wl_geocode_cache_v5';
+const CACHE_KEY = 'wl_geocode_cache_v7';
 const NEGATIVE_TTL_MS = 24 * 60 * 60 * 1000; // retry misses after a day
 
 interface CacheEntry {
@@ -381,7 +381,7 @@ const rankPlaceHits = (hits: GeocodeCandidate[], query: string, context: string,
       const sim = similarity(q,name);
       const near = center ? distanceKm(center,c) : null;
       const maxKm = /airport|aeropuerto|aeroport|aeroporto|flughafen/i.test(q) ? 120 : 65;
-      const geoPenalty = near != null && near > maxKm ? 5 : 0;
+      const geoPenalty = near != null && near > maxKm && !/,/.test(q) ? Math.min(4, Math.log2(near / maxKm + 1) * 1.5) : 0;
       return {c, sim, score: sim*10 + (norm(q)===norm(name)?6:0) - geoPenalty};
     })
     .filter(x => !specific || x.sim >= 0.45)
@@ -404,7 +404,7 @@ export const geoForTask = (task: string, context = ''): PlaceGeo | null => {
       ? { lat: hit.lat, lng: hit.lng, name: hit.name || task.trim() }
       : null;
   }
-  const local = findPlaceGeo(task) || findPlaceGeo(cleanPlaceQuery(task));
+  const local = isSpecificFacility(task) ? null : (findPlaceGeo(task) || findPlaceGeo(cleanPlaceQuery(task)));
   if (local) return local;
   // World gazetteer (when loaded): any city/region on Earth, constrained to
   // the trip's country so same-name cities can't cross borders.
@@ -423,6 +423,15 @@ export const geoForTask = (task: string, context = ''): PlaceGeo | null => {
     return { lat: hit.lat, lng: hit.lng, name: hit.name || task };
   }
   return null;
+};
+
+/** User-selected location pins are authoritative, even if a city has the same name. */
+export const geoForPinnedTask = (task: string, context = ''): PlaceGeo | null => {
+  const hit = loadCache()[cacheKey(task, context)];
+  if (hit && !hit.fail && hit.lat != null && hit.lng != null && validCoords(hit.lat, hit.lng)) {
+    return { lat: hit.lat, lng: hit.lng, name: hit.name || task };
+  }
+  return geoForTask(task, context);
 };
 
 interface QueueItem {
@@ -490,7 +499,7 @@ const drain = (): Promise<void> => {
       const cleaned = cleanPlaceQuery(task);
       // Address-level queries: send verbatim with postcode + country hints
       // so Nominatim resolves the exact building, not the nearest city.
-      const anchored = exact
+      const anchored = exact || isSpecificFacility(task)
         ? cleaned
         : task.includes(',') || !context
         ? cleaned
@@ -499,9 +508,9 @@ const drain = (): Promise<void> => {
       // Second chance: the destination anchor sometimes confuses the geocoder
       // (e.g. region vs city) — retry the cleaned place name on its own,
       // still pinned to the trip country.
-      if (result === 'miss' && !exact && anchored !== cleaned) {
+      if (result === 'miss' && anchored !== cleaned) {
         await new Promise((r) => setTimeout(r, 1100));
-        result = await fetchNominatim(cleaned, iso, false);
+        result = await fetchNominatim(cleaned, null, exact);
       }
       if (result) {
         loadCache()[key] = result === 'miss' ? { fail: true, t: Date.now() } : result;
@@ -524,7 +533,7 @@ const drain = (): Promise<void> => {
 export const requestGeocode = (task: string, context = '', exact = false): void => {
   if (!task.trim()) return;
   const isExact = exact || isAddressQuery(task);
-  if (!isExact && (findPlaceGeo(task) || findPlaceGeo(cleanPlaceQuery(task)))) return; // local table knows it
+  if (!isExact && !isSpecificFacility(task) && (findPlaceGeo(task) || findPlaceGeo(cleanPlaceQuery(task)))) return; // local table knows it
   const key = cacheKey(task, context);
   const hit = loadCache()[key];
   if (hit) {
@@ -533,7 +542,7 @@ export const requestGeocode = (task: string, context = '', exact = false): void 
   }
   if (queuedKeys.has(key)) return;
   queuedKeys.add(key);
-  queue.push({ task, context, iso: iso2FromContext(context), exact: isExact });
+  queue.push({ task, context, iso: null, exact: isExact || isSpecificFacility(task) });
   void drain();
 };
 
@@ -558,6 +567,7 @@ export interface GeocodeCandidate {
   name?: string;
   /** Street address when known ("221B Baker Street") — name's fallback. */
   address?: string;
+  providerId?: string;
 }
 
 /** JSON from a search endpoint that answers {lat, lng, display}. */
@@ -566,6 +576,8 @@ interface RawSearchHit {
   lon: number | null;
   display_name?: string;
   type?: string;
+  osm_id?: number;
+  osm_type?: string;
 }
 
 /** Building-level (street/amenity/house) results only — never city centroids. */
@@ -575,13 +587,14 @@ const FINE_TYPES = new Set([
   'living_street', 'pedestrian', 'service', 'track', 'path',
   'yes', // Nominatim building=yes is a real address
   'museum', 'attraction', 'tourism', 'hotel', 'restaurant', 'cafe', 'shop',
-  'amenity', 'place_of_worship', 'church', 'temple', 'stadium', 'theatre'
+  'amenity', 'place_of_worship', 'church', 'temple', 'stadium', 'theatre',
+  'aerodrome', 'airport', 'bus_station', 'bus_stop', 'station', 'railway'
 ]);
 
 const shapeHits = (arr: RawSearchHit[]): GeocodeCandidate[] =>
   arr
     .filter((r) => r?.lat != null && r?.lon != null)
-    .map((r) => ({ lat: Number(r.lat), lng: Number(r.lon), display: String(r.display_name || ''), type: r.type || '' }))
+    .map((r) => ({ lat: Number(r.lat), lng: Number(r.lon), display: String(r.display_name || ''), type: r.type || '', providerId: r.osm_id ? `osm:${r.osm_type || ''}:${r.osm_id}` : undefined }))
     .filter((c) => c.display);
 
 /** Photon (OSM-based): primary address geocoder — fast, autocomplete-friendly. */
@@ -604,7 +617,7 @@ const photonSearch = async (q: string, iso: string | null, bias: [number, number
         .filter(Boolean).join(', ');
       const name = p.name ? String(p.name) : '';
       const address = [p.housenumber, p.street].filter(Boolean).join(' ');
-      return { lat: Number(lat), lng: Number(lng), display: parts || name || address, type, name, address };
+      return { lat: Number(lat), lng: Number(lng), display: parts || name || address, type, name, address, providerId: p.osm_id ? `osm:${p.osm_type || ''}:${p.osm_id}` : undefined };
     })
     .filter((c: GeocodeCandidate) => c.lat != null && c.lng != null && c.display);
 };
@@ -636,29 +649,21 @@ const rankCandidates = (arr: GeocodeCandidate[], strict: boolean): GeocodeCandid
   return fine.length > 0 ? fine : arr;
 };
 
-/** Prefer building/street hits; returns candidates or [] when nothing usable. */
-const searchAddresses = async (
-  q: string,
-  iso: string | null,
-  strict: boolean,
-  bias: [number, number] | null
-): Promise<GeocodeCandidate[]> => {
-  try {
-    const p = await photonSearch(q, iso, bias);
-    const ranked = rankCandidates(p, strict);
-    if (ranked.length > 0) return ranked;
-  } catch {
-    /* Photon unreachable — try Nominatim */
-  }
-  try {
-    const n = shapeHits(await nominatimSearch(q, iso));
-    return rankCandidates(n, strict);
-  } catch {
-    return [];
-  }
+/** Merge independently returned candidates, deduplicate by OSM identity or coordinates,
+ * and rank all of them together. No provider's first result is automatically trusted. */
+const mergeCandidates = (groups: GeocodeCandidate[][]): GeocodeCandidate[] => {
+  const seen = new Set<string>();
+  return groups.flat().filter(c => {
+    if (!validCoords(c.lat, c.lng)) return false;
+    const key = c.providerId || `${c.lat.toFixed(5)}:${c.lng.toFixed(5)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };
 
-/** Live place suggestions while typing — used by the day-activity name fields. */
+/** Autocomplete uses Photon only: public Nominatim explicitly disallows
+ * autocomplete-style usage. Nominatim is reserved for deliberate pin resolution. */
 export const searchPlaceSuggestions = async (
   query: string,
   context = '',
@@ -666,23 +671,35 @@ export const searchPlaceSuggestions = async (
 ): Promise<GeocodeCandidate[]> => {
   const q = (query || '').trim();
   if (q.length < 3) return [];
-  const iso = iso2FromContext(context);
   const ctxGeo = geoForTask(context, '');
   const bias: [number, number] | null = ctxGeo ? [ctxGeo.lat, ctxGeo.lng] : null;
-  const full = q.includes(',') || !context ? q : `${q}, ${context}`;
   try {
-    const p = await photonSearch(full, iso, bias);
-    const ranked = rankPlaceHits(p, q, context, false);
-    if (ranked.length > 0) return ranked.slice(0, limit);
-  } catch {
-    /* Photon unreachable — try Nominatim */
-  }
-  try {
-    const n = shapeHits(await nominatimSearch(full, iso));
-    return rankPlaceHits(n, q, context, false).slice(0, limit);
-  } catch {
-    return [];
-  }
+    // Two global searches: a contextual bias is only a hint, never a country filter.
+    const [near, global] = await Promise.allSettled([
+      photonSearch(q, null, bias),
+      bias ? photonSearch(q, null, null) : Promise.resolve([] as GeocodeCandidate[])
+    ]);
+    const merged = mergeCandidates([
+      near.status === 'fulfilled' ? near.value : [],
+      global.status === 'fulfilled' ? global.value : []
+    ]);
+    return rankPlaceHits(merged, q, context, false).slice(0, limit);
+  } catch { return []; }
+};
+
+/** Deliberate pinpoint lookup, with independent candidates from two providers. */
+const searchAddresses = async (
+  q: string, strict: boolean, bias: [number, number] | null
+): Promise<GeocodeCandidate[]> => {
+  const [p, n] = await Promise.allSettled([
+    photonSearch(q, null, bias), nominatimSearch(q, null)
+  ]);
+  const merged = mergeCandidates([
+    p.status === 'fulfilled' ? p.value : [],
+    n.status === 'fulfilled' ? shapeHits(n.value) : []
+  ]);
+  const fine = merged.filter(c => !(isCoarse(c) || isCoarsePhoton(c)));
+  return strict ? fine : merged;
 };
 
 /**
@@ -696,15 +713,14 @@ export const geocodeAddress = async (
 ): Promise<{ best: GeocodeCandidate | null; candidates: GeocodeCandidate[] } | 'miss' | null> => {
   const q = (query || '').trim();
   if (!q) return 'miss';
-  const iso = iso2FromContext(context);
   // Addresses go verbatim; plain place names get the trip context appended.
-  const full = isAddressQuery(q) || q.includes(',') || !context ? q : `${q}, ${context}`;
+  const full = q;
   const strict = isAddressQuery(q); // typed an address: building-level only
   // Bias to the trip's own location (city/destination) for a tighter match.
   const ctxGeo = geoForTask(context, '');
   const bias: [number, number] | null = ctxGeo ? [ctxGeo.lat, ctxGeo.lng] : null;
   try {
-    const candidates = await searchAddresses(full, iso, strict, bias);
+    const candidates = await searchAddresses(full, strict, bias);
     if (candidates.length === 0) return 'miss';
     const ranked = rankPlaceHits(candidates, q, context, strict);
     if (!ranked.length) return 'miss';

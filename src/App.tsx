@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CloudGate } from './components/CloudGate';
 import {
   SoloTraveler,
   TravelTrip,
@@ -43,7 +44,7 @@ import { getAppSettings } from './utils/settings';
 import { upsertMemoryFromItinerary, removeMemoryForItinerary } from './utils/journalSync';
 import { BellRing, X } from 'lucide-react';
 
-export default function App() {
+function WanderLustApp() {
   // Crash-test hook (harmless): ?__crash_test=1 throws during render so the
   // error boundary's recovery screen can be verified end-to-end.
   if (new URLSearchParams(window.location.search).has('__crash_test')) {
@@ -884,5 +885,14 @@ export default function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// Mount the application only after Supabase has restored the account data.
+export default function App() {
+  return (
+    <CloudGate>
+      <WanderLustApp />
+    </CloudGate>
   );
 }

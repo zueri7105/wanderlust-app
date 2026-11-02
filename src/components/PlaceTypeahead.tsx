@@ -14,7 +14,7 @@ interface PlaceTypeaheadProps {
   /** Classes for the outer wrapper (flex-1 etc. when the box sits in a row). */
   wrapperClassName?: string;
   autoFocus?: boolean;
-  /** When set (exact country name), suggestions are cities of that country only. */
+  /** When set (exact country name), Retained for compatibility; never restricts worldwide suggestions. */
   countryFilter?: string;
 }
 
@@ -42,7 +42,7 @@ export const PlaceTypeahead: React.FC<PlaceTypeaheadProps> = ({
   className,
   wrapperClassName,
   autoFocus,
-  countryFilter
+  countryFilter: _countryFilter
 }) => {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<WorldGeoHit[]>([]);
@@ -76,13 +76,13 @@ export const PlaceTypeahead: React.FC<PlaceTypeaheadProps> = ({
       return;
     }
     debounceRef.current = window.setTimeout(() => {
-      const hits = searchPlaces(q, 8, countryFilter);
+      const hits = searchPlaces(q, 12);
       setItems(hits);
       setActive(-1);
       setOpen(hits.length > 0);
     }, 160);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, readyTick, countryFilter]);
+  }, [value, readyTick]);
 
   const pick = (hit: WorldGeoHit) => {
     skipNextSearch.current = true;
@@ -130,7 +130,7 @@ export const PlaceTypeahead: React.FC<PlaceTypeaheadProps> = ({
         aria-autocomplete="list"
       />
       {open && items.length > 0 && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-[9999] max-h-72 overflow-y-auto overscroll-contain rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-2xl">
           {items.map((hit, i) => (
             <button
               key={`${hit.kind}|${hit.name}|${hit.cc}|${i}`}

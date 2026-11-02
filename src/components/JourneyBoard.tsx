@@ -52,7 +52,7 @@ import {
   legOperatorFor,
   TravelMode
 } from '../utils/placeGeo';
-import { geoForTask, requestGeocode, onGeocodeResolved, tripGeoContext, isAddressQuery, geocodeAddress, storeGeocode, searchPlaceSuggestions, GeocodeCandidate } from '../utils/geocode';
+import { geoForTask, geoForPinnedTask, requestGeocode, onGeocodeResolved, tripGeoContext, isAddressQuery, geocodeAddress, storeGeocode, searchPlaceSuggestions, GeocodeCandidate } from '../utils/geocode';
 import { haversineKm } from '../utils/units';
 import { activityImageUrl } from '../utils/activityImages';
 import { getTranslation, tv } from '../utils/i18n';
@@ -528,7 +528,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     }
     setNameSuggest((st) => ({ ...st, searching: true }));
     nameSuggestTimer.current = window.setTimeout(() => {
-      void searchPlaceSuggestions(v, geoContext, 8).then((items) => {
+      void searchPlaceSuggestions(v, geoContext, 12).then((items) => {
         setNameSuggest((st) =>
           st.key === key && st.q.trim() === v ? { ...st, items, searching: false } : st
         );
@@ -548,7 +548,8 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     storeGeocode(c.display, geoContext, c.lat, c.lng);
     storeGeocode(pin, geoContext, c.lat, c.lng);
     updateDay(dayNumber, {
-      locationOverrides: { ...locationOverridesFor(dayNumber), [pin]: pin }
+      locationOverrides: { ...locationOverridesFor(dayNumber), [pin]: pin },
+      locationPins: { ...(itinerary.days.find(d => d.dayNumber === dayNumber)?.locationPins || {}), [pin]: { lat: c.lat, lng: c.lng, name: pin, providerId: c.providerId, type: c.type } }
     });
   };
 
@@ -563,7 +564,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     }
     setLocSuggest((st) => ({ ...st, label, q: v, searching: true }));
     pinSuggestTimer.current = window.setTimeout(() => {
-      void searchPlaceSuggestions(v, geoContext, 6).then((items) => {
+      void searchPlaceSuggestions(v, geoContext, 12).then((items) => {
         setLocSuggest((st) =>
           st.label === label && st.q.trim() === v
             ? { ...st, candidates: items, best: items[0] ?? null, searching: false, open: true }
@@ -699,7 +700,14 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
         delete locPatch[oldLabel];
       }
     }
+    // Keep explicit coordinates attached to the activity when it is renamed.
+    const pins = { ...(d.locationPins || {}) };
+    if (oldLabel in pins) {
+      if (v) pins[v] = pins[oldLabel];
+      delete pins[oldLabel];
+    }
     updateDay(d.dayNumber, {
+      locationPins: pins,
       morningActivity: slots[0].join(' · '),
       afternoonActivity: slots[1].join(' · '),
       eveningActivity: slots[2].join(' · '),
@@ -711,7 +719,11 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
 
   /** Pinpoint override for one stop — address / street / postcode / coords. */
   const setStopLocation = (d: ItineraryDay, label: string, loc: string) =>
-    updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: loc } });
+    updateDay(d.dayNumber, {
+      locationOverrides: { ...(d.locationOverrides || {}), [label]: loc },
+      // Editing the text invalidates an earlier explicit pin until a new place is chosen.
+      locationPins: Object.fromEntries(Object.entries(d.locationPins || {}).filter(([key]) => key !== label))
+    });
 
   /* ── Exact pin resolution: a typed address is looked up live (building
      level, not city centroid), candidates drop down to pick from, and the
@@ -728,8 +740,9 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
 
   /** Non-null when the override already resolves to an exact point. */
   const locOverrideGeo = (d: ItineraryDay, label: string) => {
+    if (d.locationPins?.[label]) return d.locationPins[label];
     const v = (d.locationOverrides?.[label] || '').trim();
-    return v ? geoForTask(v, geoContext) : null;
+    return v ? geoForPinnedTask(v, geoContext) : null;
   };
 
   /** Human label for a pinned place: its name, else its address, else —
@@ -749,7 +762,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     storeGeocode(c.display, geoContext, c.lat, c.lng);
     storeGeocode(label, geoContext, c.lat, c.lng);
     storeGeocode(pin, geoContext, c.lat, c.lng);
-    updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: pin } });
+    updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: pin }, locationPins: { ...(d.locationPins || {}), [label]: { lat: c.lat, lng: c.lng, name: pin, providerId: c.providerId, type: c.type } } });
     setLocSuggest((s) => ({ ...s, candidates: [], best: null, searching: false, open: false }));
   };
 
@@ -787,7 +800,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
     storeGeocode(pin, geoContext, c.lat, c.lng);
     const d = itinerary.days.find((x) => x.locationOverrides && label in x.locationOverrides);
     if (d) {
-      updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: pin } });
+      updateDay(d.dayNumber, { locationOverrides: { ...(d.locationOverrides || {}), [label]: pin }, locationPins: { ...(d.locationPins || {}), [label]: { lat: c.lat, lng: c.lng, name: pin, providerId: c.providerId, type: c.type } } });
     }
   };
 
@@ -1277,12 +1290,12 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                     {nameSuggest.key === nameSuggestKey(editDraft.dayNumber, itemIdx) &&
                                       nameSuggest.open &&
                                       (nameSuggest.searching || nameSuggest.items.length > 0) && (
-                                        <div className="absolute left-0 right-0 top-full mt-1 z-40 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
+                                        <div className="absolute left-0 right-0 top-full mt-1 z-[9999] rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
                                           <div className="max-h-44 overflow-y-auto overscroll-contain">
                                             {nameSuggest.searching && nameSuggest.items.length === 0 && (
                                               <div className="px-3 py-2.5 text-[10px] text-stone-400 flex items-center gap-2">
                                                 <span className="w-3 h-3 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
-                                                Searching nearby places…
+                                                Searching worldwide places…
                                               </div>
                                             )}
                                             {nameSuggest.items.map((c, ci) => (
@@ -1641,7 +1654,7 @@ export const JourneyBoard: React.FC<JourneyBoardProps> = ({
                                         )}
                                       </div>
                                       {locSuggest.label === stop.label && locSuggest.open && locSuggest.candidates.length > 0 && (
-                                        <div className="absolute left-4 right-0 top-full mt-0.5 z-30 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
+                                        <div className="absolute left-4 right-0 top-full mt-0.5 z-[9999] max-h-64 overflow-y-auto overscroll-contain rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-slate-900 shadow-2xl">
                                           {locSuggest.candidates.map((c, ci) => (
                                             <button
                                               key={ci}

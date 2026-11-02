@@ -1,3 +1,4 @@
+import { AccountProfileSettings } from './AccountProfileSettings';
 import React, { useState, useEffect, useRef } from 'react';
 import { getTranslation } from '../utils/i18n';
 import {
@@ -144,6 +145,8 @@ export const SettingsView: React.FC<{ userGender?: string; onBack?: () => void }
           </div>
         </div>
       )}
+
+      <AccountProfileSettings />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 1. Theme & Appearance (Bright / Dark Mode) */}
